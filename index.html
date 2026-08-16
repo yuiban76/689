@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="九局下半：一款用每個決策改寫比分的棒球文字遊戲。"
+    />
+    <meta name="theme-color" content="#0c1210" />
+    <title>九局下半｜棒球文字遊戲</title>
+    <link rel="stylesheet" href="./styles.css?v=diamond-fix-2" />
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="./game.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="brand-ball" aria-hidden="true">⚾</div>
+          <div>
+            <p class="eyebrow">BASEBALL TEXT GAME</p>
+            <h1>九局下半</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="live-indicator"><span></span> LIVE FROM TAOYUAN</span>
+          <button class="ghost-button" id="new-game" type="button">重新開打</button>
+        </div>
+      </header>
+
+      <section class="network-card" aria-labelledby="network-title">
+        <div class="network-copy">
+          <div class="network-title-row">
+            <p class="eyebrow">ONLINE CO-OP</p>
+            <span class="network-badge" id="connection-badge"><i></i> 未聯線</span>
+          </div>
+          <h2 id="network-title">組成九人守備陣容</h2>
+          <p id="connection-status">最多九位真人玩家各選一個位置；空缺位置由免費 NPC 補位。</p>
+        </div>
+        <div class="network-controls">
+          <button class="network-button network-button-primary" id="create-room" type="button">建立房間 <span>＋</span></button>
+          <div class="join-control">
+            <label class="sr-only" for="room-code-input">輸入房間代碼</label>
+            <input id="room-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="房間代碼" autocomplete="off" />
+            <button class="network-button" id="join-room" type="button">加入</button>
+          </div>
+          <button class="network-button" id="reconnect-room" type="button" hidden>重新連線</button>
+        </div>
+        <div class="room-code-panel" id="room-code-panel" hidden>
+          <span>把這組代碼交給朋友</span>
+          <strong id="room-code-value">------</strong>
+          <button class="copy-button" id="copy-room" type="button">複製代碼</button>
+        </div>
+        <div class="team-lobby" id="team-lobby" aria-labelledby="team-lobby-title">
+          <div class="team-lobby-heading">
+            <div>
+              <p class="eyebrow">PLAYER POSITION</p>
+              <h3 id="team-lobby-title">選擇你的球員位置</h3>
+            </div>
+            <span class="lobby-count" id="team-slots-count">1 / 9 真人</span>
+          </div>
+          <div class="player-identity">
+            <label for="player-name-input">球員名稱</label>
+            <input id="player-name-input" type="text" maxlength="14" value="主場球員" autocomplete="nickname" />
+          </div>
+          <div class="position-grid" id="position-grid" role="list" aria-label="守備位置"></div>
+          <div class="lobby-footer">
+            <span id="role-status">單機模式：你可以選一個位置，其餘由 NPC 補位。</span>
+            <button class="network-button" id="release-position" type="button">交給 NPC</button>
+          </div>
+        </div>
+        <div class="team-signals" id="team-signals" aria-label="團隊快速訊息">
+          <div class="team-signal-heading">
+            <p class="eyebrow">TEAM SIGNALS</p>
+            <span id="team-signal-status">用短訊息提醒隊友，不會打斷目前事件。</span>
+          </div>
+          <div class="signal-buttons">
+            <button class="signal-button" data-signal="steady" type="button">穩一點</button>
+            <button class="signal-button" data-signal="runner" type="button">注意跑者</button>
+            <button class="signal-button" data-signal="cover" type="button">我來補位</button>
+            <button class="signal-button" data-signal="npc" type="button">先交給 NPC</button>
+          </div>
+        </div>
+      </section>
+
+      <main class="main-grid">
+        <section class="game-card" id="game-card" aria-labelledby="game-title">
+          <div class="scoreboard-block">
+            <div class="scoreboard-heading">
+              <div>
+                <p class="eyebrow">今日賽事 · 決定命運的每一球</p>
+                <h2 id="game-title">台北雷霆 vs. 高雄海鷗</h2>
+              </div>
+              <div class="stadium-weather"><span class="weather-dot"></span> 24°C · 微風</div>
+            </div>
+
+            <div class="scoreboard">
+              <div class="team-score away-team">
+                <span class="team-tag">客隊</span>
+                <strong>高雄海鷗</strong>
+                <span class="team-record">海風球場 · 先攻</span>
+                <b id="away-score">0</b>
+              </div>
+              <div class="score-divider"><span>VS</span></div>
+              <div class="team-score home-team">
+                <span class="team-tag accent-tag">主隊</span>
+                <strong>台北雷霆</strong>
+                <span class="team-record">最多九人同隊 · NPC 補位</span>
+                <b id="home-score">0</b>
+              </div>
+            </div>
+
+            <div class="game-status-row">
+              <span class="status-pill status-pill-live" id="phase-chip">賽前準備</span>
+              <span class="status-pill" id="inning-label">尚未開打</span>
+              <span class="status-pill" id="outs-label">0 出局</span>
+              <span class="status-pill count-pill" id="count-label">球數 0 - 0</span>
+            </div>
+
+            <div class="line-score" id="line-score" aria-label="逐局比分"></div>
+          </div>
+
+          <div class="game-content-grid">
+            <section class="commentary-panel" aria-labelledby="commentary-title">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">PLAY-BY-PLAY</p>
+                  <h3 id="commentary-title">現場文字轉播</h3>
+                </div>
+                <span class="mini-label">即時更新</span>
+              </div>
+              <p class="situation-copy" id="situation-text">
+                這裡會記下每一球。你的一個選擇，可能讓比賽提前結束，也可能讓全場站起來。
+              </p>
+              <div class="play-log" id="play-log" role="log" aria-live="polite"></div>
+            </section>
+
+            <aside class="field-panel" aria-label="球場狀況">
+              <div class="section-heading compact-heading">
+                <div>
+                  <p class="eyebrow">FIELD VIEW</p>
+                  <h3>壘上狀況</h3>
+                </div>
+                <span class="count-badge" id="outs-badge">0 OUT</span>
+              </div>
+              <div class="diamond-wrap">
+                <div class="diamond-glow"></div>
+                <div class="diamond" aria-label="壘包圖">
+                  <span class="base base-second" data-base="second"><i></i><b>二</b></span>
+                  <span class="base base-third" data-base="third"><i></i><b>三</b></span>
+                  <span class="base base-first" data-base="first"><i></i><b>一</b></span>
+                  <span class="home-plate"><i></i><b>本</b></span>
+                </div>
+                <span class="field-label field-label-left">三壘</span>
+                <span class="field-label field-label-right">一壘</span>
+              </div>
+              <div class="field-note" id="field-note">壘上乾淨，先把球送進場內。</div>
+              <div class="outs-track" aria-label="出局數">
+                <span class="outs-track-label">OUT</span>
+                <span class="out-light"></span><span class="out-light"></span><span class="out-light"></span>
+              </div>
+            </aside>
+          </div>
+
+          <section class="at-bat-card" aria-labelledby="batter-title">
+            <div class="batter-profile">
+              <div class="jersey-number" id="batter-number">—</div>
+              <div>
+                <p class="eyebrow">現在打者</p>
+                <h3 id="batter-title"><span id="batter-name">等待開賽</span></h3>
+                <p class="batter-meta" id="batter-meta">請按下開始比賽，接管台北雷霆。</p>
+              </div>
+            </div>
+            <div class="batter-meters" aria-label="打者能力">
+              <div class="meter-row">
+                <span>CONTACT</span>
+                <div class="meter"><i id="contact-meter"></i></div>
+                <b id="contact-value">—</b>
+              </div>
+              <div class="meter-row">
+                <span>POWER</span>
+                <div class="meter meter-power"><i id="power-meter"></i></div>
+                <b id="power-value">—</b>
+              </div>
+            </div>
+          </section>
+
+          <section class="action-zone" aria-labelledby="action-title">
+            <div class="welcome-panel" id="welcome-panel">
+              <div>
+                <p class="eyebrow">YOUR POSITION, YOUR PLAY</p>
+                <h3 id="action-title">從你的守備位置開始</h3>
+                <p>選一個位置後即可開始；隊友可以加入其他位置，尚未有人控制的球員會由免費 NPC 補位。</p>
+              </div>
+              <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
+            </div>
+
+            <div class="batting-panel" id="batting-panel" hidden>
+              <div class="action-heading">
+                <div>
+                  <p class="eyebrow">MAKE THE CALL</p>
+                  <h3 id="action-title-batting">你要怎麼處理這一球？</h3>
+                </div>
+                <div class="action-status-stack">
+                  <span class="pitch-count-note" id="pitch-count-note">選擇一個策略</span>
+                  <span class="decision-timer" id="decision-timer" aria-live="polite">—</span>
+                </div>
+              </div>
+              <div class="actions-grid">
+                <button class="action-button action-power" data-action="power" type="button">
+                  <span class="action-icon">↗</span>
+                  <span><b>全力揮擊</b><small>長打機會高，三振風險也高</small></span>
+                  <kbd>1</kbd>
+                </button>
+                <button class="action-button action-contact" data-action="contact" type="button">
+                  <span class="action-icon">●</span>
+                  <span><b>推打找空檔</b><small>穩定擊球，串聯攻勢</small></span>
+                  <kbd>2</kbd>
+                </button>
+                <button class="action-button action-patient" data-action="patient" type="button">
+                  <span class="action-icon">◌</span>
+                  <span><b>耐心選球</b><small>看清楚球路，等待保送</small></span>
+                  <kbd>3</kbd>
+                </button>
+                <button class="action-button action-bunt" data-action="bunt" type="button">
+                  <span class="action-icon">⌁</span>
+                  <span><b>短打戰術</b><small>推進跑者，代價是出局數</small></span>
+                  <kbd>4</kbd>
+                </button>
+                <button class="action-button action-steal" data-action="steal" type="button">
+                  <span class="action-icon">»</span>
+                  <span><b>發動盜壘</b><small>抓時機，搶下一個壘包</small></span>
+                  <kbd>5</kbd>
+                </button>
+              </div>
+              <p class="action-hint" id="action-hint">提示：兩好球後不要害怕推打，界外球可以把打席延長。</p>
+            </div>
+
+            <div class="gameover-panel" id="gameover-panel" hidden>
+              <div>
+                <p class="eyebrow">FINAL SCORE</p>
+                <h3 id="gameover-title">比賽結束</h3>
+                <p id="gameover-copy">—</p>
+              </div>
+              <div class="result-summary" id="result-summary" aria-label="團隊結算"></div>
+              <button class="primary-button" id="rematch" type="button">再打一場 <span>↻</span></button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="side-column">
+          <section class="info-card momentum-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">MOMENTUM</p>
+                <h3>主場氣勢</h3>
+              </div>
+              <span class="momentum-score" id="momentum-score">50</span>
+            </div>
+            <div class="momentum-bar"><i id="momentum-bar"></i></div>
+            <p id="momentum-copy">比賽還沒開始，球場等待你的第一個決定。</p>
+          </section>
+
+          <section class="info-card stats-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">BOX SCORE</p>
+                <h3>你的數據</h3>
+              </div>
+              <span class="mini-label">本場</span>
+            </div>
+            <div class="stat-grid">
+              <div><span>安打</span><b id="stat-hits">0</b></div>
+              <div><span>得分</span><b id="stat-runs">0</b></div>
+              <div><span>盜壘</span><b id="stat-steals">0</b></div>
+              <div><span>決策</span><b id="stat-pitches">0</b></div>
+            </div>
+          </section>
+
+          <section class="info-card rules-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">TEAM NOTES</p>
+                <h3>團隊筆記</h3>
+              </div>
+              <span class="mini-label">HOW TO PLAY</span>
+            </div>
+            <ol>
+              <li><span>01</span><p>每個位置都有自己的責任；輪到你的打者時，只有你能確認這一球。</p></li>
+              <li><span>02</span><p>空缺位置由 NPC 補位，真人加入後可以在安全時機接手。</p></li>
+              <li><span>03</span><p>房主驗證所有行動，結果只由房主計算並同步給隊友。</p></li>
+            </ol>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="footer-note">
+        <span>九局下半 · 每一球都有故事</span>
+        <span>Built for the clutch moment</span>
+      </footer>
+    </div>
+  </body>
+</html>
