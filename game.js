@@ -32,6 +32,448 @@ const POSITION_DEFS = [
 
 const POSITION_BY_CODE = Object.fromEntries(POSITION_DEFS.map((position) => [position.code, position]));
 
+const CAREER_STORAGE_KEY = "jiuju-career-v2";
+const LEAGUE_STORAGE_KEY = "jiuju-league-v2";
+const DEFAULT_TEAM_ID = "taipei";
+const DEFAULT_OPPONENT_ID = "kaohsiung";
+
+const TEAM_DEFS = [
+  { id: "taipei", name: "台北雷霆", city: "台北", shortName: "雷霆", stadium: "雷霆巨蛋", style: "速度壓迫", color: "#d8f26d", bonus: { contact: 3, speed: 3, fielding: 1 } },
+  { id: "kaohsiung", name: "高雄海鷗", city: "高雄", shortName: "海鷗", stadium: "海風球場", style: "長打火力", color: "#ff9d59", bonus: { power: 4, armStrength: 2, clutch: 2 } },
+  { id: "taichung", name: "台中獵鷹", city: "台中", shortName: "獵鷹", stadium: "中央公園球場", style: "穩定守備", color: "#8be5d1", bonus: { fielding: 4, reaction: 3, discipline: 1 } },
+  { id: "hsinchu", name: "新竹星火", city: "新竹", shortName: "星火", stadium: "風城球場", style: "選球控場", color: "#b7a7ff", bonus: { vision: 4, control: 3, discipline: 3 } },
+  { id: "taoyuan", name: "桃園飛翼", city: "桃園", shortName: "飛翼", stadium: "航空城球場", style: "全能平衡", color: "#72c9ff", bonus: { contact: 2, speed: 2, armAccuracy: 2, break: 2 } },
+  { id: "chiayi", name: "嘉義巨浪", city: "嘉義", shortName: "巨浪", stadium: "木都球場", style: "投手養成", color: "#f59eb5", bonus: { velocity: 4, stamina: 3, break: 3, power: 2 } },
+];
+
+const ROSTER_BLUEPRINTS = [
+  { position: "CF", number: "07", role: "全能中外", archetype: "五拍工具人", bats: "左", throws: "右", ratings: { contact: 82, power: 67, vision: 79, discipline: 72, clutch: 75, bunt: 62, dragBunt: 70, speed: 86, stealing: 75, fielding: 85, armStrength: 75, armAccuracy: 78, reaction: 86, blocking: 42, popTime: 2.1, velocity: 55, control: 48, break: 46, stamina: 45 } },
+  { position: "RF", number: "23", role: "強肩右外", archetype: "長打砲", bats: "右", throws: "右", ratings: { contact: 74, power: 86, vision: 63, discipline: 68, clutch: 77, bunt: 38, dragBunt: 28, speed: 71, stealing: 52, fielding: 76, armStrength: 89, armAccuracy: 82, reaction: 73, blocking: 40, popTime: 2.1, velocity: 60, control: 43, break: 42, stamina: 44 } },
+  { position: "3B", number: "31", role: "強襲三壘", archetype: "關鍵長打", bats: "右", throws: "右", ratings: { contact: 79, power: 77, vision: 71, discipline: 66, clutch: 82, bunt: 41, dragBunt: 30, speed: 59, stealing: 35, fielding: 73, armStrength: 80, armAccuracy: 78, reaction: 70, blocking: 42, popTime: 2.1, velocity: 61, control: 43, break: 44, stamina: 46 } },
+  { position: "1B", number: "44", role: "重砲一壘", archetype: "純力量", bats: "左", throws: "左", ratings: { contact: 76, power: 92, vision: 65, discipline: 76, clutch: 79, bunt: 22, dragBunt: 16, speed: 43, stealing: 18, fielding: 68, armStrength: 61, armAccuracy: 64, reaction: 62, blocking: 48, popTime: 2.1, velocity: 53, control: 43, break: 40, stamina: 49 } },
+  { position: "LF", number: "12", role: "角落外野", archetype: "攻擊型", bats: "右", throws: "右", ratings: { contact: 76, power: 81, vision: 70, discipline: 69, clutch: 74, bunt: 44, dragBunt: 34, speed: 69, stealing: 48, fielding: 72, armStrength: 70, armAccuracy: 73, reaction: 68, blocking: 40, popTime: 2.1, velocity: 56, control: 44, break: 42, stamina: 45 } },
+  { position: "2B", number: "08", role: "二壘工兵", archetype: "擊球串聯", bats: "左", throws: "右", ratings: { contact: 70, power: 68, vision: 77, discipline: 78, clutch: 69, bunt: 58, dragBunt: 55, speed: 72, stealing: 62, fielding: 82, armStrength: 67, armAccuracy: 81, reaction: 83, blocking: 40, popTime: 2.1, velocity: 54, control: 45, break: 41, stamina: 45 } },
+  { position: "SS", number: "19", role: "游擊核心", archetype: "防守魔術師", bats: "右", throws: "右", ratings: { contact: 72, power: 61, vision: 73, discipline: 67, clutch: 70, bunt: 63, dragBunt: 61, speed: 82, stealing: 70, fielding: 88, armStrength: 86, armAccuracy: 88, reaction: 91, blocking: 40, popTime: 2.1, velocity: 57, control: 45, break: 43, stamina: 46 } },
+  { position: "C", number: "02", role: "主戰捕手", archetype: "投手指揮官", bats: "右", throws: "右", ratings: { contact: 73, power: 65, vision: 69, discipline: 73, clutch: 83, bunt: 30, dragBunt: 22, speed: 44, stealing: 12, fielding: 79, armStrength: 85, armAccuracy: 84, reaction: 76, blocking: 88, popTime: 1.94, velocity: 58, control: 56, break: 54, stamina: 57 } },
+  { position: "P", number: "55", role: "先發投手", archetype: "控球王牌", bats: "右", throws: "右", pitchMix: ["四縫線速球", "滑球", "變速球", "曲球"], ratings: { contact: 58, power: 52, vision: 58, discipline: 62, clutch: 76, bunt: 50, dragBunt: 20, speed: 43, stealing: 10, fielding: 61, armStrength: 70, armAccuracy: 68, reaction: 57, blocking: 40, popTime: 2.1, velocity: 85, control: 82, break: 79, stamina: 87 } },
+];
+
+const TEAM_PLAYER_NAMES = {
+  taipei: ["林昱辰", "陳柏翰", "王子謙", "吳承恩", "張偉倫", "李明哲", "蔡瑞峰", "高宇翔", "周凱翔"],
+  kaohsiung: ["蘇冠廷", "洪政勳", "葉俊豪", "鄭凱文", "林威廷", "黃彥翔", "許廷威", "曾冠宇", "何昊恩"],
+  taichung: ["邱品睿", "羅立安", "沈柏勳", "江承翰", "陳奕勳", "郭柏辰", "吳俊賢", "賴志豪", "謝秉哲"],
+  hsinchu: ["彭子皓", "廖冠霖", "鄧皓文", "許家銘", "高靖凱", "柯宇翔", "方彥鈞", "蘇子謙", "朱柏翰"],
+  taoyuan: ["黃少謙", "林冠宇", "徐睿恩", "鄭博元", "謝承翰", "陳昱安", "楊哲維", "洪士軒", "吳柏勳"],
+  chiayi: ["張凱傑", "李冠廷", "蔡岳霖", "王俊皓", "郭彥廷", "陳柏宇", "曾奕翔", "林家佑", "趙子豪"],
+};
+
+function createSeasonStats() {
+  return {
+    batting: { G: 0, PA: 0, AB: 0, R: 0, H: 0, doubles: 0, triples: 0, HR: 0, RBI: 0, BB: 0, SO: 0, SB: 0, CS: 0, HBP: 0, SF: 0 },
+    pitching: { G: 0, GS: 0, W: 0, L: 0, SV: 0, IP: 0, H: 0, ER: 0, BB: 0, SO: 0, HR: 0, HBP: 0, WP: 0 },
+    fielding: { G: 0, GS: 0, INN: 0, PO: 0, A: 0, E: 0, DP: 0, PB: 0, SB: 0, CS: 0 },
+  };
+}
+
+function buildTeamRoster(team, teamIndex) {
+  const names = TEAM_PLAYER_NAMES[team.id] || [];
+  return ROSTER_BLUEPRINTS.map((blueprint, playerIndex) => {
+    const variance = ((teamIndex * 5 + playerIndex * 3) % 7) - 3;
+    const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
+      const bonus = team.bonus[key] || 0;
+      const adjustedVariance = ["popTime"].includes(key) ? variance * -0.015 : variance;
+      const adjusted = key === "popTime" ? Math.max(1.78, Math.min(2.3, value + adjustedVariance)) : Math.max(20, Math.min(99, value + bonus + adjustedVariance));
+      return [key, Number(adjusted.toFixed(key === "popTime" ? 2 : 0))];
+    }));
+    ratings.contactL = Math.max(20, Math.min(99, ratings.contact + ((teamIndex + playerIndex) % 5) - 2));
+    ratings.contactR = Math.max(20, Math.min(99, ratings.contact + ((teamIndex * 2 + playerIndex + 1) % 5) - 2));
+    ratings.powerL = Math.max(20, Math.min(99, ratings.power + ((teamIndex * 3 + playerIndex) % 5) - 2));
+    ratings.powerR = Math.max(20, Math.min(99, ratings.power + ((teamIndex + playerIndex * 2) % 5) - 2));
+    return {
+      id: `${team.id}-${blueprint.position.toLowerCase()}`,
+      teamId: team.id,
+      name: names[playerIndex] || `${team.shortName}${blueprint.position}`,
+      position: blueprint.position,
+      number: blueprint.number,
+      role: blueprint.role,
+      archetype: blueprint.archetype,
+      pitchMix: blueprint.pitchMix || [],
+      bats: blueprint.bats,
+      throws: blueprint.throws,
+      age: 21 + ((teamIndex * 3 + playerIndex * 2) % 13),
+      height: 168 + ((teamIndex * 7 + playerIndex * 4) % 21),
+      weight: 66 + ((teamIndex * 9 + playerIndex * 6) % 31),
+      potential: Math.min(99, 78 + ((teamIndex * 4 + playerIndex * 7) % 18)),
+      ratings,
+      stats: createSeasonStats(),
+    };
+  });
+}
+
+const LEAGUE_TEAMS = TEAM_DEFS.map((team, teamIndex) => ({ ...team, roster: buildTeamRoster(team, teamIndex) }));
+const TEAM_BY_ID = Object.fromEntries(LEAGUE_TEAMS.map((team) => [team.id, team]));
+const PLAYER_BY_ID = Object.fromEntries(LEAGUE_TEAMS.flatMap((team) => team.roster).map((player) => [player.id, player]));
+
+function readStorage(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorage(key, value) {
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+let careerStore = readStorage(CAREER_STORAGE_KEY, {});
+let leagueStore = readStorage(LEAGUE_STORAGE_KEY, {});
+let selectedTeamId = DEFAULT_TEAM_ID;
+let selectedOpponentId = DEFAULT_OPPONENT_ID;
+let developmentTeamId = DEFAULT_TEAM_ID;
+let selectedAthleteId = `${DEFAULT_TEAM_ID}-cf`;
+
+function createCareerProfile(player) {
+  return {
+    level: 1,
+    xp: 0,
+    trainingPoints: 6,
+    fatigue: 0,
+    morale: 72,
+    boosts: Object.fromEntries(Object.keys(player.ratings).map((key) => [key, 0])),
+    unlockedPerks: [],
+    stats: createSeasonStats(),
+  };
+}
+
+function profileFor(playerId) {
+  const player = PLAYER_BY_ID[playerId];
+  if (!player) return null;
+  if (!careerStore[playerId]) careerStore[playerId] = createCareerProfile(player);
+  const profile = careerStore[playerId];
+  profile.boosts = { ...createCareerProfile(player).boosts, ...(profile.boosts || {}) };
+  profile.stats = {
+    ...createSeasonStats(),
+    ...(profile.stats || {}),
+    batting: { ...createSeasonStats().batting, ...(profile.stats?.batting || {}) },
+    pitching: { ...createSeasonStats().pitching, ...(profile.stats?.pitching || {}) },
+    fielding: { ...createSeasonStats().fielding, ...(profile.stats?.fielding || {}) },
+  };
+  return profile;
+}
+
+function overallForPlayer(player) {
+  const ratings = player.ratings || player;
+  const groups = player.position === "P"
+    ? [ratings.velocity, ratings.control, ratings.break, ratings.stamina, ratings.clutch]
+    : player.position === "C"
+      ? [ratings.contact, ratings.power, ratings.fielding, ratings.armStrength, ratings.blocking]
+      : [ratings.contact, ratings.power, ratings.speed, ratings.fielding, ratings.reaction];
+  return Math.round(groups.reduce((sum, value) => sum + Number(value || 0), 0) / groups.length);
+}
+
+function developedPlayer(playerId) {
+  const base = PLAYER_BY_ID[playerId];
+  if (!base) return null;
+  const profile = profileFor(playerId);
+  const ratings = Object.fromEntries(Object.entries(base.ratings).map(([key, value]) => [key, Math.min(key === "popTime" ? 2.3 : 99, Number(value) + Number(profile?.boosts?.[key] || 0))]));
+  return {
+    ...base,
+    ratings,
+    level: profile?.level || 1,
+    xp: profile?.xp || 0,
+    trainingPoints: profile?.trainingPoints || 0,
+    fatigue: profile?.fatigue || 0,
+    morale: profile?.morale || 72,
+    overall: overallForPlayer({ ...base, ratings }),
+    stats: profile?.stats || createSeasonStats(),
+    contact: ratings.contact,
+    power: ratings.power,
+    speed: ratings.speed,
+    fielding: ratings.fielding,
+    arm: ratings.armStrength,
+  };
+}
+
+function rosterForTeam(teamId = state?.teamId || selectedTeamId) {
+  return TEAM_BY_ID[teamId]?.roster || [];
+}
+
+function activeLineup() {
+  const roster = rosterForTeam(state?.teamId || selectedTeamId);
+  return (roster.length ? roster : []).map((player) => developedPlayer(player.id));
+}
+
+function playerForPosition(position, teamId = state?.teamId || selectedTeamId) {
+  const player = rosterForTeam(teamId).find((candidate) => candidate.position === position);
+  return player ? developedPlayer(player.id) : null;
+}
+
+function npcNameForPosition(position, teamId = state?.teamId || selectedTeamId) {
+  return playerForPosition(position, teamId)?.name || `NPC ${positionName(position)}`;
+}
+
+function teamFor(id) {
+  return TEAM_BY_ID[id] || TEAM_BY_ID[DEFAULT_TEAM_ID];
+}
+
+function teamRecord(teamId) {
+  return leagueStore[teamId] || { W: 0, L: 0, T: 0, RF: 0, RA: 0 };
+}
+
+function calculateBattingLine(stats = {}) {
+  const ab = Number(stats.AB || 0);
+  const h = Number(stats.H || 0);
+  const bb = Number(stats.BB || 0);
+  const hbp = Number(stats.HBP || 0);
+  const sf = Number(stats.SF || 0);
+  const obpDenominator = ab + bb + hbp + sf;
+  const totalBases = h + Number(stats.doubles || 0) + Number(stats.triples || 0) * 2 + Number(stats.HR || 0) * 3;
+  const average = ab ? h / ab : 0;
+  const onBase = obpDenominator ? (h + bb + hbp) / obpDenominator : 0;
+  const slugging = ab ? totalBases / ab : 0;
+  return { AVG: average, OBP: onBase, SLG: slugging, OPS: onBase + slugging };
+}
+
+function calculatePitchingLine(stats = {}) {
+  const innings = Number(stats.IP || 0);
+  const fipConstant = 3.1;
+  return { ERA: innings ? (Number(stats.ER || 0) * 9) / innings : 0, WHIP: innings ? (Number(stats.H || 0) + Number(stats.BB || 0)) / innings : 0, K9: innings ? (Number(stats.SO || 0) * 9) / innings : 0, FIP: innings ? ((Number(stats.HR || 0) * 13) + (3 * (Number(stats.BB || 0) + Number(stats.HBP || 0))) - (2 * Number(stats.SO || 0))) / innings + fipConstant : 0 };
+}
+
+function calculateFieldingLine(stats = {}) {
+  const chances = Number(stats.PO || 0) + Number(stats.A || 0) + Number(stats.E || 0);
+  return { FPCT: chances ? (Number(stats.PO || 0) + Number(stats.A || 0)) / chances : 0, RF9: Number(stats.INN || 0) ? ((Number(stats.PO || 0) + Number(stats.A || 0)) * 9) / Number(stats.INN) : 0 };
+}
+
+const TRAINING_META = {
+  hitting: { title: "打擊訓練", detail: "CONTACT +1 · VISION +1", cost: 1, xp: 42, gains: { contact: 1, vision: 1 } },
+  power: { title: "力量訓練", detail: "POWER +1 · CLUTCH +1", cost: 1, xp: 42, gains: { power: 1, clutch: 1 } },
+  defense: { title: "守備訓練", detail: "FIELDING +1 · REACTION +1", cost: 1, xp: 42, gains: { fielding: 1, reaction: 1 } },
+  speed: { title: "跑壘訓練", detail: "SPEED +1 · STEALING +1", cost: 1, xp: 38, gains: { speed: 1, stealing: 1 } },
+  pitching: { title: "投球訓練", detail: "CONTROL +1 · BREAK +1", cost: 1, xp: 44, gains: { control: 1, break: 1 } },
+  recovery: { title: "恢復訓練", detail: "疲勞 -20 · 士氣 +5", cost: 0, xp: 18, gains: {} },
+};
+
+function xpToNextLevel(level) {
+  return 100 + Math.max(0, level - 1) * 45;
+}
+
+function awardCareerXp(profile, amount) {
+  profile.xp += amount;
+  let levels = 0;
+  while (profile.xp >= xpToNextLevel(profile.level)) {
+    profile.xp -= xpToNextLevel(profile.level);
+    profile.level += 1;
+    profile.trainingPoints += 2;
+    levels += 1;
+  }
+  if (levels > 0 && profile.level >= 3 && !profile.unlockedPerks.includes("專注時刻")) profile.unlockedPerks.push("專注時刻");
+  if (levels > 0 && profile.level >= 5 && !profile.unlockedPerks.includes("關鍵先生")) profile.unlockedPerks.push("關鍵先生");
+  return levels;
+}
+
+function replaceMatchTeams(teamId, opponentId, shouldCommit = true) {
+  if (!isAuthority() || !TEAM_BY_ID[teamId] || !TEAM_BY_ID[opponentId] || teamId === opponentId) return false;
+  const previousSlots = clone(state.slots);
+  const previousRevision = state.revision;
+  state = createState(teamId, opponentId);
+  state.revision = previousRevision;
+  POSITION_DEFS.forEach(({ code }) => {
+    const previous = previousSlots[code];
+    if (!previous || previous.controller !== "human" || !previous.playerId) return;
+    Object.assign(state.slots[code], {
+      playerId: previous.playerId,
+      sessionId: previous.sessionId,
+      connectionKey: previous.connectionKey,
+      name: previous.name,
+      controller: "human",
+      connected: previous.connected,
+    });
+  });
+  selectedTeamId = teamId;
+  selectedOpponentId = opponentId;
+  developmentTeamId = teamId;
+  if (!rosterForTeam(developmentTeamId).some((player) => player.id === selectedAthleteId)) selectedAthleteId = rosterForTeam(developmentTeamId)[0]?.id || selectedAthleteId;
+  if (shouldCommit) commitState();
+  else render();
+  return true;
+}
+
+function chooseOpponentFor(teamId, preferredId = selectedOpponentId) {
+  if (preferredId && preferredId !== teamId && TEAM_BY_ID[preferredId]) return preferredId;
+  return TEAM_DEFS.find((team) => team.id !== teamId)?.id || DEFAULT_OPPONENT_ID;
+}
+
+function applyTeamSelection(teamId) {
+  const opponentId = chooseOpponentFor(teamId, selectedOpponentId);
+  if (network.role === "guest" && network.connected) return;
+  replaceMatchTeams(teamId, opponentId);
+}
+
+function applyOpponentSelection(opponentId) {
+  if (!TEAM_BY_ID[opponentId] || opponentId === selectedTeamId || (network.role === "guest" && network.connected)) return;
+  replaceMatchTeams(selectedTeamId, opponentId);
+}
+
+function trainSelectedPlayer(trainingType) {
+  const player = PLAYER_BY_ID[selectedAthleteId];
+  const meta = TRAINING_META[trainingType];
+  if (!player || !meta) return;
+  const profile = profileFor(player.id);
+  if (profile.trainingPoints < meta.cost) {
+    network.status = `${player.name} 的訓練點不足；完成比賽或升級可獲得更多訓練點。`;
+    renderNetwork();
+    return;
+  }
+  profile.trainingPoints -= meta.cost;
+  Object.entries(meta.gains).forEach(([key, amount]) => {
+    profile.boosts[key] = Math.min(20, Number(profile.boosts[key] || 0) + amount);
+  });
+  if (trainingType === "recovery") {
+    profile.fatigue = Math.max(0, profile.fatigue - 20);
+    profile.morale = Math.min(99, profile.morale + 5);
+  } else {
+    profile.fatigue = Math.min(100, profile.fatigue + 6);
+    profile.morale = Math.max(20, profile.morale - 1);
+  }
+  const previousLevel = profile.level;
+  const levels = awardCareerXp(profile, meta.xp);
+  writeStorage(CAREER_STORAGE_KEY, careerStore);
+  network.status = `${player.name} 完成${meta.title}：${meta.detail}${levels ? `，升到 Lv.${profile.level}！` : "。"}`;
+  if (previousLevel !== profile.level) flashCard("celebrate");
+  render();
+}
+
+function recordMatchCareer(result) {
+  if (state.leagueRecorded) return;
+  const homeTeam = teamRecord(state.teamId);
+  const awayTeam = teamRecord(state.opponentId);
+  homeTeam.RF += state.score.home;
+  homeTeam.RA += state.score.away;
+  awayTeam.RF += state.score.away;
+  awayTeam.RA += state.score.home;
+  if (result === "win" || result === "walkoff") { homeTeam.W += 1; awayTeam.L += 1; }
+  else if (result === "loss") { homeTeam.L += 1; awayTeam.W += 1; }
+  else { homeTeam.T += 1; awayTeam.T += 1; }
+  leagueStore[state.teamId] = homeTeam;
+  leagueStore[state.opponentId] = awayTeam;
+  Object.entries(state.slots).forEach(([position, slot]) => {
+    if (!slot.athleteId) return;
+    const profile = profileFor(slot.athleteId);
+    const season = profile.stats;
+    const match = state.playerStats[position] || {};
+    if (match.plateAppearances > 0) season.batting.G += 1;
+    season.batting.PA += Number(match.plateAppearances || 0);
+    season.batting.AB += Number(match.atBats || 0);
+    season.batting.R += Number(match.runs || 0);
+    season.batting.H += Number(match.hits || 0);
+    season.batting.doubles += Number(match.doubles || 0);
+    season.batting.triples += Number(match.triples || 0);
+    season.batting.HR += Number(match.homeRuns || 0);
+    season.batting.RBI += Number(match.runsBattedIn || 0);
+    season.batting.BB += Number(match.walks || 0);
+    season.batting.SO += Number(match.strikeouts || 0);
+    season.batting.SB += Number(match.steals || 0);
+    season.batting.CS += Number(match.caughtStealing || 0);
+    season.fielding.G += 1;
+    season.fielding.GS += 1;
+    season.fielding.INN += state.inning >= 9 ? 9 : state.inning;
+    season.fielding.PO += Number(match.putouts || 0);
+    season.fielding.A += Number(match.assists || 0);
+    season.fielding.E += Number(match.errors || 0);
+    const isPitcher = position === "P";
+    if (isPitcher) {
+      season.pitching.G += 1;
+      season.pitching.GS += 1;
+      if (result === "win" || result === "walkoff") season.pitching.W += 1;
+      if (result === "loss") season.pitching.L += 1;
+      season.pitching.IP += state.inning >= 9 ? 9 : state.inning;
+      season.pitching.ER += state.score.away;
+      season.pitching.H += Math.max(0, state.score.away + Number(match.hits || 0));
+      season.pitching.BB += Number(match.walks || 0);
+      season.pitching.SO += Number(match.strikeouts || 0);
+    }
+    awardCareerXp(profile, (match.decisions || 0) * 4 + (match.hits || 0) * 8 + (match.putouts || 0) * 3 + 20);
+    profile.trainingPoints = Math.min(12, profile.trainingPoints + 1);
+    profile.fatigue = Math.min(100, profile.fatigue + 8);
+    profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
+  });
+  state.leagueRecorded = true;
+  writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
+  writeStorage(CAREER_STORAGE_KEY, careerStore);
+}
+
+function formatRate(value, digits = 3) {
+  return Number(value || 0).toFixed(digits).replace(/^0(?=\.)/, "");
+}
+
+function renderDevelopment() {
+  const panel = $("development-panel");
+  if (!panel) return;
+  if (network.role === "guest" && state.teamId) selectedTeamId = state.teamId;
+  const teamSelect = $("team-select");
+  const opponentSelect = $("opponent-select");
+  if (teamSelect) {
+    teamSelect.innerHTML = TEAM_DEFS.map((team) => `<option value="${team.id}">${team.name} · ${team.style}</option>`).join("");
+    teamSelect.value = selectedTeamId;
+    teamSelect.disabled = network.role === "guest" && network.connected || !["pre", "gameover"].includes(state.phase);
+  }
+  if (opponentSelect) {
+    opponentSelect.innerHTML = TEAM_DEFS.filter((team) => team.id !== selectedTeamId).map((team) => `<option value="${team.id}">${team.name} · ${team.stadium}</option>`).join("");
+    opponentSelect.value = selectedOpponentId === selectedTeamId ? chooseOpponentFor(selectedTeamId) : selectedOpponentId;
+    opponentSelect.disabled = teamSelect?.disabled || false;
+  }
+  const browseTeam = teamFor(developmentTeamId);
+  $("development-team-label").textContent = `${browseTeam.name} · ${browseTeam.city} · ${browseTeam.style}`;
+  $("team-tabs").innerHTML = TEAM_DEFS.map((team) => `<button class="team-tab ${team.id === developmentTeamId ? "is-active" : ""}" data-development-team="${team.id}" type="button"><span>${team.shortName}</span><small>${team.city}</small></button>`).join("");
+  $("roster-count").textContent = `${LEAGUE_TEAMS.length} 隊 · ${LEAGUE_TEAMS.reduce((sum, team) => sum + team.roster.length, 0)} 名球員`;
+  $("roster-list").innerHTML = browseTeam.roster.map((basePlayer) => {
+    const player = developedPlayer(basePlayer.id);
+    return `<button class="roster-player ${player.id === selectedAthleteId ? "is-selected" : ""}" data-athlete-id="${player.id}" type="button"><span class="roster-number">${player.number}</span><span class="roster-player-main"><b>${escapeHtml(player.name)}</b><small>${player.position} · ${player.role}</small></span><strong>${player.overall}</strong></button>`;
+  }).join("");
+  const player = developedPlayer(selectedAthleteId) || developedPlayer(browseTeam.roster[0]?.id);
+  if (!player) return;
+  selectedAthleteId = player.id;
+  const profile = profileFor(player.id);
+  const ratings = player.ratings;
+  $("player-detail-name").textContent = player.name;
+  $("player-detail-position").textContent = `${player.position} · ${player.role}`;
+  $("player-detail-meta").textContent = `#${player.number} · ${player.bats}打／${player.throws}投 · ${player.age}歲 · ${player.height}cm / ${player.weight}kg · ${player.archetype}`;
+  $("player-overall").textContent = player.overall;
+  $("player-progress").textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · 訓練點 ${profile.trainingPoints} · 潛力 ${player.potential}`;
+  $("player-morale").textContent = `士氣 ${profile.morale} · 疲勞 ${profile.fatigue}`;
+  const ratingGroups = [
+    ["打擊", [["Contact", ratings.contact], ["vs L Contact", ratings.contactL], ["vs R Contact", ratings.contactR], ["Power", ratings.power], ["vs L Power", ratings.powerL], ["vs R Power", ratings.powerR], ["Vision", ratings.vision], ["Discipline", ratings.discipline], ["Clutch", ratings.clutch], ["Bunt", ratings.bunt]]],
+    ["跑壘", [["Speed", ratings.speed], ["Stealing", ratings.stealing]]],
+    ["守備", [["Fielding", ratings.fielding], ["Reaction", ratings.reaction], ["Arm Strength", ratings.armStrength], ["Arm Accuracy", ratings.armAccuracy], ["Blocking", ratings.blocking], ["Pop Time", Number(ratings.popTime || 0).toFixed(2)]]],
+    ["投球", [["Velocity", ratings.velocity], ["Control", ratings.control], ["Break", ratings.break], ["Stamina", ratings.stamina]]],
+  ];
+  $("player-attributes").innerHTML = ratingGroups.map(([title, rows]) => `<div class="attribute-group"><h4>${title}</h4>${rows.map(([label, value]) => `<div class="attribute-row"><span>${label}</span><i><b style="width:${label === "Pop Time" ? Math.max(20, 100 - Number(value) * 28) : value}%"></b></i><strong>${value}</strong></div>`).join("")}</div>`).join("");
+  Object.entries(TRAINING_META).forEach(([key, meta]) => {
+    const button = document.querySelector(`[data-training="${key}"]`);
+    if (button) button.disabled = profile.trainingPoints < meta.cost;
+  });
+  const batting = player.stats.batting;
+  const pitching = player.stats.pitching;
+  const fielding = player.stats.fielding;
+  const battingRates = calculateBattingLine(batting);
+  const pitchingRates = calculatePitchingLine(pitching);
+  const fieldingRates = calculateFieldingLine(fielding);
+  const pitchMix = player.pitchMix?.length ? `<div class="pitch-mix"><b>球種</b> ${player.pitchMix.map((pitch) => `<span>${pitch}</span>`).join("")}</div>` : "";
+  $("player-statline").innerHTML = `${pitchMix}
+    <div class="statline-section"><h4>打擊生涯／賽季</h4><div class="statline-grid"><span>G <b>${batting.G}</b></span><span>PA <b>${batting.PA}</b></span><span>AB <b>${batting.AB}</b></span><span>R <b>${batting.R}</b></span><span>H <b>${batting.H}</b></span><span>2B <b>${batting.doubles}</b></span><span>3B <b>${batting.triples}</b></span><span>HR <b>${batting.HR}</b></span><span>RBI <b>${batting.RBI}</b></span><span>BB <b>${batting.BB}</b></span><span>SO <b>${batting.SO}</b></span><span>SB <b>${batting.SB}</b></span><span>CS <b>${batting.CS}</b></span><span>HBP <b>${batting.HBP}</b></span><span>SF <b>${batting.SF}</b></span><span>AVG <b>${formatRate(battingRates.AVG)}</b></span><span>OBP <b>${formatRate(battingRates.OBP)}</b></span><span>SLG <b>${formatRate(battingRates.SLG)}</b></span><span>OPS <b>${formatRate(battingRates.OPS)}</b></span></div></div>
+    <div class="statline-section"><h4>投球</h4><div class="statline-grid"><span>G <b>${pitching.G}</b></span><span>GS <b>${pitching.GS}</b></span><span>W <b>${pitching.W}</b></span><span>L <b>${pitching.L}</b></span><span>SV <b>${pitching.SV}</b></span><span>IP <b>${pitching.IP}</b></span><span>H <b>${pitching.H}</b></span><span>ER <b>${pitching.ER}</b></span><span>HR <b>${pitching.HR}</b></span><span>BB <b>${pitching.BB}</b></span><span>K <b>${pitching.SO}</b></span><span>HBP <b>${pitching.HBP}</b></span><span>WP <b>${pitching.WP}</b></span><span>ERA <b>${pitchingRates.ERA.toFixed(2)}</b></span><span>FIP <b>${pitchingRates.FIP.toFixed(2)}</b></span><span>WHIP <b>${pitchingRates.WHIP.toFixed(2)}</b></span><span>K/9 <b>${pitchingRates.K9.toFixed(1)}</b></span></div></div>
+    <div class="statline-section"><h4>守備</h4><div class="statline-grid"><span>G <b>${fielding.G}</b></span><span>GS <b>${fielding.GS}</b></span><span>INN <b>${fielding.INN}</b></span><span>PO <b>${fielding.PO}</b></span><span>A <b>${fielding.A}</b></span><span>E <b>${fielding.E}</b></span><span>DP <b>${fielding.DP}</b></span><span>PB <b>${fielding.PB}</b></span><span>SB <b>${fielding.SB}</b></span><span>CS <b>${fielding.CS}</b></span><span>FPCT <b>${fieldingRates.FPCT.toFixed(3)}</b></span><span>RF/9 <b>${fieldingRates.RF9.toFixed(2)}</b></span></div></div>`;
+  const standings = LEAGUE_TEAMS.map((team) => {
+    const record = teamRecord(team.id);
+    const games = record.W + record.L + record.T;
+    return { team, record, pct: games ? (record.W + record.T * 0.5) / games : 0, diff: record.RF - record.RA };
+  }).sort((left, right) => right.pct - left.pct || right.diff - left.diff || right.record.W - left.record.W);
+  $("league-standings").innerHTML = standings.map((row, index) => `<div class="standing-row"><b>${index + 1}</b><span class="standing-team"><i style="background:${row.team.color}"></i>${row.team.name}</span><span>${row.record.W}-${row.record.L}-${row.record.T}</span><span>${formatRate(row.pct, 3)}</span><span>${row.diff >= 0 ? "+" : ""}${row.diff}</span></div>`).join("");
+}
+
 const lineup = [
   { position: "CF", number: "07", name: "林昱辰", contact: 82, power: 67 },
   { position: "RF", number: "23", name: "陳柏翰", contact: 74, power: 86 },
@@ -102,7 +544,10 @@ const network = {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const hasRunners = () => Object.values(state.bases).some(Boolean);
-const currentBatter = () => lineup[state.batterIndex % lineup.length];
+const currentBatter = () => {
+  const rosterLineup = activeLineup();
+  return rosterLineup[state.batterIndex % Math.max(1, rosterLineup.length)] || lineup[state.batterIndex % lineup.length];
+};
 const currentBatterSlot = () => state.slots[currentBatter().position];
 const positionName = (position) => POSITION_BY_CODE[position]?.name || position;
 const positionShort = (position) => POSITION_BY_CODE[position]?.short || position;
@@ -129,33 +574,49 @@ function nextRandom() {
 function createPlayerStats() {
   return Object.fromEntries(POSITION_DEFS.map(({ code }) => [code, {
     plateAppearances: 0,
+    atBats: 0,
     hits: 0,
+    doubles: 0,
+    triples: 0,
+    homeRuns: 0,
+    runsBattedIn: 0,
+    walks: 0,
+    strikeouts: 0,
     runs: 0,
     steals: 0,
+    caughtStealing: 0,
+    fieldingChances: 0,
+    putouts: 0,
+    assists: 0,
+    errors: 0,
     decisions: 0,
     timeouts: 0,
   }]));
 }
 
-function createSlot(definition) {
+function createSlot(definition, teamId = DEFAULT_TEAM_ID) {
+  const athlete = playerForPosition(definition.code, teamId) || { id: "", name: `NPC ${definition.name}` };
   return {
     position: definition.code,
+    athleteId: athlete.id,
     playerId: null,
     sessionId: null,
     connectionKey: null,
-    name: `NPC ${definition.name}`,
+    name: athlete.name,
     controller: "npc",
     connected: true,
   };
 }
 
-function createSlots() {
-  return Object.fromEntries(POSITION_DEFS.map((definition) => [definition.code, createSlot(definition)]));
+function createSlots(teamId = DEFAULT_TEAM_ID) {
+  return Object.fromEntries(POSITION_DEFS.map((definition) => [definition.code, createSlot(definition, teamId)]));
 }
 
-function createState() {
+function createState(teamId = selectedTeamId, opponentId = selectedOpponentId) {
   return {
     version: PROTOCOL_VERSION,
+    teamId,
+    opponentId,
     phase: "pre",
     inning: 1,
     half: "top",
@@ -180,9 +641,10 @@ function createState() {
     timeouts: 0,
     pendingAwayRuns: 0,
     log: [],
-    slots: createSlots(),
+    slots: createSlots(teamId),
     playerStats: createPlayerStats(),
     result: "",
+    leagueRecorded: false,
     revision: 0,
     rngState: randomSeed() | 0,
     actionLock: false,
@@ -212,7 +674,11 @@ function publicState() {
 }
 
 function normalizeState(snapshot) {
-  const base = createState();
+  const normalizedTeamId = TEAM_BY_ID[snapshot.teamId] ? snapshot.teamId : DEFAULT_TEAM_ID;
+  const normalizedOpponentId = TEAM_BY_ID[snapshot.opponentId] && snapshot.opponentId !== normalizedTeamId ? snapshot.opponentId : DEFAULT_OPPONENT_ID;
+  const base = createState(normalizedTeamId, normalizedOpponentId);
+  selectedTeamId = normalizedTeamId;
+  selectedOpponentId = normalizedOpponentId;
   const normalized = {
     ...base,
     ...snapshot,
@@ -224,7 +690,7 @@ function normalizeState(snapshot) {
       ...base.playerStats[code],
       ...(snapshot.playerStats?.[code] || {}),
     }])),
-    slots: createSlots(),
+    slots: createSlots(normalizedTeamId),
     actionLock: false,
   };
   POSITION_DEFS.forEach(({ code }) => {
@@ -472,7 +938,7 @@ function makeRoomCode() {
 
 function prepareFreshState() {
   const previousSlots = clone(state.slots);
-  state = createState();
+  state = createState(state.teamId, state.opponentId);
   POSITION_DEFS.forEach(({ code }) => {
     const previous = previousSlots[code];
     if (!previous) return;
@@ -481,7 +947,7 @@ function prepareFreshState() {
       playerId: previous.playerId,
       sessionId: previous.sessionId,
       connectionKey: previous.connectionKey,
-      name: previous.controller === "human" ? previous.name : `NPC ${positionName(code)}`,
+      name: previous.controller === "human" ? previous.name : npcNameForPosition(code, state.teamId),
       controller: previous.controller === "human" ? "human" : "npc",
       connected: previous.controller === "human" ? previous.connected : true,
     };
@@ -501,7 +967,7 @@ function claimLocalPosition(position, shouldCommit = true) {
     previous.playerId = null;
     previous.sessionId = null;
     previous.connectionKey = null;
-    previous.name = `NPC ${positionName(previous.position)}`;
+    previous.name = npcNameForPosition(previous.position);
     previous.connected = true;
   }
   target.controller = "human";
@@ -524,7 +990,7 @@ function releaseLocalPosition(shouldCommit = true) {
   slot.playerId = null;
   slot.sessionId = null;
   slot.connectionKey = null;
-  slot.name = `NPC ${positionName(slot.position)}`;
+  slot.name = npcNameForPosition(slot.position);
   slot.connected = true;
   network.assignedPosition = "";
   if (shouldCommit) commitState();
@@ -609,7 +1075,7 @@ function attachHostConnection(connection) {
         slot.controller = "npc";
         slot.playerId = null;
         slot.connectionKey = null;
-        slot.name = `NPC ${positionName(slot.position)}`;
+        slot.name = npcNameForPosition(slot.position);
         slot.connected = true;
         if (state.phase !== "pre" && state.phase !== "gameover") addLog(`${positionName(slot.position)} 玩家離線，NPC 暫時接手。`, "danger");
         network.status = `${positionName(slot.position)} 已離線，NPC 補位中。`;
@@ -653,7 +1119,7 @@ function hostClaimPlayerPosition(record, position) {
     previous.controller = "npc";
     previous.playerId = null;
     previous.connectionKey = null;
-    previous.name = `NPC ${positionName(previous.position)}`;
+    previous.name = npcNameForPosition(previous.position);
     previous.connected = true;
   }
   target.controller = "human";
@@ -674,7 +1140,7 @@ function hostReleasePlayerPosition(record) {
   slot.controller = "npc";
   slot.playerId = null;
   slot.connectionKey = null;
-  slot.name = `NPC ${positionName(slot.position)}`;
+  slot.name = npcNameForPosition(slot.position);
   slot.connected = true;
   record.position = "";
   sendConnection(record.connection, { type: "position", position: "" });
@@ -825,7 +1291,7 @@ function createRoom() {
   network.localPlayerId = "host";
   network.sessionId = `host-${Date.now()}`;
   network.displayName = cleanName($("player-name-input")?.value || network.displayName);
-  state = createState();
+  state = createState(selectedTeamId, selectedOpponentId);
   claimLocalPosition("CF", false);
   network.roomCode = makeRoomCode();
   network.status = "正在建立房間，請稍候……";
@@ -850,7 +1316,7 @@ function joinRoom() {
   network.hostId = `jiuju-${code}`;
   network.displayName = cleanName($("player-name-input")?.value || network.displayName);
   network.status = "正在尋找房主……";
-  state = createState();
+  state = createState(selectedTeamId, selectedOpponentId);
   render();
   try {
     network.peer = new window.Peer(undefined, { debug: 0 });
@@ -938,9 +1404,21 @@ function checkWalkoff() {
   return false;
 }
 
-function markPlateAppearance() {
+function markPlateAppearance({ atBat = true, hitType = "", walk = false, strikeout = false, rbi = 0 } = {}) {
   const batter = currentBatter();
-  if (state.playerStats[batter.position]) state.playerStats[batter.position].plateAppearances += 1;
+  const stats = state.playerStats[batter.position];
+  if (!stats) return;
+  stats.plateAppearances += 1;
+  if (atBat) stats.atBats += 1;
+  if (hitType) {
+    stats.hits += 1;
+    if (hitType === "double") stats.doubles += 1;
+    if (hitType === "triple") stats.triples += 1;
+    if (hitType === "homer") stats.homeRuns += 1;
+  }
+  if (walk) stats.walks += 1;
+  if (strikeout) stats.strikeouts += 1;
+  stats.runsBattedIn += rbi;
 }
 
 function formatCount() {
@@ -969,13 +1447,15 @@ function updateBaseView() {
 
 function renderLineScore() {
   const lastInning = Math.max(9, state.inning);
+  const awayTeam = teamFor(state.opponentId);
+  const homeTeam = teamFor(state.teamId);
   const cells = ["<span class=\"line-label\">隊伍</span>"];
   for (let inning = 1; inning <= lastInning; inning += 1) cells.push(`<span class="${state.inning === inning ? "line-current" : ""}">${inning}</span>`);
   cells.push("<span class=\"line-total\">R</span>");
-  cells.push("<span class=\"line-label\">海鷗</span>");
+  cells.push(`<span class="line-label">${escapeHtml(awayTeam.shortName)}</span>`);
   for (let inning = 1; inning <= lastInning; inning += 1) cells.push(`<span class="${state.inning === inning ? "line-current" : ""}">${state.innings[inning - 1]?.away ?? "·"}</span>`);
   cells.push(`<span class="line-total">${state.score.away}</span>`);
-  cells.push("<span class=\"line-label\">雷霆</span>");
+  cells.push(`<span class="line-label">${escapeHtml(homeTeam.shortName)}</span>`);
   for (let inning = 1; inning <= lastInning; inning += 1) cells.push(`<span class="${state.inning === inning ? "line-current" : ""}">${state.innings[inning - 1]?.home ?? "·"}</span>`);
   cells.push(`<span class="line-total">${state.score.home}</span>`);
   $("line-score").innerHTML = cells.join("");
@@ -1172,7 +1652,14 @@ function renderResultSummary() {
 function render() {
   const batter = currentBatter();
   const batterSlot = state.slots[batter.position];
-  const phaseText = { pre: "賽前準備", defense: `雷霆守備 · ${state.defenseOwner || "P"}`, cpu: "NPC 客隊進攻", home: `輪到 ${batter.position}`, gameover: "比賽結束" }[state.phase];
+  const homeTeam = teamFor(state.teamId);
+  const awayTeam = teamFor(state.opponentId);
+  const phaseText = { pre: "賽前準備", defense: `${homeTeam.shortName}守備 · ${state.defenseOwner || "P"}`, cpu: "NPC 客隊進攻", home: `輪到 ${batter.position}`, gameover: "比賽結束" }[state.phase];
+  $("game-title").textContent = `${homeTeam.name} vs. ${awayTeam.name}`;
+  $("away-team-name").textContent = awayTeam.name;
+  $("away-team-record").textContent = `${awayTeam.stadium} · 先攻`;
+  $("home-team-name").textContent = homeTeam.name;
+  $("home-team-record").textContent = `${homeTeam.style} · NPC 補位`;
   $("phase-chip").textContent = phaseText;
   $("inning-label").textContent = state.phase === "pre" ? "尚未開打" : state.phase === "gameover" ? `${state.inning} 局結束` : `${state.inning} 局${state.half === "top" ? "上" : "下"}`;
   $("outs-label").textContent = `${state.outs} 出局`;
@@ -1186,7 +1673,7 @@ function render() {
         ? `${state.inning} 局上，球往${positionName(state.defenseOwner)}方向飛去；由責任區球員處理來球。`
         : `${state.inning} 局上，${positionName(state.defenseOwner)} 玩家要先決定守備策略；結果由房主公平計算。`
       : state.phase === "cpu"
-      ? "NPC 客隊正在完成半局進攻，下一個半局由雷霆球員接手。"
+      ? `NPC ${awayTeam.name} 正在完成半局進攻，下一個半局由 ${homeTeam.name} 球員接手。`
       : state.phase === "gameover"
         ? "最後一球已經落地。看看團隊與個人留下的數字，再決定要不要再戰。"
         : batterSlot?.controller === "npc"
@@ -1205,7 +1692,7 @@ function render() {
   $("gameover-panel").hidden = state.phase !== "gameover";
   $("start-game").disabled = (network.role === "guest" && !network.connected) || !slotForPlayer(network.localPlayerId);
   $("gameover-title").textContent = state.result === "win" || state.result === "walkoff" ? "主場勝利！" : state.result === "tie" ? "延長賽後仍然平手" : "客隊帶走勝利";
-  $("gameover-copy").textContent = `最終比分：台北雷霆 ${state.score.home}：${state.score.away} 高雄海鷗。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
+  $("gameover-copy").textContent = `最終比分：${homeTeam.name} ${state.score.home}：${state.score.away} ${awayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
   updateBaseView();
   renderLineScore();
@@ -1214,6 +1701,7 @@ function render() {
   renderActions();
   renderNetwork();
   renderLobby();
+  renderDevelopment();
   scheduleNpcTurn();
 }
 
@@ -1222,7 +1710,7 @@ function resetMatchState() {
   network.actionTimer = null;
   const previousSlots = clone(state.slots);
   const previousRevision = state.revision;
-  state = createState();
+  state = createState(state.teamId, state.opponentId);
   state.revision = previousRevision;
   POSITION_DEFS.forEach(({ code }) => {
     const previous = previousSlots[code];
@@ -1252,7 +1740,7 @@ function resetGame() {
 function startGame() {
   if (!isAuthority() || !(state.phase === "pre" || state.phase === "gameover")) return;
   resetMatchState();
-  addLog("比賽開始！NPC 客隊先攻，雷霆隊準備在主場接手。", "big");
+  addLog(`比賽開始！NPC ${teamFor(state.opponentId).name} 先攻，${teamFor(state.teamId).name} 準備在主場接手。`, "big");
   beginDefenseHalf();
   commitState();
 }
@@ -1268,7 +1756,7 @@ function beginDefenseHalf() {
   state.defenseAction = "";
   state.pendingAwayRuns = 0;
   state.defenseOwner = state.slots.C.controller === "human" ? "C" : state.slots.P.controller === "human" ? "P" : "P";
-  addLog(`${state.inning} 局上，${positionName(state.defenseOwner)} 準備面對客隊打線。`, "big");
+  addLog(`${state.inning} 局上，${teamFor(state.teamId).name} 的${positionName(state.defenseOwner)}準備面對客隊打線。`, "big");
   armActionDeadline();
 }
 
@@ -1320,23 +1808,33 @@ function completeAwayHalf(runs, message, tone = "") {
 
 function resolveFieldingAction(action) {
   const definition = POSITION_BY_CODE[state.defenseOwner] || POSITION_BY_CODE.CF;
+  const defender = playerForPosition(state.defenseOwner, state.teamId) || definition;
+  const defenderRatings = defender.ratings || defender;
   const baseRuns = state.pendingAwayRuns;
-  const fielding = definition.fielding / 100;
-  const arm = definition.arm / 100;
+  const fielding = Number(defenderRatings.fielding || definition.fielding) / 100;
+  const arm = Number(defenderRatings.armStrength || definition.arm) / 100;
+  const reaction = Number(defenderRatings.reaction || definition.fielding) / 100;
   const roll = nextRandom();
   let finalRuns = baseRuns;
   if (action === "fielding-catch") {
-    if (roll < 0.56 + fielding * 0.28) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < 0.48 + fielding * 0.22 + reaction * 0.12) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-dive") {
-    if (roll < 0.24 + fielding * 0.5) finalRuns = Math.max(0, baseRuns - 2);
+    if (roll < 0.18 + fielding * 0.38 + reaction * 0.22) finalRuns = Math.max(0, baseRuns - 2);
     else finalRuns = Math.min(3, baseRuns + 1);
   } else if (action === "fielding-hold") {
-    if (roll < 0.72 + fielding * 0.18 && nextRandom() < 0.65) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < 0.61 + fielding * 0.2 + reaction * 0.11 && nextRandom() < 0.65) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-relay") {
-    if (roll < 0.44 + arm * 0.4) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < 0.35 + arm * 0.34 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.2) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-throw") {
-    if (roll < 0.35 + arm * 0.45) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < 0.26 + arm * 0.42 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.18) finalRuns = Math.max(0, baseRuns - 1);
     else finalRuns = Math.min(3, baseRuns + 1);
+  }
+  const fieldStats = state.playerStats[state.defenseOwner];
+  if (fieldStats) {
+    fieldStats.fieldingChances += 1;
+    if (finalRuns < baseRuns) fieldStats.putouts += 1;
+    else if (finalRuns > baseRuns) fieldStats.errors += 1;
+    else fieldStats.assists += 1;
   }
   const actionName = FIELDING_ACTION_META[action]?.title || "守住落點";
   if (finalRuns < baseRuns) {
@@ -1362,19 +1860,20 @@ function beginHomeHalf() {
   state.defenseAction = "";
   state.pendingAwayRuns = 0;
   resetBases();
-  addLog(`${state.inning} 局下，台北雷霆球員進攻。`, "big");
+  addLog(`${state.inning} 局下，${teamFor(state.teamId).name} 球員進攻。`, "big");
   setMomentum(state.score.home >= state.score.away ? 5 : -2);
   armActionDeadline();
 }
 
 function nextBatter() {
-  state.batterIndex = (state.batterIndex + 1) % lineup.length;
+  const rosterLineup = activeLineup();
+  state.batterIndex = (state.batterIndex + 1) % Math.max(1, rosterLineup.length);
   state.balls = 0;
   state.strikes = 0;
 }
 
-function finishPlateAppearance() {
-  markPlateAppearance();
+function finishPlateAppearance(result = {}) {
+  markPlateAppearance(result);
   state.balls = 0;
   state.strikes = 0;
   if (state.outs >= 3) {
@@ -1389,14 +1888,13 @@ function recordOut(reason) {
   setMomentum(-4);
   addLog(`${currentBatter().name}${reason}，${state.outs} 出局。`, "danger");
   flashCard("danger");
-  finishPlateAppearance();
+  finishPlateAppearance({ atBat: true, strikeout: reason.includes("三振") });
 }
 
 function applyHit(kind) {
   const batter = currentBatter();
   const batterPosition = batter.position;
   state.hits += 1;
-  if (state.playerStats[batterPosition]) state.playerStats[batterPosition].hits += 1;
   let runs = 0;
   if (kind === "single") {
     if (state.bases.third) { scoreRun(state.bases.third); runs += 1; }
@@ -1422,7 +1920,7 @@ function applyHit(kind) {
   addLog(`${batter.name} ${labels[kind]}${runs ? `，送回 ${runs} 分` : ""}！`, kind === "homer" || runs > 0 ? "big" : "");
   setMomentum(kind === "homer" ? 18 : 7);
   flashCard("celebrate");
-  finishPlateAppearance();
+  finishPlateAppearance({ atBat: true, hitType: kind, rbi: runs });
   checkWalkoff();
 }
 
@@ -1447,15 +1945,16 @@ function applyWalk() {
   }
   addLog(`${batter.name} 選到四壞球保送${run ? "，擠回 1 分" : ""}。`, run ? "big" : "");
   setMomentum(5);
-  finishPlateAppearance();
+  finishPlateAppearance({ atBat: false, walk: true, rbi: run ? 1 : 0 });
   checkWalkoff();
 }
 
 function resolveSwing(action) {
   const batter = currentBatter();
   const roll = nextRandom();
-  const contactBoost = batter.contact / 1000;
-  const powerBoost = batter.power / 1200;
+  const ratings = batter.ratings || batter;
+  const contactBoost = (Number(ratings.contact || 60) * 0.72 + Number(ratings.vision || 60) * 0.28) / 1000;
+  const powerBoost = (Number(ratings.power || 60) * 0.84 + Number(ratings.clutch || 60) * 0.16) / 1200;
   let result = "out";
   if (action === "power") {
     if (roll < 0.015 + powerBoost * 0.75) result = "homer";
@@ -1488,7 +1987,8 @@ function resolveSwing(action) {
 
 function resolvePatient() {
   const batter = currentBatter();
-  if (nextRandom() < 0.58) {
+  const patience = Number(batter.ratings?.discipline || 60) / 100;
+  if (nextRandom() < 0.4 + patience * 0.3) {
     state.balls += 1;
     if (state.balls >= 4) applyWalk();
     else { addLog(`${batter.name} 放掉壞球，${state.balls} 壞球。`); setMomentum(2); }
@@ -1513,7 +2013,7 @@ function resolveBunt() {
     addLog(`${batter.name} 執行犧牲短打，跑者推進${scored ? "並帶回 1 分" : ""}。`, scored ? "big" : "");
     setMomentum(scored ? 7 : 3);
     if (scored) flashCard("celebrate");
-    finishPlateAppearance();
+    finishPlateAppearance({ atBat: true, rbi: scored });
     checkWalkoff();
     return;
   }
@@ -1532,7 +2032,10 @@ function resolveSteal() {
   if (!from) return;
   const labels = { first: "一壘", second: "二壘", third: "三壘" };
   const runnerPosition = state.bases[from];
-  if (nextRandom() < 0.68) {
+  const runner = playerForPosition(runnerPosition, state.teamId) || {};
+  const runnerRatings = runner.ratings || runner;
+  const stealChance = 0.46 + Number(runnerRatings.stealing || 50) / 260 + Number(runnerRatings.speed || 50) / 500;
+  if (nextRandom() < stealChance) {
     state.bases[from] = null;
     state.bases[to] = runnerPosition;
     state.steals += 1;
@@ -1546,6 +2049,7 @@ function resolveSteal() {
   } else {
     state.bases[from] = null;
     state.outs += 1;
+    if (state.playerStats[runnerPosition]) state.playerStats[runnerPosition].caughtStealing += 1;
     setMomentum(-10);
     addLog(`盜壘失敗，${positionShort(runnerPosition)}號跑者在${labels[to]}前被觸殺。`, "danger");
     flashCard("danger");
@@ -1566,9 +2070,11 @@ function chooseNpcAction() {
 function chooseNpcDefenseAction() {
   if (state.defenseMode === "fielding") {
     const definition = POSITION_BY_CODE[state.defenseOwner] || POSITION_BY_CODE.CF;
+    const defender = playerForPosition(state.defenseOwner, state.teamId) || definition;
+    const defenderRatings = defender.ratings || defender;
     const roll = nextRandom();
-    if (definition.fielding >= 84 && roll < 0.35) return "fielding-dive";
-    if (definition.arm >= 82 && roll < 0.62) return "fielding-throw";
+    if (Number(defenderRatings.fielding || definition.fielding) >= 84 && roll < 0.35) return "fielding-dive";
+    if (Number(defenderRatings.armStrength || definition.arm) >= 82 && roll < 0.62) return "fielding-throw";
     return roll < 0.32 ? "fielding-catch" : roll < 0.67 ? "fielding-hold" : "fielding-relay";
   }
   const roll = nextRandom();
@@ -1644,7 +2150,7 @@ function finishHomeHalf() {
   resetBases();
   state.balls = 0;
   state.strikes = 0;
-  addLog(`${state.inning} 局下結束，雷霆這半局拿下 ${state.currentHalfRuns} 分。`, state.currentHalfRuns > 0 ? "big" : "");
+  addLog(`${state.inning} 局下結束，${teamFor(state.teamId).shortName} 這半局拿下 ${state.currentHalfRuns} 分。`, state.currentHalfRuns > 0 ? "big" : "");
   if (state.inning >= 9 && state.score.home > state.score.away) { endGame("win"); return; }
   if (state.inning >= 9 && state.score.home < state.score.away) { endGame("loss"); return; }
   if (state.inning >= 9 && state.score.home === state.score.away) {
@@ -1662,8 +2168,9 @@ function endGame(result) {
   state.balls = 0;
   state.strikes = 0;
   state.result = result;
+  recordMatchCareer(result);
   if (result === "walkoff" || result === "win") {
-    addLog("比賽結束！台北雷霆靠著主場攻勢贏下比賽。", "big");
+    addLog(`比賽結束！${teamFor(state.teamId).name} 靠著主場攻勢贏下比賽。`, "big");
     flashCard("celebrate");
   } else if (result === "tie") {
     addLog("比賽在延長賽後仍然平手。", "danger");
@@ -1719,6 +2226,27 @@ function bindEvents() {
     if (network.role === "guest") {
       if (network.connected) sendToHost({ type: "name", protocol: PROTOCOL_VERSION, name });
     } else updateLocalName(name);
+  });
+  $("team-select")?.addEventListener("change", (event) => applyTeamSelection(event.target.value));
+  $("opponent-select")?.addEventListener("change", (event) => applyOpponentSelection(event.target.value));
+  $("team-tabs")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-development-team]");
+    if (!button) return;
+    developmentTeamId = button.dataset.developmentTeam;
+    const firstPlayer = rosterForTeam(developmentTeamId)[0];
+    if (firstPlayer) selectedAthleteId = firstPlayer.id;
+    renderDevelopment();
+  });
+  $("roster-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-athlete-id]");
+    if (!button) return;
+    selectedAthleteId = button.dataset.athleteId;
+    renderDevelopment();
+  });
+  $("training-actions")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-training]");
+    if (!button || button.disabled) return;
+    trainSelectedPlayer(button.dataset.training);
   });
   actionButtons.forEach((button) => button.addEventListener("click", () => handleAction(button.dataset.action)));
   document.addEventListener("keydown", (event) => {

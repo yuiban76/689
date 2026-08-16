@@ -9,7 +9,7 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=diamond-fix-2" />
+    <link rel="stylesheet" href="./styles.css?v=league-development-1" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="./game.js" defer></script>
   </head>
@@ -84,6 +84,72 @@
         </div>
       </section>
 
+      <section class="development-panel" id="development-panel" aria-labelledby="development-title">
+        <div class="development-heading">
+          <div>
+            <p class="eyebrow">ROAD TO THE NINE</p>
+            <h2 id="development-title">球員中心 · 六隊聯盟</h2>
+            <p>管理球隊、查看 54 名球員的完整能力與賽季數據，透過訓練讓你的球員持續成長。</p>
+          </div>
+          <div class="match-team-controls">
+            <label>主隊<select id="team-select" aria-label="選擇主隊"></select></label>
+            <label>對手<select id="opponent-select" aria-label="選擇對手"></select></label>
+          </div>
+        </div>
+        <div class="development-layout">
+          <section class="roster-browser" aria-labelledby="roster-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">ROSTER DATABASE</p>
+                <h3 id="roster-title">球員名單</h3>
+              </div>
+              <span class="mini-label" id="roster-count">6 隊 · 54 名球員</span>
+            </div>
+            <p class="development-team-label" id="development-team-label">台北雷霆 · 台北 · 速度壓迫</p>
+            <div class="team-tabs" id="team-tabs" aria-label="選擇查看球隊"></div>
+            <div class="roster-list" id="roster-list"></div>
+          </section>
+
+          <section class="player-development-card" aria-labelledby="player-detail-title">
+            <div class="player-detail-header">
+              <div>
+                <p class="eyebrow" id="player-detail-position">CF · 全能中外</p>
+                <h3 id="player-detail-name">林昱辰</h3>
+                <p id="player-detail-meta">#07 · 左打／右投 · 24歲</p>
+              </div>
+              <div class="player-overall-wrap"><span>OVR</span><strong id="player-overall">78</strong></div>
+            </div>
+            <div class="player-progress-row"><span id="player-progress">Lv.1 · XP 0/100 · 訓練點 6 · 潛力 88</span><span id="player-morale">士氣 72 · 疲勞 0</span></div>
+            <div class="attribute-groups" id="player-attributes" aria-label="球員能力值"></div>
+            <div class="training-block">
+              <div class="section-heading">
+                <div><p class="eyebrow">DEVELOPMENT</p><h4>訓練計畫</h4></div>
+                <span class="mini-label">免費養成</span>
+              </div>
+              <div class="training-actions" id="training-actions">
+                <button class="training-button" data-training="hitting" type="button"><b>打擊訓練</b><small>CONTACT · VISION</small></button>
+                <button class="training-button" data-training="power" type="button"><b>力量訓練</b><small>POWER · CLUTCH</small></button>
+                <button class="training-button" data-training="defense" type="button"><b>守備訓練</b><small>FIELDING · REACTION</small></button>
+                <button class="training-button" data-training="speed" type="button"><b>跑壘訓練</b><small>SPEED · STEALING</small></button>
+                <button class="training-button" data-training="pitching" type="button"><b>投球訓練</b><small>CONTROL · BREAK</small></button>
+                <button class="training-button" data-training="recovery" type="button"><b>恢復訓練</b><small>疲勞 -20 · 士氣 +5</small></button>
+              </div>
+            </div>
+            <div class="player-statline" id="player-statline" aria-label="球員完整數據"></div>
+          </section>
+
+          <aside class="standings-card" aria-labelledby="standings-title">
+            <div class="section-heading">
+              <div><p class="eyebrow">LEAGUE TABLE</p><h3 id="standings-title">聯盟排名</h3></div>
+              <span class="mini-label">W-L-T</span>
+            </div>
+            <div class="standing-head"><span>#</span><span>球隊</span><span>戰績</span><span>勝率</span><span>得失分</span></div>
+            <div id="league-standings"></div>
+            <p class="standings-note">勝率相同時以得失分差排序。每場結束後會把球隊戰績與球員成長保存在本機。</p>
+          </aside>
+        </div>
+      </section>
+
       <main class="main-grid">
         <section class="game-card" id="game-card" aria-labelledby="game-title">
           <div class="scoreboard-block">
@@ -98,15 +164,15 @@
             <div class="scoreboard">
               <div class="team-score away-team">
                 <span class="team-tag">客隊</span>
-                <strong>高雄海鷗</strong>
-                <span class="team-record">海風球場 · 先攻</span>
+                <strong id="away-team-name">高雄海鷗</strong>
+                <span class="team-record" id="away-team-record">海風球場 · 先攻</span>
                 <b id="away-score">0</b>
               </div>
               <div class="score-divider"><span>VS</span></div>
               <div class="team-score home-team">
                 <span class="team-tag accent-tag">主隊</span>
-                <strong>台北雷霆</strong>
-                <span class="team-record">最多九人同隊 · NPC 補位</span>
+                <strong id="home-team-name">台北雷霆</strong>
+                <span class="team-record" id="home-team-record">最多九人同隊 · NPC 補位</span>
                 <b id="home-score">0</b>
               </div>
             </div>
