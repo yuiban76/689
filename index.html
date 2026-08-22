@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=custom-player-1" />
+    <link rel="stylesheet" href="./styles.css?v=career-sync-1" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js" defer></script>
+    <script src="./game.js?v=career-sync-1" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -116,7 +116,30 @@
             <button class="custom-player-submit" id="custom-player-submit" type="submit"><span>＋</span>建立我的球員</button>
           </form>
           <div class="custom-player-list" id="custom-player-list" aria-label="我的自創球員"></div>
-          <p class="custom-player-status" id="custom-player-status">自創球員只會保存在這個瀏覽器，不需要付費服務。</p>
+          <p class="custom-player-status" id="custom-player-status">生涯進度保存在這個瀏覽器；加入多人房間時，當場角色能力會同步給隊友。</p>
+        </section>
+        <section class="career-mode-panel" id="career-mode-panel" aria-labelledby="career-mode-title">
+          <div class="career-mode-heading">
+            <div>
+              <p class="eyebrow">MY PLAYER · SOLO CAREER</p>
+              <h3 id="career-mode-title">球員生涯訓練場</h3>
+              <p id="career-mode-copy">這裡會成為你的個人主場：訓練、練習賽與生涯成長都不需要加入多人房間。</p>
+            </div>
+            <button class="career-match-button" id="start-career-match" type="button">開始單人練習賽 <span>↗</span></button>
+          </div>
+          <div class="career-mode-summary">
+            <div class="career-player-identity"><span class="career-avatar-mark">MP</span><div><strong id="career-mode-name">尚未建立自創球員</strong><small id="career-mode-meta">先到上方工坊建立你的 My Player</small></div></div>
+            <span id="career-mode-progress">Lv.— · XP— · OVR—</span>
+            <span id="career-mode-energy">今日訓練 0 / 3</span>
+            <span id="career-mode-score">累積評分 —</span>
+          </div>
+          <div class="practice-actions" id="practice-actions" aria-label="位置訓練">
+            <button class="practice-button" data-practice="hitting" type="button"><span>↗</span><b>打擊挑戰</b><small>選球與擊球判斷</small></button>
+            <button class="practice-button" data-practice="defense" type="button"><span>✦</span><b>守備反應</b><small>接球、反應與傳球</small></button>
+            <button class="practice-button" data-practice="pitching" type="button"><span>◉</span><b>投球控制</b><small>控球、球路與體力</small></button>
+            <button class="practice-button" data-practice="speed" type="button"><span>»</span><b>跑壘判斷</b><small>速度、盜壘與短打</small></button>
+          </div>
+          <p class="career-mode-status" id="career-mode-status">建立自創球員後，就能進入單人訓練場。</p>
         </section>
         <div class="development-layout">
           <section class="roster-browser" aria-labelledby="roster-title">

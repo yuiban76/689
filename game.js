@@ -2,11 +2,13 @@
 
 const $ = (id) => document.getElementById(id);
 const actionButtons = [...document.querySelectorAll("[data-action]")];
-const PROTOCOL_VERSION = 2;
+const PROTOCOL_VERSION = 3;
 const MAX_PLAYERS = 9;
 const MAX_LOG = 14;
 const ACTION_TIMEOUT_MS = { defense: 7000, fielding: 5000, home: 10000 };
 const SESSION_STORAGE_KEY = "jiuju-session-id-v1";
+const PRACTICE_SESSIONS_PER_DAY = 3;
+const MAX_NETWORK_BOOST = 20;
 
 function readPersistentSessionId() {
   const fallback = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -137,6 +139,13 @@ function writeStorage(key, value) {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+function careerDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function normalizeCustomPlayer(raw, index = 0) {
   const source = raw && typeof raw === "object" ? raw : {};
   const position = POSITION_BY_CODE[source.position] ? source.position : "CF";
@@ -206,6 +215,8 @@ let selectedOpponentId = DEFAULT_OPPONENT_ID;
 let developmentTeamId = initialCustomPlayer?.teamId || DEFAULT_TEAM_ID;
 let selectedAthleteId = initialCustomPlayer?.id || `${DEFAULT_TEAM_ID}-cf`;
 let selectedCustomPlayerId = initialCustomPlayer?.id || "";
+let careerStatus = "建立自創球員後，就能進入單人訓練場。";
+let careerStatusTone = "";
 
 function createCareerProfile(player) {
   return {
@@ -216,6 +227,10 @@ function createCareerProfile(player) {
     morale: 72,
     boosts: Object.fromEntries(Object.keys(player.ratings).map((key) => [key, 0])),
     unlockedPerks: [],
+    practiceDay: careerDayKey(),
+    practiceSessions: PRACTICE_SESSIONS_PER_DAY,
+    practiceScore: 0,
+    lastPractice: "",
     stats: createSeasonStats(),
   };
 }
@@ -233,6 +248,14 @@ function profileFor(playerId) {
     pitching: { ...createSeasonStats().pitching, ...(profile.stats?.pitching || {}) },
     fielding: { ...createSeasonStats().fielding, ...(profile.stats?.fielding || {}) },
   };
+  const today = careerDayKey();
+  if (profile.practiceDay !== today) {
+    profile.practiceDay = today;
+    profile.practiceSessions = PRACTICE_SESSIONS_PER_DAY;
+  }
+  profile.practiceSessions = clamp(Number(profile.practiceSessions ?? PRACTICE_SESSIONS_PER_DAY), 0, PRACTICE_SESSIONS_PER_DAY);
+  profile.practiceScore = Math.max(0, Number(profile.practiceScore || 0));
+  profile.lastPractice = String(profile.lastPractice || "");
   return profile;
 }
 
@@ -246,10 +269,8 @@ function overallForPlayer(player) {
   return Math.round(groups.reduce((sum, value) => sum + Number(value || 0), 0) / groups.length);
 }
 
-function developedPlayer(playerId) {
-  const base = playerDefinitionFor(playerId);
+function developedPlayerFromProfile(base, profile) {
   if (!base) return null;
-  const profile = profileFor(playerId);
   const ratings = Object.fromEntries(Object.entries(base.ratings).map(([key, value]) => [key, Math.min(key === "popTime" ? 2.3 : 99, Number(value) + Number(profile?.boosts?.[key] || 0))]));
   return {
     ...base,
@@ -269,6 +290,12 @@ function developedPlayer(playerId) {
   };
 }
 
+function developedPlayer(playerId) {
+  const base = playerDefinitionFor(playerId);
+  if (!base) return null;
+  return developedPlayerFromProfile(base, profileFor(playerId));
+}
+
 function activeCustomPlayerForPosition(teamId, position) {
   const matches = customPlayers.filter((player) => player.active !== false && player.teamId === teamId && player.position === position);
   return matches[matches.length - 1] || null;
@@ -280,8 +307,9 @@ function rosterForTeam(teamId = state?.teamId || selectedTeamId) {
 }
 
 function activeLineup() {
-  const roster = rosterForTeam(state?.teamId || selectedTeamId);
-  return (roster.length ? roster : []).map((player) => developedPlayer(player.id));
+  const teamId = state?.teamId || selectedTeamId;
+  const roster = rosterForTeam(teamId);
+  return (roster.length ? roster : []).map((player) => matchPlayerForPosition(player.position, teamId) || developedPlayer(player.id));
 }
 
 function playerForPosition(position, teamId = state?.teamId || selectedTeamId) {
@@ -335,6 +363,13 @@ const TRAINING_META = {
   recovery: { title: "恢復訓練", detail: "疲勞 -20 · 士氣 +5", cost: 0, xp: 18, gains: {} },
 };
 
+const PRACTICE_META = {
+  hitting: { title: "打擊挑戰", detail: "CONTACT · VISION · CLUTCH", xp: 28, focus: ["contact", "vision", "clutch"] },
+  defense: { title: "守備反應", detail: "FIELDING · REACTION · ARM", xp: 27, focus: ["fielding", "reaction", "armAccuracy"] },
+  pitching: { title: "投球控制", detail: "CONTROL · BREAK · STAMINA", xp: 30, focus: ["control", "break", "stamina"] },
+  speed: { title: "跑壘判斷", detail: "SPEED · STEALING · BUNT", xp: 25, focus: ["speed", "stealing", "bunt"] },
+};
+
 function xpToNextLevel(level) {
   return 100 + Math.max(0, level - 1) * 45;
 }
@@ -353,6 +388,152 @@ function awardCareerXp(profile, amount) {
   return levels;
 }
 
+function serializeCareerProfile(profile) {
+  return {
+    level: clamp(Number(profile?.level || 1), 1, 99),
+    xp: Math.max(0, Number(profile?.xp || 0)),
+    trainingPoints: clamp(Number(profile?.trainingPoints || 0), 0, 12),
+    fatigue: clamp(Number(profile?.fatigue || 0), 0, 100),
+    morale: clamp(Number(profile?.morale || 72), 0, 99),
+    boosts: Object.fromEntries(Object.entries(profile?.boosts || {}).map(([key, value]) => [key, clamp(Number(value || 0), 0, MAX_NETWORK_BOOST)])),
+    unlockedPerks: Array.isArray(profile?.unlockedPerks) ? profile.unlockedPerks.slice(0, 12).map((perk) => String(perk).slice(0, 24)) : [],
+  };
+}
+
+function networkPlayerSnapshotFor(player) {
+  if (!player?.isCustom) return null;
+  const basePlayer = clone(player);
+  delete basePlayer.stats;
+  delete basePlayer.active;
+  return {
+    player: basePlayer,
+    profile: serializeCareerProfile(profileFor(player.id)),
+  };
+}
+
+function normalizeNetworkPlayerSnapshot(raw, teamId = state?.teamId || selectedTeamId, position = "") {
+  if (!raw || typeof raw !== "object" || !raw.player || raw.player.isCustom !== true) return null;
+  const player = normalizeCustomPlayer(raw.player);
+  if (!player.isCustom || (position && player.position !== position)) return null;
+  if (TEAM_BY_ID[teamId]) player.teamId = teamId;
+  const baseProfile = createCareerProfile(player);
+  const incomingProfile = raw.profile && typeof raw.profile === "object" ? raw.profile : {};
+  const profile = {
+    ...baseProfile,
+    level: clamp(Number(incomingProfile.level || 1), 1, 99),
+    xp: Math.max(0, Number(incomingProfile.xp || 0)),
+    trainingPoints: clamp(Number(incomingProfile.trainingPoints || 0), 0, 12),
+    fatigue: clamp(Number(incomingProfile.fatigue || 0), 0, 100),
+    morale: clamp(Number(incomingProfile.morale || 72), 0, 99),
+    boosts: Object.fromEntries(Object.keys(player.ratings).map((key) => [key, clamp(Number(incomingProfile.boosts?.[key] || 0), 0, MAX_NETWORK_BOOST)])),
+    unlockedPerks: Array.isArray(incomingProfile.unlockedPerks) ? incomingProfile.unlockedPerks.slice(0, 12).map((perk) => String(perk).slice(0, 24)) : [],
+  };
+  return { player, profile };
+}
+
+function developedNetworkPlayer(snapshot) {
+  if (!snapshot?.player) return null;
+  return developedPlayerFromProfile(snapshot.player, snapshot.profile);
+}
+
+function matchPlayerForPosition(position, teamId = state?.teamId || selectedTeamId) {
+  if (teamId === state?.teamId) {
+    const networkPlayer = developedNetworkPlayer(state?.slots?.[position]?.playerSnapshot);
+    if (networkPlayer) return networkPlayer;
+  }
+  return playerForPosition(position, teamId);
+}
+
+function customPlayerForNetworkPosition(position, teamId = state?.teamId || selectedTeamId) {
+  const selected = customPlayerIndex[selectedCustomPlayerId];
+  if (selected?.teamId === teamId && selected.position === position) return selected;
+  return activeCustomPlayerForPosition(teamId, position);
+}
+
+function networkPayloadForPosition(position, teamId = state?.teamId || selectedTeamId) {
+  return networkPlayerSnapshotFor(customPlayerForNetworkPosition(position, teamId));
+}
+
+function selectedCareerPlayer() {
+  const selected = customPlayerIndex[selectedCustomPlayerId];
+  const fallback = customPlayers.slice().reverse().find((player) => player.active !== false) || customPlayers[customPlayers.length - 1];
+  const player = selected || fallback;
+  return player ? developedPlayer(player.id) : null;
+}
+
+function setCareerStatus(message, tone = "") {
+  careerStatus = String(message || "");
+  careerStatusTone = tone;
+  const status = $("career-mode-status");
+  if (status) {
+    status.textContent = careerStatus;
+    status.className = `career-mode-status ${careerStatusTone}`.trim();
+  }
+}
+
+function runPracticeDrill(drillType) {
+  const player = selectedCareerPlayer();
+  const meta = PRACTICE_META[drillType];
+  if (!player || !meta) {
+    setCareerStatus("先建立一名自創球員，才能進入個人訓練。", "is-error");
+    return;
+  }
+  if (network.role !== "solo") {
+    setCareerStatus("單人訓練需要離開多人房間；你的生涯資料不會因此遺失。", "is-error");
+    return;
+  }
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    setCareerStatus("比賽進行中，請先完成這場比賽再進入訓練。", "is-error");
+    return;
+  }
+  const profile = profileFor(player.id);
+  if (profile.practiceSessions <= 0) {
+    setCareerStatus("今天的訓練次數已用完；明天會自動恢復。", "is-error");
+    return;
+  }
+  const focusAverage = meta.focus.reduce((sum, key) => sum + Number(player.ratings[key] || 50), 0) / meta.focus.length;
+  const score = clamp(Math.round(focusAverage + (Math.random() * 18 - 9)), 35, 99);
+  const bonusXp = Math.max(0, Math.round((score - 70) / 8));
+  profile.practiceSessions -= 1;
+  profile.practiceScore += score;
+  profile.lastPractice = `${meta.title} · ${score} 分`;
+  const previousLevel = profile.level;
+  const levels = awardCareerXp(profile, meta.xp + bonusXp);
+  profile.trainingPoints = Math.min(12, profile.trainingPoints + (score >= 86 ? 1 : 0));
+  profile.fatigue = Math.min(100, profile.fatigue + 5);
+  profile.morale = Math.min(99, profile.morale + (score >= 80 ? 2 : 0));
+  persistCustomPlayers();
+  const levelText = levels ? `，升到 Lv.${profile.level}` : "";
+  setCareerStatus(`${player.name} 完成${meta.title}，評分 ${score}；獲得 ${meta.xp + bonusXp} XP${levelText}。`);
+  if (previousLevel !== profile.level || score >= 90) flashCard("celebrate");
+  render();
+}
+
+function startPracticeGame() {
+  const player = selectedCareerPlayer();
+  if (!player) {
+    setCareerStatus("先建立一名自創球員，才能開始球員生涯練習賽。", "is-error");
+    return;
+  }
+  if (network.role !== "solo") {
+    setCareerStatus("練習賽是你的單人內容；請先離開多人房間。", "is-error");
+    return;
+  }
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    setCareerStatus("目前已有比賽進行中，完成後才能開始下一場練習賽。", "is-error");
+    return;
+  }
+  const opponentId = chooseOpponentFor(player.teamId, selectedOpponentId);
+  if (state.teamId !== player.teamId || state.opponentId !== opponentId) replaceMatchTeams(player.teamId, opponentId, false);
+  selectedTeamId = player.teamId;
+  selectedOpponentId = opponentId;
+  developmentTeamId = player.teamId;
+  selectedAthleteId = player.id;
+  claimLocalPosition(player.position, false);
+  setCareerStatus(`${player.name} 已進入單人練習賽，隊友與對手由免費 NPC 補位。`);
+  startGame("practice");
+}
+
 function replaceMatchTeams(teamId, opponentId, shouldCommit = true) {
   if (!isAuthority() || !TEAM_BY_ID[teamId] || !TEAM_BY_ID[opponentId] || teamId === opponentId) return false;
   const previousSlots = clone(state.slots);
@@ -363,6 +544,8 @@ function replaceMatchTeams(teamId, opponentId, shouldCommit = true) {
     const previous = previousSlots[code];
     if (!previous || previous.controller !== "human" || !previous.playerId) return;
     Object.assign(state.slots[code], {
+      athleteId: previous.athleteId,
+      playerSnapshot: previous.playerSnapshot,
       playerId: previous.playerId,
       sessionId: previous.sessionId,
       connectionKey: previous.connectionKey,
@@ -420,6 +603,10 @@ function trainSelectedPlayer(trainingType) {
   const previousLevel = profile.level;
   const levels = awardCareerXp(profile, meta.xp);
   writeStorage(CAREER_STORAGE_KEY, careerStore);
+  if (network.role === "guest" && network.connected && player.isCustom) {
+    const localCustom = customPlayerIndex[player.id];
+    if (localCustom) sendToHost({ type: "custom", protocol: PROTOCOL_VERSION, position: localCustom.position, customPlayer: networkPlayerSnapshotFor(localCustom), name: localCustom.name });
+  }
   network.status = `${player.name} 完成${meta.title}：${meta.detail}${levels ? `，升到 Lv.${profile.level}！` : "。"}`;
   if (previousLevel !== profile.level) flashCard("celebrate");
   render();
@@ -464,9 +651,12 @@ function syncMatchAthletes() {
   if (!state?.slots || !state.teamId) return;
   POSITION_DEFS.forEach(({ code }) => {
     const slot = state.slots[code];
-    const player = playerForPosition(code, state.teamId);
+    if (slot?.controller === "human" && slot.playerId && slot.playerId !== network.localPlayerId) return;
+    const customPlayer = customPlayerForNetworkPosition(code, state.teamId);
+    const player = customPlayer || playerForPosition(code, state.teamId);
     if (!slot || !player) return;
     slot.athleteId = player.id;
+    slot.playerSnapshot = slot.controller === "human" && slot.playerId === network.localPlayerId ? networkPlayerSnapshotFor(customPlayer) : null;
     if (slot.controller === "npc") slot.name = player.name;
   });
 }
@@ -495,10 +685,12 @@ function useCustomPlayer(playerId) {
   selectedAthleteId = player.id;
   developmentTeamId = player.teamId;
   network.displayName = player.name;
+  network.assignedPosition = player.position;
   const nameInput = $("player-name-input");
   if (nameInput) nameInput.value = player.name;
   if (network.role === "guest") {
-    if (network.connected) sendToHost({ type: "name", protocol: PROTOCOL_VERSION, name: player.name });
+    if (network.connected) sendToHost({ type: "custom", protocol: PROTOCOL_VERSION, position: player.position, customPlayer: networkPlayerSnapshotFor(player), name: player.name });
+    setCareerStatus(`${player.name} 已選為你的 My Player；單人訓練會累積他的生涯進度。`);
     setCustomPlayerStatus(`${player.name} 已選為你的角色；下一場會使用 ${teamFor(player.teamId).name} 的 ${positionName(player.position)}。`, "is-success");
     render();
     return;
@@ -507,8 +699,10 @@ function useCustomPlayer(playerId) {
     if (state.teamId === player.teamId) claimLocalPosition(player.position, false);
     syncMatchAthletes();
     commitState();
+    setCareerStatus(`${player.name} 已選為你的 My Player；現在可以訓練或開始單人練習賽。`);
     setCustomPlayerStatus(`${player.name} 已套用到 ${teamFor(player.teamId).name} 的 ${positionName(player.position)}，現在可以開始比賽。`, "is-success");
   } else {
+    setCareerStatus(`${player.name} 已選為你的 My Player；下一場比賽會套用最新能力。`);
     setCustomPlayerStatus(`${player.name} 已選取，下一場比賽開始時會套用到 ${teamFor(player.teamId).name}。`, "is-success");
     render();
   }
@@ -546,62 +740,79 @@ function createCustomPlayerFromForm(event) {
   setCustomPlayerStatus(`${player.name} 建立完成並已套用到你的角色；現在可以開始比賽。`, "is-success");
 }
 
+function applyMatchToCareerProfile(profile, position, match, result) {
+  if (!profile) return;
+  const season = profile.stats;
+  if (match.plateAppearances > 0) season.batting.G += 1;
+  season.batting.PA += Number(match.plateAppearances || 0);
+  season.batting.AB += Number(match.atBats || 0);
+  season.batting.R += Number(match.runs || 0);
+  season.batting.H += Number(match.hits || 0);
+  season.batting.doubles += Number(match.doubles || 0);
+  season.batting.triples += Number(match.triples || 0);
+  season.batting.HR += Number(match.homeRuns || 0);
+  season.batting.RBI += Number(match.runsBattedIn || 0);
+  season.batting.BB += Number(match.walks || 0);
+  season.batting.SO += Number(match.strikeouts || 0);
+  season.batting.SB += Number(match.steals || 0);
+  season.batting.CS += Number(match.caughtStealing || 0);
+  season.fielding.G += 1;
+  season.fielding.GS += 1;
+  season.fielding.INN += state.inning >= 9 ? 9 : state.inning;
+  season.fielding.PO += Number(match.putouts || 0);
+  season.fielding.A += Number(match.assists || 0);
+  season.fielding.E += Number(match.errors || 0);
+  if (position === "P") {
+    season.pitching.G += 1;
+    season.pitching.GS += 1;
+    if (result === "win" || result === "walkoff") season.pitching.W += 1;
+    if (result === "loss") season.pitching.L += 1;
+    season.pitching.IP += state.inning >= 9 ? 9 : state.inning;
+    season.pitching.ER += state.score.away;
+    season.pitching.H += Math.max(0, state.score.away + Number(match.hits || 0));
+    season.pitching.BB += Number(match.walks || 0);
+    season.pitching.SO += Number(match.strikeouts || 0);
+  }
+  awardCareerXp(profile, (match.decisions || 0) * 4 + (match.hits || 0) * 8 + (match.putouts || 0) * 3 + 20);
+  profile.trainingPoints = Math.min(12, profile.trainingPoints + 1);
+  profile.fatigue = Math.min(100, profile.fatigue + 8);
+  profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
+}
+
 function recordMatchCareer(result) {
   if (state.leagueRecorded) return;
-  const homeTeam = teamRecord(state.teamId);
-  const awayTeam = teamRecord(state.opponentId);
-  homeTeam.RF += state.score.home;
-  homeTeam.RA += state.score.away;
-  awayTeam.RF += state.score.away;
-  awayTeam.RA += state.score.home;
-  if (result === "win" || result === "walkoff") { homeTeam.W += 1; awayTeam.L += 1; }
-  else if (result === "loss") { homeTeam.L += 1; awayTeam.W += 1; }
-  else { homeTeam.T += 1; awayTeam.T += 1; }
-  leagueStore[state.teamId] = homeTeam;
-  leagueStore[state.opponentId] = awayTeam;
+  if (state.matchMode !== "practice") {
+    const homeTeam = teamRecord(state.teamId);
+    const awayTeam = teamRecord(state.opponentId);
+    homeTeam.RF += state.score.home;
+    homeTeam.RA += state.score.away;
+    awayTeam.RF += state.score.away;
+    awayTeam.RA += state.score.home;
+    if (result === "win" || result === "walkoff") { homeTeam.W += 1; awayTeam.L += 1; }
+    else if (result === "loss") { homeTeam.L += 1; awayTeam.W += 1; }
+    else { homeTeam.T += 1; awayTeam.T += 1; }
+    leagueStore[state.teamId] = homeTeam;
+    leagueStore[state.opponentId] = awayTeam;
+  }
   Object.entries(state.slots).forEach(([position, slot]) => {
     if (!slot.athleteId) return;
     const profile = profileFor(slot.athleteId);
-    const season = profile.stats;
-    const match = state.playerStats[position] || {};
-    if (match.plateAppearances > 0) season.batting.G += 1;
-    season.batting.PA += Number(match.plateAppearances || 0);
-    season.batting.AB += Number(match.atBats || 0);
-    season.batting.R += Number(match.runs || 0);
-    season.batting.H += Number(match.hits || 0);
-    season.batting.doubles += Number(match.doubles || 0);
-    season.batting.triples += Number(match.triples || 0);
-    season.batting.HR += Number(match.homeRuns || 0);
-    season.batting.RBI += Number(match.runsBattedIn || 0);
-    season.batting.BB += Number(match.walks || 0);
-    season.batting.SO += Number(match.strikeouts || 0);
-    season.batting.SB += Number(match.steals || 0);
-    season.batting.CS += Number(match.caughtStealing || 0);
-    season.fielding.G += 1;
-    season.fielding.GS += 1;
-    season.fielding.INN += state.inning >= 9 ? 9 : state.inning;
-    season.fielding.PO += Number(match.putouts || 0);
-    season.fielding.A += Number(match.assists || 0);
-    season.fielding.E += Number(match.errors || 0);
-    const isPitcher = position === "P";
-    if (isPitcher) {
-      season.pitching.G += 1;
-      season.pitching.GS += 1;
-      if (result === "win" || result === "walkoff") season.pitching.W += 1;
-      if (result === "loss") season.pitching.L += 1;
-      season.pitching.IP += state.inning >= 9 ? 9 : state.inning;
-      season.pitching.ER += state.score.away;
-      season.pitching.H += Math.max(0, state.score.away + Number(match.hits || 0));
-      season.pitching.BB += Number(match.walks || 0);
-      season.pitching.SO += Number(match.strikeouts || 0);
-    }
-    awardCareerXp(profile, (match.decisions || 0) * 4 + (match.hits || 0) * 8 + (match.putouts || 0) * 3 + 20);
-    profile.trainingPoints = Math.min(12, profile.trainingPoints + 1);
-    profile.fatigue = Math.min(100, profile.fatigue + 8);
-    profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
+    if (!profile) return;
+    applyMatchToCareerProfile(profile, position, state.playerStats[position] || {}, result);
   });
   state.leagueRecorded = true;
-  writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
+  if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
+  writeStorage(CAREER_STORAGE_KEY, careerStore);
+}
+
+function recordLocalGuestMatchCareer() {
+  if (network.lastGuestRecordedRevision === state.revision) return;
+  const slot = slotForPlayer(network.localPlayerId);
+  if (!slot?.athleteId) return;
+  const profile = profileFor(slot.athleteId);
+  if (!profile) return;
+  applyMatchToCareerProfile(profile, slot.position, state.playerStats[slot.position] || {}, state.result);
+  network.lastGuestRecordedRevision = state.revision;
   writeStorage(CAREER_STORAGE_KEY, careerStore);
 }
 
@@ -609,9 +820,49 @@ function formatRate(value, digits = 3) {
   return Number(value || 0).toFixed(digits).replace(/^0(?=\.)/, "");
 }
 
+function renderCareerMode() {
+  const panel = $("career-mode-panel");
+  if (!panel) return;
+  const player = selectedCareerPlayer();
+  const profile = player ? profileFor(player.id) : null;
+  const connectedToRoom = network.role !== "solo";
+  const modeName = $("career-mode-name");
+  const modeMeta = $("career-mode-meta");
+  const modeProgress = $("career-mode-progress");
+  const modeCopy = $("career-mode-copy");
+  const energy = $("career-mode-energy");
+  const score = $("career-mode-score");
+  const matchButton = $("start-career-match");
+  if (!player || !profile) {
+    if (modeName) modeName.textContent = "尚未建立自創球員";
+    if (modeMeta) modeMeta.textContent = "先到上方工坊建立你的 My Player";
+    if (modeProgress) modeProgress.textContent = "Lv.— · XP— · OVR—";
+    if (modeCopy) modeCopy.textContent = "這裡會成為你的個人主場：訓練、練習賽與生涯成長都不需要加入多人房間。";
+    if (energy) energy.textContent = "今日訓練 0 / 3";
+    if (score) score.textContent = "累積評分 —";
+  } else {
+    if (modeName) modeName.textContent = player.name;
+    if (modeMeta) modeMeta.textContent = `${player.position} · ${positionName(player.position)} · ${player.archetype}`;
+    if (modeProgress) modeProgress.textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · OVR ${player.overall}`;
+    if (modeCopy) modeCopy.textContent = connectedToRoom ? "目前在多人房間；離開房間後即可進行自己的單人訓練。" : "把今天的訓練做好，再帶著成長後的角色加入九人房間。";
+    if (energy) energy.textContent = `今日訓練 ${profile.practiceSessions} / ${PRACTICE_SESSIONS_PER_DAY}`;
+    if (score) score.textContent = `累積評分 ${profile.practiceScore || 0}`;
+  }
+  document.querySelectorAll("[data-practice]").forEach((button) => {
+    button.disabled = !player || !profile || profile.practiceSessions <= 0 || connectedToRoom || !(state.phase === "pre" || state.phase === "gameover");
+  });
+  if (matchButton) matchButton.disabled = !player || connectedToRoom || !(state.phase === "pre" || state.phase === "gameover");
+  const status = $("career-mode-status");
+  if (status) {
+    status.textContent = careerStatus;
+    status.className = `career-mode-status ${careerStatusTone}`.trim();
+  }
+}
+
 function renderDevelopment() {
   const panel = $("development-panel");
   if (!panel) return;
+  renderCareerMode();
   if (network.role === "guest" && state.teamId) selectedTeamId = state.teamId;
   const teamSelect = $("team-select");
   const opponentSelect = $("opponent-select");
@@ -765,6 +1016,7 @@ const network = {
   signalTimer: null,
   hostSeenAt: 0,
   heartbeatTimer: null,
+  lastGuestRecordedRevision: -1,
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -825,6 +1077,7 @@ function createSlot(definition, teamId = DEFAULT_TEAM_ID) {
   return {
     position: definition.code,
     athleteId: athlete.id,
+    playerSnapshot: null,
     playerId: null,
     sessionId: null,
     connectionKey: null,
@@ -838,11 +1091,12 @@ function createSlots(teamId = DEFAULT_TEAM_ID) {
   return Object.fromEntries(POSITION_DEFS.map((definition) => [definition.code, createSlot(definition, teamId)]));
 }
 
-function createState(teamId = selectedTeamId, opponentId = selectedOpponentId) {
+function createState(teamId = selectedTeamId, opponentId = selectedOpponentId, matchMode = "league") {
   return {
     version: PROTOCOL_VERSION,
     teamId,
     opponentId,
+    matchMode,
     phase: "pre",
     inning: 1,
     half: "top",
@@ -921,7 +1175,16 @@ function normalizeState(snapshot) {
   };
   POSITION_DEFS.forEach(({ code }) => {
     const incoming = snapshot.slots?.[code];
-    if (incoming) normalized.slots[code] = { ...normalized.slots[code], ...incoming, connectionKey: null, sessionId: null };
+    if (!incoming) return;
+    const playerSnapshot = normalizeNetworkPlayerSnapshot(incoming.playerSnapshot, normalizedTeamId, code);
+    normalized.slots[code] = {
+      ...normalized.slots[code],
+      ...incoming,
+      athleteId: playerSnapshot?.player.id || incoming.athleteId || normalized.slots[code].athleteId,
+      playerSnapshot,
+      connectionKey: null,
+      sessionId: null,
+    };
   });
   return normalized;
 }
@@ -1074,9 +1337,11 @@ function applySnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return;
   const incomingRevision = Number(snapshot.revision ?? -1);
   if (incomingRevision < network.lastRevision) return;
+  const previousPhase = state.phase;
   state = normalizeState(snapshot);
   network.lastRevision = incomingRevision;
   network.awaiting = false;
+  if (network.role === "guest" && state.phase === "gameover" && previousPhase !== "gameover" && state.leagueRecorded) recordLocalGuestMatchCareer();
   if (network.role === "guest") network.status = "已同步：輪到你的打席時，按下你的決策。";
   render();
 }
@@ -1153,6 +1418,7 @@ function disconnectNetwork() {
   network.awaiting = false;
   network.lastRevision = -1;
   network.hostSeenAt = 0;
+  network.lastGuestRecordedRevision = -1;
   network.status = "單機模式：你可以選一個位置，其餘由 NPC 補位。";
   const signalStatus = $("team-signal-status");
   if (signalStatus) signalStatus.textContent = "用短訊息提醒隊友，不會打斷目前事件。";
@@ -1170,6 +1436,8 @@ function prepareFreshState() {
     if (!previous) return;
     state.slots[code] = {
       ...state.slots[code],
+      athleteId: previous.athleteId,
+      playerSnapshot: previous.playerSnapshot,
       playerId: previous.playerId,
       sessionId: previous.sessionId,
       connectionKey: previous.connectionKey,
@@ -1193,14 +1461,19 @@ function claimLocalPosition(position, shouldCommit = true) {
     previous.playerId = null;
     previous.sessionId = null;
     previous.connectionKey = null;
+    previous.playerSnapshot = null;
     previous.name = npcNameForPosition(previous.position);
     previous.connected = true;
   }
+  const customPlayer = customPlayerForNetworkPosition(position, state.teamId);
+  const athlete = playerForPosition(position, state.teamId);
   target.controller = "human";
   target.playerId = network.localPlayerId;
   target.sessionId = network.sessionId;
   target.connectionKey = network.role === "host" ? "host-local" : null;
   target.name = network.displayName;
+  target.athleteId = customPlayer?.id || athlete?.id || target.athleteId;
+  target.playerSnapshot = networkPlayerSnapshotFor(customPlayer);
   target.connected = true;
   network.assignedPosition = position;
   if (shouldCommit) commitState();
@@ -1216,6 +1489,7 @@ function releaseLocalPosition(shouldCommit = true) {
   slot.playerId = null;
   slot.sessionId = null;
   slot.connectionKey = null;
+  slot.playerSnapshot = null;
   slot.name = npcNameForPosition(slot.position);
   slot.connected = true;
   network.assignedPosition = "";
@@ -1270,12 +1544,15 @@ function hostHandleJoin(record, message) {
   record.position = slot.position;
   record.name = cleanName(message.name || `球員 ${playerId}`);
   record.lastSeen = Date.now();
+  record.customPlayer = normalizeNetworkPlayerSnapshot(message.customPlayer, state.teamId, slot.position);
   slot.playerId = playerId;
   slot.sessionId = sessionId;
   slot.connectionKey = record.key;
   slot.controller = "human";
   slot.connected = true;
   slot.name = record.name;
+  slot.playerSnapshot = record.customPlayer;
+  slot.athleteId = record.customPlayer?.player.id || playerForPosition(slot.position, state.teamId)?.id || slot.athleteId;
   sendConnection(record.connection, {
     type: "welcome",
     protocol: PROTOCOL_VERSION,
@@ -1289,7 +1566,7 @@ function hostHandleJoin(record, message) {
 
 function attachHostConnection(connection) {
   const key = `${connection.peer}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const record = { key, connection, joined: false, playerId: null, sessionId: null, position: "", lastSeen: Date.now(), lastSignalAt: 0, removed: false };
+  const record = { key, connection, joined: false, playerId: null, sessionId: null, position: "", customPlayer: null, lastSeen: Date.now(), lastSignalAt: 0, removed: false };
   network.connections.set(key, record);
   const remove = () => {
     if (record.removed) return;
@@ -1301,6 +1578,8 @@ function attachHostConnection(connection) {
         slot.controller = "npc";
         slot.playerId = null;
         slot.connectionKey = null;
+        slot.playerSnapshot = null;
+        slot.athleteId = playerForPosition(slot.position, state.teamId)?.id || slot.athleteId;
         slot.name = npcNameForPosition(slot.position);
         slot.connected = true;
         if (state.phase !== "pre" && state.phase !== "gameover") addLog(`${positionName(slot.position)} 玩家離線，NPC 暫時接手。`, "danger");
@@ -1317,9 +1596,10 @@ function attachHostConnection(connection) {
     if (message.type === "join") hostHandleJoin(record, message);
     else if (message.type === "ping") sendConnection(connection, { type: "pong", at: Date.now() });
     else if (!record.joined) return;
-    else if (message.type === "claim") hostClaimPlayerPosition(record, message.position);
+    else if (message.type === "claim") hostClaimPlayerPosition(record, message.position, message.customPlayer);
     else if (message.type === "release") hostReleasePlayerPosition(record);
     else if (message.type === "name") hostUpdatePlayerName(record, message.name);
+    else if (message.type === "custom") hostUpdateCustomPlayer(record, message.position, message.customPlayer, message.name);
     else if (message.type === "signal") hostHandleSignal(record, message.signal);
     else if (message.type === "start") requestStartFromPlayer(record);
     else if (message.type === "reset") sendConnection(connection, { type: "status", message: "只有房主可以重新開打。", awaiting: false });
@@ -1329,7 +1609,7 @@ function attachHostConnection(connection) {
   connection.on("error", remove);
 }
 
-function hostClaimPlayerPosition(record, position) {
+function hostClaimPlayerPosition(record, position, incomingCustomPlayer = null) {
   if (!POSITION_BY_CODE[position]) return;
   if (!(state.phase === "pre" || state.phase === "gameover" || (state.phase === "home" && state.balls === 0 && state.strikes === 0))) {
     sendConnection(record.connection, { type: "status", message: "下一個安全事件才能換守備位置。" });
@@ -1345,15 +1625,21 @@ function hostClaimPlayerPosition(record, position) {
     previous.controller = "npc";
     previous.playerId = null;
     previous.connectionKey = null;
+    previous.playerSnapshot = null;
+    previous.athleteId = playerForPosition(previous.position, state.teamId)?.id || previous.athleteId;
     previous.name = npcNameForPosition(previous.position);
     previous.connected = true;
   }
+  const customPlayer = normalizeNetworkPlayerSnapshot(incomingCustomPlayer, state.teamId, position) || (record.customPlayer?.player.position === position ? record.customPlayer : null);
   target.controller = "human";
   target.playerId = record.playerId;
   target.sessionId = record.sessionId;
   target.connectionKey = record.key;
+  target.playerSnapshot = customPlayer;
+  target.athleteId = customPlayer?.player.id || playerForPosition(position, state.teamId)?.id || target.athleteId;
   target.connected = true;
   target.name = record.name || target.name;
+  record.customPlayer = customPlayer;
   record.position = position;
   sendConnection(record.connection, { type: "position", position });
   network.status = `${target.name} 已轉到 ${positionName(position)}。`;
@@ -1366,9 +1652,12 @@ function hostReleasePlayerPosition(record) {
   slot.controller = "npc";
   slot.playerId = null;
   slot.connectionKey = null;
+  slot.playerSnapshot = null;
+  slot.athleteId = playerForPosition(slot.position, state.teamId)?.id || slot.athleteId;
   slot.name = npcNameForPosition(slot.position);
   slot.connected = true;
   record.position = "";
+  record.customPlayer = null;
   sendConnection(record.connection, { type: "position", position: "" });
   commitState();
 }
@@ -1378,7 +1667,20 @@ function hostUpdatePlayerName(record, name) {
   if (!slot) return;
   record.name = cleanName(name);
   slot.name = record.name;
+  if (record.customPlayer?.player) record.customPlayer.player.name = record.name;
+  if (slot.playerSnapshot?.player) slot.playerSnapshot.player.name = record.name;
   commitState();
+}
+
+function hostUpdateCustomPlayer(record, position, incomingCustomPlayer, name = "") {
+  if (!record.joined) return;
+  if (!(state.phase === "pre" || state.phase === "gameover" || (state.phase === "home" && state.balls === 0 && state.strikes === 0))) {
+    sendConnection(record.connection, { type: "status", message: "下一個安全事件才能更新自創球員。" });
+    return;
+  }
+  const nextName = name || incomingCustomPlayer?.player?.name;
+  if (nextName) record.name = cleanName(nextName);
+  hostClaimPlayerPosition(record, position || record.position, incomingCustomPlayer);
 }
 
 function hostHandleSignal(record, signal) {
@@ -1419,6 +1721,7 @@ function attachGuestConnection(connection) {
       sessionId: network.sessionId,
       name: network.displayName,
       requestedPosition: network.assignedPosition,
+      customPlayer: networkPayloadForPosition(network.assignedPosition, selectedTeamId),
     });
   };
   connection.on("open", () => {
@@ -1518,7 +1821,7 @@ function createRoom() {
   network.sessionId = `host-${Date.now()}`;
   network.displayName = cleanName($("player-name-input")?.value || network.displayName);
   state = createState(selectedTeamId, selectedOpponentId);
-  claimLocalPosition("CF", false);
+  claimLocalPosition(customPlayerIndex[selectedCustomPlayerId]?.position || "CF", false);
   network.roomCode = makeRoomCode();
   network.status = "正在建立房間，請稍候……";
   render();
@@ -1541,6 +1844,7 @@ function joinRoom() {
   network.roomCode = code;
   network.hostId = `jiuju-${code}`;
   network.displayName = cleanName($("player-name-input")?.value || network.displayName);
+  network.assignedPosition = customPlayerIndex[selectedCustomPlayerId]?.position || "CF";
   network.status = "正在尋找房主……";
   state = createState(selectedTeamId, selectedOpponentId);
   render();
@@ -1584,7 +1888,7 @@ function requestStart() {
     renderNetwork();
     return;
   }
-  startGame();
+  startGame(network.role === "solo" && state.matchMode === "practice" ? "practice" : "league");
 }
 
 function requestReset() {
@@ -1880,7 +2184,8 @@ function render() {
   const batterSlot = state.slots[batter.position];
   const homeTeam = teamFor(state.teamId);
   const awayTeam = teamFor(state.opponentId);
-  const phaseText = { pre: "賽前準備", defense: `${homeTeam.shortName}守備 · ${state.defenseOwner || "P"}`, cpu: "NPC 客隊進攻", home: `輪到 ${batter.position}`, gameover: "比賽結束" }[state.phase];
+  const modePrefix = state.matchMode === "practice" ? "單人練習 · " : "";
+  const phaseText = { pre: `${modePrefix}賽前準備`, defense: `${modePrefix}${homeTeam.shortName}守備 · ${state.defenseOwner || "P"}`, cpu: `${modePrefix}NPC 客隊進攻`, home: `${modePrefix}輪到 ${batter.position}`, gameover: `${modePrefix}比賽結束` }[state.phase];
   $("game-title").textContent = `${homeTeam.name} vs. ${awayTeam.name}`;
   $("away-team-name").textContent = awayTeam.name;
   $("away-team-record").textContent = `${awayTeam.stadium} · 先攻`;
@@ -1918,7 +2223,7 @@ function render() {
   $("gameover-panel").hidden = state.phase !== "gameover";
   $("start-game").disabled = (network.role === "guest" && !network.connected) || !slotForPlayer(network.localPlayerId);
   $("gameover-title").textContent = state.result === "win" || state.result === "walkoff" ? "主場勝利！" : state.result === "tie" ? "延長賽後仍然平手" : "客隊帶走勝利";
-  $("gameover-copy").textContent = `最終比分：${homeTeam.name} ${state.score.home}：${state.score.away} ${awayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
+  $("gameover-copy").textContent = `${state.matchMode === "practice" ? "練習賽完成。" : "最終比分："} ${homeTeam.name} ${state.score.home}：${state.score.away} ${awayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
   updateBaseView();
   renderLineScore();
@@ -1931,12 +2236,12 @@ function render() {
   scheduleNpcTurn();
 }
 
-function resetMatchState() {
+function resetMatchState(matchMode = "league") {
   window.clearTimeout(network.actionTimer);
   network.actionTimer = null;
   const previousSlots = clone(state.slots);
   const previousRevision = state.revision;
-  state = createState(state.teamId, state.opponentId);
+  state = createState(state.teamId, state.opponentId, matchMode);
   state.revision = previousRevision;
   POSITION_DEFS.forEach(({ code }) => {
     const previous = previousSlots[code];
@@ -1944,6 +2249,8 @@ function resetMatchState() {
     const target = state.slots[code];
     if (previous.controller === "human" && previous.playerId) {
       Object.assign(target, {
+        athleteId: previous.athleteId,
+        playerSnapshot: previous.playerSnapshot,
         playerId: previous.playerId,
         sessionId: previous.sessionId,
         connectionKey: previous.connectionKey,
@@ -1958,14 +2265,14 @@ function resetMatchState() {
 
 function resetGame() {
   if (!isAuthority()) return;
-  resetMatchState();
+  resetMatchState("league");
   addLog("新比賽準備開始；每個位置都可以由真人或 NPC 負責。", "big");
   commitState();
 }
 
-function startGame() {
+function startGame(matchMode = "league") {
   if (!isAuthority() || !(state.phase === "pre" || state.phase === "gameover")) return;
-  resetMatchState();
+  resetMatchState(matchMode);
   addLog(`比賽開始！NPC ${teamFor(state.opponentId).name} 先攻，${teamFor(state.teamId).name} 準備在主場接手。`, "big");
   beginDefenseHalf();
   commitState();
@@ -2034,7 +2341,7 @@ function completeAwayHalf(runs, message, tone = "") {
 
 function resolveFieldingAction(action) {
   const definition = POSITION_BY_CODE[state.defenseOwner] || POSITION_BY_CODE.CF;
-  const defender = playerForPosition(state.defenseOwner, state.teamId) || definition;
+  const defender = matchPlayerForPosition(state.defenseOwner, state.teamId) || definition;
   const defenderRatings = defender.ratings || defender;
   const baseRuns = state.pendingAwayRuns;
   const fielding = Number(defenderRatings.fielding || definition.fielding) / 100;
@@ -2258,7 +2565,7 @@ function resolveSteal() {
   if (!from) return;
   const labels = { first: "一壘", second: "二壘", third: "三壘" };
   const runnerPosition = state.bases[from];
-  const runner = playerForPosition(runnerPosition, state.teamId) || {};
+  const runner = matchPlayerForPosition(runnerPosition, state.teamId) || {};
   const runnerRatings = runner.ratings || runner;
   const stealChance = 0.46 + Number(runnerRatings.stealing || 50) / 260 + Number(runnerRatings.speed || 50) / 500;
   if (nextRandom() < stealChance) {
@@ -2296,7 +2603,7 @@ function chooseNpcAction() {
 function chooseNpcDefenseAction() {
   if (state.defenseMode === "fielding") {
     const definition = POSITION_BY_CODE[state.defenseOwner] || POSITION_BY_CODE.CF;
-    const defender = playerForPosition(state.defenseOwner, state.teamId) || definition;
+    const defender = matchPlayerForPosition(state.defenseOwner, state.teamId) || definition;
     const defenderRatings = defender.ratings || defender;
     const roll = nextRandom();
     if (Number(defenderRatings.fielding || definition.fielding) >= 84 && roll < 0.35) return "fielding-dive";
@@ -2435,7 +2742,7 @@ function bindEvents() {
     const position = button.dataset.position;
     if (network.role === "guest") {
       if (!network.connected) return;
-      sendToHost({ type: "claim", protocol: PROTOCOL_VERSION, position });
+      sendToHost({ type: "claim", protocol: PROTOCOL_VERSION, position, customPlayer: networkPayloadForPosition(position, state.teamId) });
       network.status = `正在申請 ${positionName(position)} 位置……`;
       renderNetwork();
     } else claimLocalPosition(position);
@@ -2475,6 +2782,12 @@ function bindEvents() {
     if (!button) return;
     if (button.dataset.customAction === "use") useCustomPlayer(button.dataset.customPlayerId);
   });
+  $("practice-actions")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-practice]");
+    if (!button || button.disabled) return;
+    runPracticeDrill(button.dataset.practice);
+  });
+  $("start-career-match")?.addEventListener("click", startPracticeGame);
   $("training-actions")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-training]");
     if (!button || button.disabled) return;
@@ -2500,6 +2813,7 @@ function bootstrap() {
     selectedAthleteId = preferredPlayer.id;
     developmentTeamId = preferredPlayer.teamId;
     network.displayName = preferredPlayer.name;
+    network.assignedPosition = preferredPlayer.position;
     if ($("player-name-input")) $("player-name-input").value = preferredPlayer.name;
   }
   updateLocalName($("player-name-input")?.value || network.displayName, false);
