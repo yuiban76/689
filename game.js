@@ -34,6 +34,8 @@ const POSITION_BY_CODE = Object.fromEntries(POSITION_DEFS.map((position) => [pos
 
 const CAREER_STORAGE_KEY = "jiuju-career-v2";
 const LEAGUE_STORAGE_KEY = "jiuju-league-v2";
+const CUSTOM_PLAYERS_STORAGE_KEY = "jiuju-custom-players-v1";
+const MAX_CUSTOM_PLAYERS = 18;
 const DEFAULT_TEAM_ID = "taipei";
 const DEFAULT_OPPONENT_ID = "kaohsiung";
 
@@ -75,6 +77,14 @@ function createSeasonStats() {
   };
 }
 
+const CUSTOM_ARCHETYPES = {
+  balanced: { label: "五拍工具人", role: "自創全能", adjustments: { contact: 6, power: 4, vision: 5, discipline: 4, clutch: 5, speed: 4, stealing: 3, fielding: 4, reaction: 4, armAccuracy: 3 } },
+  slugger: { label: "長打砲", role: "自創長打", adjustments: { contact: -2, power: 14, vision: -3, discipline: -2, clutch: 9, speed: -7, stealing: -8, fielding: -4, reaction: -4, armStrength: 3 } },
+  speedster: { label: "速度跑者", role: "自創快腿", adjustments: { contact: 4, power: -8, vision: 2, discipline: 2, clutch: 3, speed: 14, stealing: 14, bunt: 10, dragBunt: 10, fielding: 5, reaction: 5 } },
+  defender: { label: "守備專家", role: "自創鐵壁", adjustments: { contact: -3, power: -6, vision: 2, discipline: 3, clutch: 2, speed: 5, stealing: 1, fielding: 14, reaction: 13, armStrength: 8, armAccuracy: 10 } },
+  pitcher: { label: "控球投手", role: "自創王牌", adjustments: { contact: -8, power: -7, vision: 2, discipline: 4, clutch: 8, speed: -4, fielding: 3, reaction: 3, velocity: 8, control: 14, break: 12, stamina: 14 } },
+};
+
 function buildTeamRoster(team, teamIndex) {
   const names = TEAM_PLAYER_NAMES[team.id] || [];
   return ROSTER_BLUEPRINTS.map((blueprint, playerIndex) => {
@@ -112,7 +122,7 @@ function buildTeamRoster(team, teamIndex) {
 
 const LEAGUE_TEAMS = TEAM_DEFS.map((team, teamIndex) => ({ ...team, roster: buildTeamRoster(team, teamIndex) }));
 const TEAM_BY_ID = Object.fromEntries(LEAGUE_TEAMS.map((team) => [team.id, team]));
-const PLAYER_BY_ID = Object.fromEntries(LEAGUE_TEAMS.flatMap((team) => team.roster).map((player) => [player.id, player]));
+const BASE_PLAYER_BY_ID = Object.fromEntries(LEAGUE_TEAMS.flatMap((team) => team.roster).map((player) => [player.id, player]));
 
 function readStorage(key, fallback) {
   try {
@@ -127,12 +137,75 @@ function writeStorage(key, value) {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+function normalizeCustomPlayer(raw, index = 0) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const position = POSITION_BY_CODE[source.position] ? source.position : "CF";
+  const teamId = TEAM_BY_ID[source.teamId] ? source.teamId : DEFAULT_TEAM_ID;
+  const blueprint = ROSTER_BLUEPRINTS.find((candidate) => candidate.position === position) || ROSTER_BLUEPRINTS[0];
+  const rawRatings = source.ratings && typeof source.ratings === "object" ? source.ratings : {};
+  const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
+    const candidate = Number(rawRatings[key]);
+    if (key === "popTime") return [key, Number.isFinite(candidate) ? Math.max(1.78, Math.min(2.3, candidate)) : value];
+    return [key, Number.isFinite(candidate) ? Math.max(20, Math.min(99, candidate)) : value];
+  }));
+  ratings.contactL = Number(rawRatings.contactL || ratings.contact);
+  ratings.contactR = Number(rawRatings.contactR || ratings.contact);
+  ratings.powerL = Number(rawRatings.powerL || ratings.power);
+  ratings.powerR = Number(rawRatings.powerR || ratings.power);
+  const stats = source.stats || {};
+  const defaults = createSeasonStats();
+  return {
+    ...blueprint,
+    ...source,
+    id: String(source.id || `custom-${Date.now()}-${index}`),
+    teamId,
+    name: String(source.name || "自創球員").replace(/[<>]/g, "").trim().slice(0, 14) || "自創球員",
+    position,
+    number: String(source.number || "99").replace(/\D/g, "").slice(0, 2).padStart(2, "0") || "99",
+    role: String(source.role || "自創球員").slice(0, 12),
+    archetype: String(source.archetype || "自訂全能").slice(0, 18),
+    pitchMix: Array.isArray(source.pitchMix) ? source.pitchMix.slice(0, 5) : blueprint.pitchMix || [],
+    bats: ["左", "右", "兩側"].includes(source.bats) ? source.bats : "右",
+    throws: source.throws === "左" ? "左" : "右",
+    age: Math.max(16, Math.min(45, Number(source.age) || 18)),
+    height: Math.max(150, Math.min(220, Number(source.height) || 175)),
+    weight: Math.max(45, Math.min(140, Number(source.weight) || 72)),
+    potential: Math.max(80, Math.min(99, Number(source.potential) || 90)),
+    ratings,
+    stats: {
+      ...defaults,
+      ...stats,
+      batting: { ...defaults.batting, ...(stats.batting || {}) },
+      pitching: { ...defaults.pitching, ...(stats.pitching || {}) },
+      fielding: { ...defaults.fielding, ...(stats.fielding || {}) },
+    },
+    isCustom: true,
+    active: source.active !== false,
+  };
+}
+
+let customPlayers = readStorage(CUSTOM_PLAYERS_STORAGE_KEY, []);
+customPlayers = Array.isArray(customPlayers) ? customPlayers.map(normalizeCustomPlayer).slice(0, MAX_CUSTOM_PLAYERS) : [];
+let customPlayerIndex = {};
+
+function refreshCustomPlayerIndex() {
+  customPlayerIndex = Object.fromEntries(customPlayers.map((player) => [player.id, player]));
+}
+
+function playerDefinitionFor(playerId) {
+  return BASE_PLAYER_BY_ID[playerId] || customPlayerIndex[playerId] || null;
+}
+
+refreshCustomPlayerIndex();
+
 let careerStore = readStorage(CAREER_STORAGE_KEY, {});
 let leagueStore = readStorage(LEAGUE_STORAGE_KEY, {});
+const initialCustomPlayer = customPlayers.slice().reverse().find((player) => player.active !== false) || null;
 let selectedTeamId = DEFAULT_TEAM_ID;
 let selectedOpponentId = DEFAULT_OPPONENT_ID;
-let developmentTeamId = DEFAULT_TEAM_ID;
-let selectedAthleteId = `${DEFAULT_TEAM_ID}-cf`;
+let developmentTeamId = initialCustomPlayer?.teamId || DEFAULT_TEAM_ID;
+let selectedAthleteId = initialCustomPlayer?.id || `${DEFAULT_TEAM_ID}-cf`;
+let selectedCustomPlayerId = initialCustomPlayer?.id || "";
 
 function createCareerProfile(player) {
   return {
@@ -148,7 +221,7 @@ function createCareerProfile(player) {
 }
 
 function profileFor(playerId) {
-  const player = PLAYER_BY_ID[playerId];
+  const player = playerDefinitionFor(playerId);
   if (!player) return null;
   if (!careerStore[playerId]) careerStore[playerId] = createCareerProfile(player);
   const profile = careerStore[playerId];
@@ -174,7 +247,7 @@ function overallForPlayer(player) {
 }
 
 function developedPlayer(playerId) {
-  const base = PLAYER_BY_ID[playerId];
+  const base = playerDefinitionFor(playerId);
   if (!base) return null;
   const profile = profileFor(playerId);
   const ratings = Object.fromEntries(Object.entries(base.ratings).map(([key, value]) => [key, Math.min(key === "popTime" ? 2.3 : 99, Number(value) + Number(profile?.boosts?.[key] || 0))]));
@@ -196,8 +269,14 @@ function developedPlayer(playerId) {
   };
 }
 
+function activeCustomPlayerForPosition(teamId, position) {
+  const matches = customPlayers.filter((player) => player.active !== false && player.teamId === teamId && player.position === position);
+  return matches[matches.length - 1] || null;
+}
+
 function rosterForTeam(teamId = state?.teamId || selectedTeamId) {
-  return TEAM_BY_ID[teamId]?.roster || [];
+  const roster = TEAM_BY_ID[teamId]?.roster || [];
+  return roster.map((basePlayer) => activeCustomPlayerForPosition(teamId, basePlayer.position) || basePlayer);
 }
 
 function activeLineup() {
@@ -318,7 +397,7 @@ function applyOpponentSelection(opponentId) {
 }
 
 function trainSelectedPlayer(trainingType) {
-  const player = PLAYER_BY_ID[selectedAthleteId];
+  const player = playerDefinitionFor(selectedAthleteId);
   const meta = TRAINING_META[trainingType];
   if (!player || !meta) return;
   const profile = profileFor(player.id);
@@ -344,6 +423,127 @@ function trainSelectedPlayer(trainingType) {
   network.status = `${player.name} 完成${meta.title}：${meta.detail}${levels ? `，升到 Lv.${profile.level}！` : "。"}`;
   if (previousLevel !== profile.level) flashCard("celebrate");
   render();
+}
+
+function buildCustomPlayer({ name, number, teamId, position, bats, throws, archetype }) {
+  const blueprint = ROSTER_BLUEPRINTS.find((candidate) => candidate.position === position) || ROSTER_BLUEPRINTS[0];
+  const team = TEAM_BY_ID[teamId] || TEAM_BY_ID[DEFAULT_TEAM_ID];
+  const style = CUSTOM_ARCHETYPES[archetype] || CUSTOM_ARCHETYPES.balanced;
+  const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
+    if (key === "popTime") return [key, value];
+    const adjusted = Number(value) + Number(team.bonus[key] || 0) + Number(style.adjustments[key] || 0);
+    return [key, Math.max(20, Math.min(96, Math.round(adjusted)))];
+  }));
+  ratings.contactL = Math.max(20, Math.min(99, ratings.contact + (bats === "左" ? 3 : 0)));
+  ratings.contactR = Math.max(20, Math.min(99, ratings.contact + (bats === "右" ? 3 : 0)));
+  ratings.powerL = Math.max(20, Math.min(99, ratings.power + (bats === "左" ? 3 : 0)));
+  ratings.powerR = Math.max(20, Math.min(99, ratings.power + (bats === "右" ? 3 : 0)));
+  const token = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const potential = archetype === "pitcher" ? 96 : archetype === "balanced" ? 92 : 90;
+  return normalizeCustomPlayer({
+    id: `custom-${token}`,
+    teamId,
+    name: cleanName(name),
+    position,
+    number: String(number || "99").replace(/\D/g, "").slice(0, 2).padStart(2, "0") || "99",
+    role: style.role,
+    archetype: style.label,
+    pitchMix: position === "P" ? ["四縫線速球", "滑球", "變速球", "曲球"] : [],
+    bats,
+    throws,
+    age: 18,
+    height: position === "P" ? 181 : 175,
+    weight: position === "P" ? 78 : 72,
+    potential,
+    ratings,
+    active: true,
+  });
+}
+
+function syncMatchAthletes() {
+  if (!state?.slots || !state.teamId) return;
+  POSITION_DEFS.forEach(({ code }) => {
+    const slot = state.slots[code];
+    const player = playerForPosition(code, state.teamId);
+    if (!slot || !player) return;
+    slot.athleteId = player.id;
+    if (slot.controller === "npc") slot.name = player.name;
+  });
+}
+
+function setCustomPlayerStatus(message, tone = "") {
+  const status = $("custom-player-status");
+  if (!status) return;
+  status.textContent = message;
+  status.className = `custom-player-status ${tone}`.trim();
+}
+
+function persistCustomPlayers() {
+  writeStorage(CUSTOM_PLAYERS_STORAGE_KEY, customPlayers);
+  writeStorage(CAREER_STORAGE_KEY, careerStore);
+}
+
+function useCustomPlayer(playerId) {
+  const player = customPlayerIndex[playerId];
+  if (!player) return;
+  customPlayers.forEach((candidate) => {
+    if (candidate.teamId === player.teamId && candidate.position === player.position) candidate.active = candidate.id === player.id;
+  });
+  refreshCustomPlayerIndex();
+  persistCustomPlayers();
+  selectedCustomPlayerId = player.id;
+  selectedAthleteId = player.id;
+  developmentTeamId = player.teamId;
+  network.displayName = player.name;
+  const nameInput = $("player-name-input");
+  if (nameInput) nameInput.value = player.name;
+  if (network.role === "guest") {
+    if (network.connected) sendToHost({ type: "name", protocol: PROTOCOL_VERSION, name: player.name });
+    setCustomPlayerStatus(`${player.name} 已選為你的角色；下一場會使用 ${teamFor(player.teamId).name} 的 ${positionName(player.position)}。`, "is-success");
+    render();
+    return;
+  }
+  if (state.phase === "pre" || state.phase === "gameover") {
+    if (state.teamId === player.teamId) claimLocalPosition(player.position, false);
+    syncMatchAthletes();
+    commitState();
+    setCustomPlayerStatus(`${player.name} 已套用到 ${teamFor(player.teamId).name} 的 ${positionName(player.position)}，現在可以開始比賽。`, "is-success");
+  } else {
+    setCustomPlayerStatus(`${player.name} 已選取，下一場比賽開始時會套用到 ${teamFor(player.teamId).name}。`, "is-success");
+    render();
+  }
+}
+
+function createCustomPlayerFromForm(event) {
+  event.preventDefault();
+  if (customPlayers.length >= MAX_CUSTOM_PLAYERS) {
+    setCustomPlayerStatus(`最多建立 ${MAX_CUSTOM_PLAYERS} 名自創球員，請先使用現有角色。`, "is-error");
+    return;
+  }
+  const player = buildCustomPlayer({
+    name: $("custom-player-name")?.value,
+    number: $("custom-player-number")?.value,
+    teamId: $("custom-player-team")?.value || selectedTeamId,
+    position: $("custom-player-position")?.value || "CF",
+    bats: $("custom-player-bats")?.value || "右",
+    throws: $("custom-player-throws")?.value || "右",
+    archetype: $("custom-player-archetype")?.value || "balanced",
+  });
+  customPlayers.forEach((candidate) => {
+    if (candidate.teamId === player.teamId && candidate.position === player.position) candidate.active = false;
+  });
+  customPlayers.push(player);
+  refreshCustomPlayerIndex();
+  profileFor(player.id);
+  selectedCustomPlayerId = player.id;
+  selectedAthleteId = player.id;
+  developmentTeamId = player.teamId;
+  persistCustomPlayers();
+  const form = $("custom-player-form");
+  if (form) form.reset();
+  network.status = `${player.name} 已建立，${teamFor(player.teamId).name} 的 ${positionName(player.position)} 位置現在由他先發。`;
+  useCustomPlayer(player.id);
+  setCustomPlayerStatus(`${player.name} 建立完成並已套用到你的角色；現在可以開始比賽。`, "is-success");
 }
 
 function recordMatchCareer(result) {
@@ -425,15 +625,41 @@ function renderDevelopment() {
     opponentSelect.value = selectedOpponentId === selectedTeamId ? chooseOpponentFor(selectedTeamId) : selectedOpponentId;
     opponentSelect.disabled = teamSelect?.disabled || false;
   }
+  const customTeamSelect = $("custom-player-team");
+  if (customTeamSelect) {
+    const previousTeam = customTeamSelect.value;
+    customTeamSelect.innerHTML = TEAM_DEFS.map((team) => `<option value="${team.id}">${team.name}</option>`).join("");
+    customTeamSelect.value = TEAM_BY_ID[previousTeam] ? previousTeam : selectedTeamId;
+  }
+  const customPositionSelect = $("custom-player-position");
+  if (customPositionSelect) {
+    const previousPosition = customPositionSelect.value;
+    customPositionSelect.innerHTML = POSITION_DEFS.map((position) => `<option value="${position.code}">${position.code} · ${position.name}</option>`).join("");
+    customPositionSelect.value = POSITION_BY_CODE[previousPosition] ? previousPosition : "CF";
+  }
+  $("custom-player-count").textContent = `${customPlayers.length} / ${MAX_CUSTOM_PLAYERS} 名自創球員`;
+  const customList = $("custom-player-list");
+  if (customList) {
+    customList.innerHTML = customPlayers.length
+      ? customPlayers.slice().reverse().map((basePlayer) => {
+        const player = developedPlayer(basePlayer.id);
+        const team = teamFor(player.teamId);
+        const selected = player.id === selectedCustomPlayerId;
+        return `<div class="custom-player-row ${selected ? "is-selected" : ""}"><div class="custom-player-row-main"><b>${escapeHtml(player.name)}</b><small>${team.name} · ${positionName(player.position)} · ${player.archetype} · ${basePlayer.active ? "目前先發" : "替補角色"}</small></div><strong>${player.overall}</strong><button type="button" class="custom-player-use" data-custom-action="use" data-custom-player-id="${escapeHtml(player.id)}">${selected ? "目前使用" : "使用角色"}</button></div>`;
+      }).join("")
+      : `<p class="custom-player-empty">尚未建立自創球員。先設定姓名、位置與類型，打造你的第一名球員。</p>`;
+  }
   const browseTeam = teamFor(developmentTeamId);
+  const browseRoster = rosterForTeam(developmentTeamId);
   $("development-team-label").textContent = `${browseTeam.name} · ${browseTeam.city} · ${browseTeam.style}`;
   $("team-tabs").innerHTML = TEAM_DEFS.map((team) => `<button class="team-tab ${team.id === developmentTeamId ? "is-active" : ""}" data-development-team="${team.id}" type="button"><span>${team.shortName}</span><small>${team.city}</small></button>`).join("");
-  $("roster-count").textContent = `${LEAGUE_TEAMS.length} 隊 · ${LEAGUE_TEAMS.reduce((sum, team) => sum + team.roster.length, 0)} 名球員`;
-  $("roster-list").innerHTML = browseTeam.roster.map((basePlayer) => {
+  $("roster-count").textContent = `${LEAGUE_TEAMS.length} 隊 · ${LEAGUE_TEAMS.reduce((sum, team) => sum + team.roster.length, 0)} 名球員 · ${customPlayers.length} 名自創`;
+  $("roster-list").innerHTML = browseRoster.map((basePlayer) => {
     const player = developedPlayer(basePlayer.id);
-    return `<button class="roster-player ${player.id === selectedAthleteId ? "is-selected" : ""}" data-athlete-id="${player.id}" type="button"><span class="roster-number">${player.number}</span><span class="roster-player-main"><b>${escapeHtml(player.name)}</b><small>${player.position} · ${player.role}</small></span><strong>${player.overall}</strong></button>`;
+    return `<button class="roster-player ${player.id === selectedAthleteId ? "is-selected" : ""}" data-athlete-id="${player.id}" type="button"><span class="roster-number">${player.number}</span><span class="roster-player-main"><b>${escapeHtml(player.name)}</b><small>${player.position} · ${player.isCustom ? "自創" : player.role}</small></span><strong>${player.overall}</strong></button>`;
   }).join("");
-  const player = developedPlayer(selectedAthleteId) || developedPlayer(browseTeam.roster[0]?.id);
+  const selectedInBrowse = browseRoster.some((candidate) => candidate.id === selectedAthleteId);
+  const player = selectedInBrowse ? developedPlayer(selectedAthleteId) : developedPlayer(browseRoster[0]?.id);
   if (!player) return;
   selectedAthleteId = player.id;
   const profile = profileFor(player.id);
@@ -2243,6 +2469,12 @@ function bindEvents() {
     selectedAthleteId = button.dataset.athleteId;
     renderDevelopment();
   });
+  $("custom-player-form")?.addEventListener("submit", createCustomPlayerFromForm);
+  $("custom-player-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-custom-action]");
+    if (!button) return;
+    if (button.dataset.customAction === "use") useCustomPlayer(button.dataset.customPlayerId);
+  });
   $("training-actions")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-training]");
     if (!button || button.disabled) return;
@@ -2262,8 +2494,17 @@ function bindEvents() {
 }
 
 function bootstrap() {
+  const preferredPlayer = customPlayers[customPlayers.length - 1] || null;
+  if (preferredPlayer) {
+    selectedCustomPlayerId = preferredPlayer.id;
+    selectedAthleteId = preferredPlayer.id;
+    developmentTeamId = preferredPlayer.teamId;
+    network.displayName = preferredPlayer.name;
+    if ($("player-name-input")) $("player-name-input").value = preferredPlayer.name;
+  }
   updateLocalName($("player-name-input")?.value || network.displayName, false);
-  claimLocalPosition("CF", false);
+  claimLocalPosition(preferredPlayer?.teamId === state.teamId ? preferredPlayer.position : "CF", false);
+  syncMatchAthletes();
   bindEvents();
   network.countdownTimer = window.setInterval(renderDecisionTimer, 250);
   render();

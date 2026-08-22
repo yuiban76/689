@@ -9,7 +9,7 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=league-development-1" />
+    <link rel="stylesheet" href="./styles.css?v=custom-player-1" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="./game.js" defer></script>
   </head>
@@ -96,6 +96,28 @@
             <label>對手<select id="opponent-select" aria-label="選擇對手"></select></label>
           </div>
         </div>
+        <section class="custom-player-studio" aria-labelledby="custom-player-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CREATE YOUR PLAYER</p>
+              <h3 id="custom-player-title">自創球員工坊</h3>
+            </div>
+            <span class="mini-label" id="custom-player-count">0 / 18 名自創球員</span>
+          </div>
+          <p class="custom-player-copy">建立屬於你的球員，選擇位置與成長方向；建立後會加入所選球隊，並可在球員中心訓練。</p>
+          <form class="custom-player-form" id="custom-player-form">
+            <label class="custom-field custom-field-wide">球員姓名<input id="custom-player-name" maxlength="14" placeholder="例如：林大河" required /></label>
+            <label class="custom-field">背號<input id="custom-player-number" inputmode="numeric" maxlength="2" value="99" required /></label>
+            <label class="custom-field">加入球隊<select id="custom-player-team" required></select></label>
+            <label class="custom-field">守備位置<select id="custom-player-position" required></select></label>
+            <label class="custom-field">打擊方向<select id="custom-player-bats" required><option value="右">右打</option><option value="左">左打</option><option value="兩側">左右開弓</option></select></label>
+            <label class="custom-field">投球方向<select id="custom-player-throws" required><option value="右">右投</option><option value="左">左投</option></select></label>
+            <label class="custom-field custom-field-wide">球員類型<select id="custom-player-archetype" required><option value="balanced">五拍工具人 · 全能成長</option><option value="slugger">長打砲 · 力量優先</option><option value="speedster">速度跑者 · 跑壘優先</option><option value="defender">守備專家 · 防守優先</option><option value="pitcher">控球投手 · 投球優先</option></select></label>
+            <button class="custom-player-submit" id="custom-player-submit" type="submit"><span>＋</span>建立我的球員</button>
+          </form>
+          <div class="custom-player-list" id="custom-player-list" aria-label="我的自創球員"></div>
+          <p class="custom-player-status" id="custom-player-status">自創球員只會保存在這個瀏覽器，不需要付費服務。</p>
+        </section>
         <div class="development-layout">
           <section class="roster-browser" aria-labelledby="roster-title">
             <div class="section-heading">
