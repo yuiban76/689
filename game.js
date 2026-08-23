@@ -6,6 +6,14 @@ const PROTOCOL_VERSION = 3;
 const MAX_PLAYERS = 9;
 const MAX_LOG = 14;
 const ACTION_TIMEOUT_MS = { defense: 7000, fielding: 5000, home: 10000 };
+const DIFFICULTY_CONFIG = {
+  label: "競技",
+  swingWindow: 0.9,
+  patientBase: 0.32,
+  buntHitChance: 0.12,
+  stealBaseChance: 0.32,
+  fieldingSuccessScale: 0.88,
+};
 const SESSION_STORAGE_KEY = "jiuju-session-id-v1";
 const PRACTICE_SESSIONS_PER_DAY = 3;
 const MAX_NETWORK_BOOST = 20;
@@ -2755,7 +2763,7 @@ function render() {
   $("away-score").textContent = displayAwayScore;
   $("home-score").textContent = displayHomeScore;
   $("situation-text").textContent = state.phase === "pre"
-    ? "選擇你的守備位置；空缺位置由免費 NPC 補位，房主驗證每個團隊決策。"
+    ? `${DIFFICULTY_CONFIG.label}難度：選擇你的守備位置；空缺位置由免費 NPC 補位，房主驗證每個團隊決策。`
     : state.phase === "defense"
       ? state.defenseMode === "fielding"
         ? `${state.inning} 局上，球往${positionName(state.defenseOwner)}方向飛去；由責任區球員處理來球。`
@@ -2860,13 +2868,18 @@ function simulateAwayHalf(defenseAction = "defense-control") {
   state.strikes = 0;
   state.defenseAction = defenseAction;
   const profiles = {
-    "defense-fast": [0.1, 0.28, 0.55],
-    "defense-break": [0.07, 0.2, 0.48],
-    "defense-control": [0.04, 0.13, 0.35],
-    "defense-pickoff": [0.05, 0.18, 0.42],
-    "defense-intentional": [0.06, 0.22, 0.46],
+    "defense-fast": [0.14, 0.34, 0.66],
+    "defense-break": [0.11, 0.3, 0.6],
+    "defense-control": [0.08, 0.23, 0.5],
+    "defense-pickoff": [0.09, 0.25, 0.53],
+    "defense-intentional": [0.1, 0.28, 0.58],
   };
-  const [threeRun, twoRun, oneRun] = profiles[defenseAction] || profiles["defense-control"];
+  const opponentStats = teamFor(state.opponentId).leagueStats || {};
+  const offensiveStrength = clamp(1 + (Number(opponentStats.sluggingPct || 0.33) - 0.33) * 2 + (Number(opponentStats.onBasePct || 0.32) - 0.32) * 1.2, 0.9, 1.13);
+  const [baseThreeRun, baseTwoRun, baseOneRun] = profiles[defenseAction] || profiles["defense-control"];
+  const threeRun = clamp(baseThreeRun * offensiveStrength, 0.03, 0.22);
+  const twoRun = clamp(baseTwoRun * offensiveStrength, threeRun + 0.04, 0.5);
+  const oneRun = clamp(baseOneRun * offensiveStrength, twoRun + 0.08, 0.82);
   const roll = nextRandom();
   const runs = roll < threeRun ? 3 : roll < twoRun ? 2 : roll < oneRun ? 1 : 0;
   if (runs === 0) {
@@ -2908,16 +2921,16 @@ function resolveFieldingAction(action) {
   const roll = nextRandom();
   let finalRuns = baseRuns;
   if (action === "fielding-catch") {
-    if (roll < 0.48 + fielding * 0.22 + reaction * 0.12) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < (0.4 + fielding * 0.18 + reaction * 0.1) * DIFFICULTY_CONFIG.fieldingSuccessScale) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-dive") {
-    if (roll < 0.18 + fielding * 0.38 + reaction * 0.22) finalRuns = Math.max(0, baseRuns - 2);
+    if (roll < (0.14 + fielding * 0.34 + reaction * 0.2) * DIFFICULTY_CONFIG.fieldingSuccessScale) finalRuns = Math.max(0, baseRuns - 2);
     else finalRuns = Math.min(3, baseRuns + 1);
   } else if (action === "fielding-hold") {
-    if (roll < 0.61 + fielding * 0.2 + reaction * 0.11 && nextRandom() < 0.65) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < (0.52 + fielding * 0.16 + reaction * 0.08) * DIFFICULTY_CONFIG.fieldingSuccessScale && nextRandom() < 0.62) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-relay") {
-    if (roll < 0.35 + arm * 0.34 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.2) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < (0.28 + arm * 0.28 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.17) * DIFFICULTY_CONFIG.fieldingSuccessScale) finalRuns = Math.max(0, baseRuns - 1);
   } else if (action === "fielding-throw") {
-    if (roll < 0.26 + arm * 0.42 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.18) finalRuns = Math.max(0, baseRuns - 1);
+    if (roll < (0.22 + arm * 0.38 + Number(defenderRatings.armAccuracy || definition.arm) / 100 * 0.16) * DIFFICULTY_CONFIG.fieldingSuccessScale) finalRuns = Math.max(0, baseRuns - 1);
     else finalRuns = Math.min(3, baseRuns + 1);
   }
   const fieldStats = state.playerStats[state.defenseOwner];
@@ -3040,25 +3053,36 @@ function applyWalk() {
   checkWalkoff();
 }
 
+function opponentPitchingFactor() {
+  const pitcher = matchPlayerForPosition("P", state.opponentId) || POSITION_BY_CODE.P;
+  const pitcherRatings = pitcher.ratings || pitcher;
+  const pitchingQuality = (Number(pitcherRatings.velocity || 60) * 0.2 + Number(pitcherRatings.control || 60) * 0.4 + Number(pitcherRatings.break || 60) * 0.4) / 100;
+  const era = Number(teamFor(state.opponentId).leagueStats?.era || 3.8);
+  const eraPressure = clamp((3.8 - era) * 0.03, -0.03, 0.05);
+  return clamp(1.02 - pitchingQuality * 0.12 - eraPressure, 0.84, 0.98);
+}
+
 function resolveSwing(action) {
   const batter = currentBatter();
   const roll = nextRandom();
   const ratings = batter.ratings || batter;
-  const contactBoost = (Number(ratings.contact || 60) * 0.72 + Number(ratings.vision || 60) * 0.28) / 1000;
-  const powerBoost = (Number(ratings.power || 60) * 0.84 + Number(ratings.clutch || 60) * 0.16) / 1200;
+  const countFactor = state.strikes === 2 ? 0.92 : state.balls >= 2 ? 1.04 : 1;
+  const swingWindow = DIFFICULTY_CONFIG.swingWindow * opponentPitchingFactor() * countFactor;
+  const contactBoost = (Number(ratings.contact || 60) * 0.72 + Number(ratings.vision || 60) * 0.28) / 1180 * swingWindow;
+  const powerBoost = (Number(ratings.power || 60) * 0.84 + Number(ratings.clutch || 60) * 0.16) / 1450 * swingWindow;
   let result = "out";
   if (action === "power") {
-    if (roll < 0.015 + powerBoost * 0.75) result = "homer";
-    else if (roll < 0.075 + powerBoost * 0.75) result = "double";
-    else if (roll < 0.25 + contactBoost * 0.7) result = "single";
-    else if (roll < 0.52) result = "foul";
-    else if (roll < 0.76) result = "miss";
+    if (roll < 0.01 + powerBoost * 0.65) result = "homer";
+    else if (roll < 0.06 + powerBoost * 0.62) result = "double";
+    else if (roll < 0.215 + contactBoost * 0.6) result = "single";
+    else if (roll < 0.49) result = "foul";
+    else if (roll < 0.74) result = "miss";
   } else {
-    if (roll < 0.008 + powerBoost * 0.3) result = "homer";
-    else if (roll < 0.055 + powerBoost * 0.42) result = "double";
-    else if (roll < 0.24 + contactBoost * 0.7) result = "single";
-    else if (roll < 0.55 + contactBoost * 0.1) result = "foul";
-    else if (roll < 0.79 + contactBoost * 0.04) result = "miss";
+    if (roll < 0.005 + powerBoost * 0.2) result = "homer";
+    else if (roll < 0.045 + powerBoost * 0.34) result = "double";
+    else if (roll < 0.215 + contactBoost * 0.6) result = "single";
+    else if (roll < 0.52 + contactBoost * 0.08) result = "foul";
+    else if (roll < 0.76 + contactBoost * 0.03) result = "miss";
   }
   if (["single", "double", "homer"].includes(result)) { applyHit(result); return; }
   if (result === "foul") {
@@ -3079,7 +3103,8 @@ function resolveSwing(action) {
 function resolvePatient() {
   const batter = currentBatter();
   const patience = Number(batter.ratings?.discipline || 60) / 100;
-  if (nextRandom() < 0.4 + patience * 0.3) {
+  const countBonus = state.balls >= 2 ? 0.07 : state.strikes === 2 ? -0.1 : 0;
+  if (nextRandom() < clamp(DIFFICULTY_CONFIG.patientBase + patience * 0.25 + countBonus, 0.18, 0.68)) {
     state.balls += 1;
     if (state.balls >= 4) applyWalk();
     else { addLog(`${batter.name} 放掉壞球，${state.balls} 壞球。`); setMomentum(2); }
@@ -3093,8 +3118,8 @@ function resolvePatient() {
 function resolveBunt() {
   const batter = currentBatter();
   const roll = nextRandom();
-  if (roll < 0.2) { applyHit("single"); return; }
-  if (roll < 0.76) {
+  if (roll < DIFFICULTY_CONFIG.buntHitChance) { applyHit("single"); return; }
+  if (roll < 0.7) {
     const scored = state.bases.third ? 1 : 0;
     if (state.bases.third) scoreRun(state.bases.third);
     state.bases.third = state.bases.second;
@@ -3125,7 +3150,7 @@ function resolveSteal() {
   const runnerPosition = state.bases[from];
   const runner = matchPlayerForPosition(runnerPosition, state.teamId) || {};
   const runnerRatings = runner.ratings || runner;
-  const stealChance = 0.46 + Number(runnerRatings.stealing || 50) / 260 + Number(runnerRatings.speed || 50) / 500;
+  const stealChance = DIFFICULTY_CONFIG.stealBaseChance + Number(runnerRatings.stealing || 50) / 330 + Number(runnerRatings.speed || 50) / 720;
   if (nextRandom() < stealChance) {
     state.bases[from] = null;
     state.bases[to] = runnerPosition;
