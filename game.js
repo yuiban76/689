@@ -230,26 +230,48 @@ function builderCapFor(position, template, key) {
   return cap;
 }
 
+const OVERALL_WEIGHTS_BY_POSITION = {
+  P: { velocity: .22, control: .23, break: .22, stamina: .18, clutch: .15 },
+  C: { contact: .22, power: .18, fielding: .20, armStrength: .17, blocking: .23 },
+  "1B": { contact: .25, power: .30, clutch: .18, discipline: .12, fielding: .15 },
+  "2B": { contact: .24, speed: .16, fielding: .24, reaction: .22, armAccuracy: .14 },
+  "3B": { contact: .24, power: .25, fielding: .18, armStrength: .17, reaction: .16 },
+  SS: { contact: .18, speed: .20, fielding: .25, reaction: .22, armAccuracy: .15 },
+  LF: { contact: .24, power: .28, speed: .14, fielding: .16, reaction: .18 },
+  CF: { contact: .22, speed: .23, fielding: .23, reaction: .20, power: .12 },
+  RF: { contact: .22, power: .28, armStrength: .18, fielding: .16, reaction: .16 },
+};
+const OVERALL_STAR_THRESHOLD = 78;
+const OVERALL_STAR_CURVE = .18;
+
+function overallWeightsFor(position) {
+  return OVERALL_WEIGHTS_BY_POSITION[position] || OVERALL_WEIGHTS_BY_POSITION.CF;
+}
+
+function weightedOverallFor(position, ratings) {
+  return Object.entries(overallWeightsFor(position)).reduce((sum, [key, weight]) => sum + Number(ratings?.[key] || 0) * weight, 0);
+}
+
 function builderOverallKeys(position) {
-  return position === "P"
-    ? ["velocity", "control", "break", "stamina", "clutch"]
-    : position === "C"
-      ? ["contact", "power", "fielding", "armStrength", "blocking"]
-      : ["contact", "power", "speed", "fielding", "reaction"];
+  return Object.keys(overallWeightsFor(position));
 }
 
 function normalizeBuilderOverall(position, ratings, template) {
   const keys = builderOverallKeys(position);
-  const targetTotal = BUILD_STARTING_OVERALL * keys.length;
-  let difference = targetTotal - keys.reduce((sum, key) => sum + Number(ratings[key] || 0), 0);
   let guard = 0;
-  while (difference !== 0 && guard < 500) {
-    const direction = difference > 0 ? 1 : -1;
+  while (Math.round(weightedOverallFor(position, ratings)) !== BUILD_STARTING_OVERALL && guard < 800) {
+    const current = weightedOverallFor(position, ratings);
+    const direction = current < BUILD_STARTING_OVERALL ? 1 : -1;
     const candidates = keys.filter((key) => direction > 0
       ? Number(ratings[key] || 0) < builderCapFor(position, template, key)
       : Number(ratings[key] || 0) > 20);
     if (!candidates.length) break;
     candidates.sort((a, b) => {
+      const aNext = current + direction * Number(overallWeightsFor(position)[a] || 0);
+      const bNext = current + direction * Number(overallWeightsFor(position)[b] || 0);
+      const aDistance = Math.abs(BUILD_STARTING_OVERALL - aNext);
+      const bDistance = Math.abs(BUILD_STARTING_OVERALL - bNext);
+      if (aDistance !== bDistance) return aDistance - bDistance;
       const aFocus = template.focus.includes(a) ? 1 : 0;
       const bFocus = template.focus.includes(b) ? 1 : 0;
       if (aFocus !== bFocus) return direction > 0 ? bFocus - aFocus : aFocus - bFocus;
@@ -257,7 +279,6 @@ function normalizeBuilderOverall(position, ratings, template) {
     });
     const key = candidates[0];
     ratings[key] = Number(ratings[key] || 0) + direction;
-    difference -= direction;
     guard += 1;
   }
   return ratings;
@@ -585,7 +606,7 @@ function renderBuilder() {
   if (overallEl) overallEl.textContent = overall;
   if (strengthsEl) strengthsEl.textContent = strengths.join(" · ");
   if (weaknessesEl) weaknessesEl.textContent = weaknesses.join(" · ");
-  if (capNote) capNote.textContent = `初始總評統一為 ${BUILD_STARTING_OVERALL}；模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
+  if (capNote) capNote.textContent = `初始總評統一為 ${BUILD_STARTING_OVERALL}；OVR 會依位置權重計算，模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
   const templateGrid = $("builder-template-grid");
   if (templateGrid) {
     templateGrid.innerHTML = templatesForPosition(draft.position).map((candidate) => `<button type="button" class="builder-template-choice ${candidate.id === template.id ? "is-selected" : ""}" data-builder-template="${candidate.id}"><b>${candidate.label}</b><small>${candidate.role}</small><span>${candidate.detail}</span></button>`).join("");
@@ -645,12 +666,9 @@ function profileFor(playerId) {
 
 function overallForPlayer(player) {
   const ratings = player.ratings || player;
-  const groups = player.position === "P"
-    ? [ratings.velocity, ratings.control, ratings.break, ratings.stamina, ratings.clutch]
-    : player.position === "C"
-      ? [ratings.contact, ratings.power, ratings.fielding, ratings.armStrength, ratings.blocking]
-      : [ratings.contact, ratings.power, ratings.speed, ratings.fielding, ratings.reaction];
-  return Math.round(groups.reduce((sum, value) => sum + Number(value || 0), 0) / groups.length);
+  const weighted = weightedOverallFor(player.position, ratings);
+  const starCurve = Math.max(0, weighted - OVERALL_STAR_THRESHOLD) * OVERALL_STAR_CURVE;
+  return Math.round(weighted + starCurve);
 }
 
 function developedPlayerFromProfile(base, profile) {
