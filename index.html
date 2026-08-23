@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=save-2026" />
+    <link rel="stylesheet" href="./styles.css?v=multi-role-2026" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=save-2026" defer></script>
+    <script src="./game.js?v=multi-role-2026" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -79,6 +79,23 @@
           <div class="player-identity">
             <label for="player-name-input">球員名稱</label>
             <input id="player-name-input" type="text" maxlength="14" value="主場球員" autocomplete="nickname" />
+          </div>
+          <div class="lobby-role-banner" id="lobby-role-banner" aria-live="polite">
+            <div class="lobby-role-mark" id="lobby-role-mark">MP</div>
+            <div class="lobby-role-copy">
+              <span>目前帶入房間的角色</span>
+              <strong id="lobby-role-name">主場球員</strong>
+              <small id="lobby-role-meta">尚未載入自創角色</small>
+            </div>
+            <div class="lobby-role-rating">
+              <span>OVR</span>
+              <strong id="lobby-role-ovr">—</strong>
+              <small id="lobby-role-level">等級 —</small>
+            </div>
+          </div>
+          <div class="lobby-readiness-row">
+            <span>房間狀態</span>
+            <b id="lobby-readiness">單機可開始</b>
           </div>
           <div class="position-grid" id="position-grid" role="list" aria-label="守備位置"></div>
           <div class="lobby-footer">

@@ -1388,8 +1388,10 @@ function recordMatchCareer(result) {
   markScheduledGameCompleted(result);
   state.leagueRecorded = true;
   if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
-  writeStorage(CAREER_STORAGE_KEY, careerStore);
-  persistPlayerSaveMeta();
+  persistCustomPlayers();
+  const localSlot = slotForPlayer(network.localPlayerId);
+  const localCustomPlayer = localSlot?.athleteId ? customPlayerIndex[localSlot.athleteId] : null;
+  if (localCustomPlayer?.isCustom) setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
 }
 
 function recordLocalGuestMatchCareer() {
@@ -1400,8 +1402,9 @@ function recordLocalGuestMatchCareer() {
   if (!profile) return;
   applyMatchToCareerProfile(profile, slot.position, state.playerStats[slot.position] || {}, state.result);
   network.lastGuestRecordedRevision = state.revision;
-  writeStorage(CAREER_STORAGE_KEY, careerStore);
-  persistPlayerSaveMeta();
+  persistCustomPlayers();
+  const localCustomPlayer = customPlayerIndex[slot.athleteId];
+  if (localCustomPlayer?.isCustom) setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
 }
 
 function formatRate(value, digits = 3) {
@@ -2668,20 +2671,53 @@ function renderLobby() {
   const humanCount = humanPlayerCount();
   $("team-slots-count").textContent = `${humanCount} / ${MAX_PLAYERS} 真人`;
   const localSlot = slotForPlayer(network.localPlayerId);
+  const localPlayer = localSlot?.playerSnapshot
+    ? developedNetworkPlayer(localSlot.playerSnapshot)
+    : localSlot?.athleteId
+      ? developedPlayer(localSlot.athleteId)
+      : customPlayerIndex[selectedCustomPlayerId]
+        ? developedPlayer(selectedCustomPlayerId)
+        : null;
+  const localPosition = localSlot?.position || localPlayer?.position || network.assignedPosition;
+  const isCustom = Boolean(localPlayer?.isCustom);
+  $("lobby-role-mark").textContent = localPosition || "MP";
+  $("lobby-role-name").textContent = localPlayer?.name || network.displayName || "尚未選擇角色";
+  $("lobby-role-meta").textContent = localPlayer
+    ? `${positionName(localPosition)} · ${isCustom ? "My Player 自創角色" : "球隊先發球員"}`
+    : "選擇已保存角色後，會把能力帶進房間。";
+  $("lobby-role-ovr").textContent = localPlayer?.overall ?? "—";
+  $("lobby-role-level").textContent = localPlayer?.isCustom ? `等級 ${localPlayer.level || 1}` : localPlayer ? "官方球員" : "等級 —";
+  const readiness = network.role === "solo"
+    ? "單機可開始"
+    : network.role === "host"
+      ? network.connected ? `房主已準備 · ${humanCount}/${MAX_PLAYERS} 真人` : "房主準備中"
+      : network.connected
+        ? localSlot ? "已加入房間 · 等待房主開始" : "已連線 · 等待位置"
+        : "等待房間連線";
+  $("lobby-readiness").textContent = readiness;
   $("role-status").textContent = localSlot
     ? `你目前是 ${positionName(localSlot.position)} · ${localSlot.name}；點選其他空缺位置即可換位。`
     : "你尚未選擇位置；空缺位置會由 NPC 補位。";
   $("release-position").disabled = !localSlot || state.phase === "home" && !(state.balls === 0 && state.strikes === 0);
   grid.innerHTML = POSITION_DEFS.map((definition) => {
     const slot = state.slots[definition.code];
+    const player = slot?.playerSnapshot
+      ? developedNetworkPlayer(slot.playerSnapshot)
+      : slot?.athleteId
+        ? developedPlayer(slot.athleteId)
+        : null;
     const isLocal = slot.playerId === network.localPlayerId;
     const isHuman = slot.controller === "human";
     const ownerClass = isHuman ? "is-human" : "is-npc";
     const disabled = isHuman && !isLocal;
-    return `<button class="position-slot ${isLocal ? "is-local" : ""} ${isHuman ? "is-human" : ""} ${currentBatter().position === definition.code && state.phase === "home" ? "is-active" : ""}" data-position="${definition.code}" type="button" ${disabled ? "disabled" : ""} aria-label="${escapeHtml(`${definition.name}，${isHuman ? slot.name : "NPC"}`)}">
+    const rating = player?.overall != null ? `OVR ${player.overall}` : "OVR —";
+    const level = player?.isCustom ? `等級 ${player.level || 1}` : "官方球員";
+    const roleLabel = isHuman ? slot.name : "NPC 補位";
+    return `<button class="position-slot ${isLocal ? "is-local" : ""} ${isHuman ? "is-human" : ""} ${currentBatter().position === definition.code && state.phase === "home" ? "is-active" : ""}" data-position="${definition.code}" type="button" ${disabled ? "disabled" : ""} aria-label="${escapeHtml(`${definition.name}，${roleLabel}，${rating}，${level}`)}">
       <span class="position-code">${definition.code}</span>
       <span class="position-name">${definition.name}</span>
-      <span class="position-owner ${ownerClass}">${escapeHtml(isHuman ? slot.name : "NPC 補位")}</span>
+      <span class="position-owner ${ownerClass}">${escapeHtml(roleLabel)}</span>
+      <span class="position-rating">${escapeHtml(`${rating} · ${level}`)}</span>
     </button>`;
   }).join("");
 }

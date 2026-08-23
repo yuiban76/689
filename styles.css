@@ -329,8 +329,20 @@ kbd { align-self: flex-end; min-width: 17px; padding: 3px 5px; border: 1px solid
 .player-identity label { color: var(--quiet); font-size: 10px; font-weight: 800; letter-spacing: .08em; white-space: nowrap; }
 .player-identity input { width: 100%; min-height: 31px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; outline: 0; color: var(--text); background: rgba(255,255,255,.035); font: inherit; font-size: 11px; }
 .player-identity input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(139,229,209,.08); }
+.lobby-role-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(139,229,209,.16); border-radius: 12px; background: linear-gradient(120deg, rgba(139,229,209,.07), rgba(216,242,109,.04)); }
+.lobby-role-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; color: var(--panel-deep); background: var(--lime); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.lobby-role-copy { display: grid; min-width: 0; gap: 3px; }
+.lobby-role-copy > span { color: var(--quiet); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.lobby-role-copy strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-role-copy small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-role-rating { display: grid; min-width: 62px; gap: 2px; padding-left: 10px; border-left: 1px solid rgba(139,229,209,.16); text-align: right; }
+.lobby-role-rating span { color: var(--quiet); font-size: 8px; font-weight: 900; letter-spacing: .1em; }
+.lobby-role-rating strong { color: var(--lime); font-size: 20px; line-height: 1; }
+.lobby-role-rating small { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.lobby-readiness-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--quiet); font-size: 9px; }
+.lobby-readiness-row b { color: var(--teal); font-size: 10px; font-weight: 800; }
 .position-grid { display: grid; grid-template-columns: repeat(9, minmax(72px, 1fr)); gap: 6px; }
-.position-slot { display: grid; gap: 5px; min-height: 72px; padding: 9px 8px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); background: rgba(255,255,255,.025); cursor: pointer; text-align: left; transition: border 160ms ease, background 160ms ease, transform 160ms ease; }
+.position-slot { display: grid; gap: 4px; min-height: 82px; padding: 9px 8px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); background: rgba(255,255,255,.025); cursor: pointer; text-align: left; transition: border 160ms ease, background 160ms ease, transform 160ms ease; }
 .position-slot:hover:not(:disabled) { border-color: var(--border-strong); background: rgba(255,255,255,.07); transform: translateY(-2px); }
 .position-slot:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .position-slot:disabled { cursor: not-allowed; opacity: .62; }
@@ -341,11 +353,12 @@ kbd { align-self: flex-end; min-width: 17px; padding: 3px 5px; border: 1px solid
 .position-name { color: var(--text); font-size: 10px; font-weight: 800; }
 .position-owner { overflow: hidden; color: var(--quiet); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .position-owner.is-human { color: var(--teal); }.position-owner.is-npc { color: var(--quiet); }
+.position-rating { overflow: hidden; color: var(--muted); font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-footer { align-items: flex-start; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .lobby-footer > span { min-height: 30px; padding-top: 6px; }
 
 @media (max-width: 980px) { .position-grid { grid-template-columns: repeat(5, minmax(80px, 1fr)); } }
-@media (max-width: 600px) { .position-grid { grid-template-columns: repeat(3, 1fr); }.position-slot { min-height: 68px; }.lobby-footer { align-items: stretch; flex-direction: column; gap: 5px; }.lobby-footer .network-button { width: 100%; }.player-identity { max-width: none; }.player-identity input { max-width: 180px; } }
+@media (max-width: 600px) { .position-grid { grid-template-columns: repeat(3, 1fr); }.position-slot { min-height: 78px; }.lobby-footer { align-items: stretch; flex-direction: column; gap: 5px; }.lobby-footer .network-button { width: 100%; }.player-identity { max-width: none; }.player-identity input { max-width: 180px; }.lobby-role-copy small { font-size: 9px; } }
 
 .action-status-stack { display: flex; align-items: flex-end; flex-direction: column; gap: 5px; text-align: right; }
 .decision-timer { min-width: 66px; padding: 4px 7px; border: 1px solid rgba(216,242,109,.22); border-radius: 7px; color: var(--lime); background: rgba(216,242,109,.07); font-size: 10px; font-weight: 900; letter-spacing: .05em; text-align: center; }
