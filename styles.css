@@ -605,3 +605,43 @@ body {
   .player-save-actions { justify-content: stretch; }
   .player-save-button { flex: 1; }
 }
+
+/* Focused mode views: one destination at a time, with the live game always available when needed. */
+body[data-active-view="match"] .network-card,
+body[data-active-view="match"] .development-panel,
+body[data-active-view="multiplayer"] .development-panel,
+body[data-active-view="career"] .network-card,
+body[data-active-view="career"] .main-grid,
+body[data-active-view="season"] .network-card,
+body[data-active-view="season"] .main-grid { display: none; }
+
+body[data-active-view="career"] #season-feature,
+body[data-active-view="career"] #roster-feature,
+body[data-active-view="season"] #player-builder-feature,
+body[data-active-view="season"] #career-feature,
+body[data-active-view="season"] #roster-feature { display: none; }
+
+body[data-active-view="career"] .development-panel,
+body[data-active-view="season"] .development-panel { display: block; }
+
+body[data-active-view="multiplayer"] .network-card { margin-top: 0; }
+body[data-active-view="career"] .development-heading .match-team-controls { display: none; }
+body[data-active-view="career"] .player-hub,
+body[data-active-view="season"] .player-hub { margin-bottom: 12px; }
+
+.room-status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.career-feedback-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.career-feedback-card { display: grid; min-width: 0; gap: 4px; padding: 10px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; background: rgba(8, 17, 12, .3); }
+.career-feedback-card > span { color: var(--quiet); font-size: 8px; }
+.career-feedback-card > strong { overflow: hidden; color: var(--lime); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.career-feedback-card > small { overflow: hidden; color: var(--muted); font-size: 8px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .room-status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .career-feedback-row { grid-template-columns: 1fr; }
+  .career-feedback-card > small { white-space: normal; }
+}
+
+@media (max-width: 430px) {
+  .room-status-strip { grid-template-columns: 1fr; }
+}

@@ -30,19 +30,19 @@
       </header>
 
       <nav class="section-nav" aria-label="遊戲主選單">
-        <a class="section-nav-link is-active" href="#game-card">
+        <a class="section-nav-link is-active" data-view="match" href="#game-card">
           <span class="section-nav-index">01</span>
           <span><b>比賽</b><small>即時決策</small></span>
         </a>
-        <a class="section-nav-link" href="#network-card">
+        <a class="section-nav-link" data-view="multiplayer" href="#network-card">
           <span class="section-nav-index">02</span>
           <span><b>多人</b><small>九人協作</small></span>
         </a>
-        <a class="section-nav-link" href="#career-feature">
+        <a class="section-nav-link" data-view="career" href="#career-feature">
           <span class="section-nav-index">03</span>
           <span><b>My Player</b><small>自主發展</small></span>
         </a>
-        <a class="section-nav-link" href="#season-feature">
+        <a class="section-nav-link" data-view="season" href="#season-feature">
           <span class="section-nav-index">04</span>
           <span><b>賽季</b><small>逐場推進</small></span>
         </a>
@@ -72,10 +72,10 @@
           <p id="hub-next-copy">選一個模板，再把建造點放到你真正想玩的能力。</p>
         </div>
         <div class="hub-actions" aria-label="快速入口">
-          <a class="hub-action hub-action-primary" id="hub-build-player" href="#player-builder-feature"><b>建立球員</b><small>從 OVR 60 開始 ↗</small></a>
-          <a class="hub-action" id="hub-open-career" href="#career-feature"><b>發展球員</b><small>訓練與目標 ↗</small></a>
-          <a class="hub-action" id="hub-open-room" href="#network-card"><b>加入多人</b><small>選位置進房間 ↗</small></a>
-          <a class="hub-action" id="hub-open-season" href="#season-feature"><b>推進賽季</b><small>下一場比賽 ↗</small></a>
+          <a class="hub-action hub-action-primary" data-view="career" id="hub-build-player" href="#player-builder-feature"><b>建立球員</b><small>從 OVR 60 開始 ↗</small></a>
+          <a class="hub-action" data-view="career" id="hub-open-career" href="#career-feature"><b>發展球員</b><small>訓練與目標 ↗</small></a>
+          <a class="hub-action" data-view="multiplayer" id="hub-open-room" href="#network-card"><b>加入多人</b><small>選位置進房間 ↗</small></a>
+          <a class="hub-action" data-view="season" id="hub-open-season" href="#season-feature"><b>推進賽季</b><small>下一場比賽 ↗</small></a>
         </div>
       </section>
 
@@ -131,6 +131,7 @@
             <div><span>團隊狀態</span><strong id="room-live-status">單機補位</strong></div>
             <div><span>真人玩家</span><strong id="room-human-count">1 / 9</strong></div>
             <div><span>現在事件</span><strong id="room-event-owner">等待開賽</strong></div>
+            <div><span>團隊戰術</span><strong id="team-plan-label">未設定</strong></div>
           </div>
           <div class="lobby-readiness-row">
             <span>房間狀態</span>
@@ -145,7 +146,7 @@
         <div class="team-signals" id="team-signals" aria-label="團隊快速訊息">
           <div class="team-signal-heading">
             <p class="eyebrow">TEAM SIGNALS</p>
-            <span id="team-signal-status">用短訊息提醒隊友，不會打斷目前事件。</span>
+            <span id="team-signal-status">用短訊息提醒隊友；下一個對應決策會帶來小幅團隊加成。</span>
           </div>
           <div class="signal-buttons">
             <button class="signal-button" data-signal="steady" type="button">穩一點</button>
@@ -258,6 +259,11 @@
               <div class="career-goal-progress"><i id="career-goal-bar"></i></div>
               <span id="career-goal-copy">完成訓練或比賽，累積你的生涯進度。</span>
             </div>
+          </div>
+          <div class="career-feedback-row" aria-label="生涯回饋">
+            <div class="career-feedback-card"><span>最近表現</span><strong id="career-last-grade">—</strong><small id="career-last-copy">完成訓練或比賽後，這裡會留下你的評分。</small></div>
+            <div class="career-feedback-card"><span>成長重點</span><strong id="career-focus-stat">—</strong><small id="career-focus-copy">選擇一條養成路線，讓每次投入都有方向。</small></div>
+            <div class="career-feedback-card"><span>生涯紀錄</span><strong id="career-record-line">0 場 · 0 勝</strong><small id="career-perk-line">尚未解鎖生涯能力</small></div>
           </div>
           <div class="practice-actions" id="practice-actions" aria-label="位置訓練">
             <button class="practice-button" data-practice="hitting" type="button"><span>↗</span><b>打擊挑戰</b><small>選球與擊球判斷</small></button>
@@ -463,7 +469,7 @@
                 <p>選一個位置後即可開始；隊友可以加入其他位置，尚未有人控制的球員會由免費 NPC 補位。</p>
               </div>
               <div class="welcome-actions">
-                <a class="secondary-button" href="#network-card">調整位置</a>
+                <a class="secondary-button" data-view="multiplayer" href="#network-card">調整位置</a>
                 <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
               </div>
             </div>
