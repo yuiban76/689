@@ -948,8 +948,26 @@ function startPracticeGame() {
 }
 
 function startScheduledGame() {
-  if (network.role !== "solo") {
-    scheduleStatus = "2026 賽季模式只在單機進行；多人房間仍可使用一般對戰。";
+  if (network.role === "guest") {
+    if (!network.connected) {
+      scheduleStatus = "請先連上房間，才能請房主開始多人賽程。";
+      renderDevelopment();
+      return;
+    }
+    if (!(state.phase === "pre" || state.phase === "gameover")) {
+      scheduleStatus = "目前已有比賽進行中，完成後才能開始下一場賽季賽。";
+      renderDevelopment();
+      return;
+    }
+    network.status = "已通知房主開始下一場多人賽程；等待房主同步賽事。";
+    scheduleStatus = "已通知房主；下一場賽程會同步到所有玩家。";
+    sendToHost({ type: "start-scheduled", protocol: PROTOCOL_VERSION });
+    renderNetwork();
+    renderDevelopment();
+    return;
+  }
+  if (network.role !== "solo" && network.role !== "host") {
+    scheduleStatus = "目前無法啟動 2026 賽季賽，單機或房主模式才能開始。";
     renderDevelopment();
     return;
   }
@@ -1364,21 +1382,24 @@ function markScheduledGameCompleted(result) {
   writeStorage(SCHEDULE_STORAGE_KEY, scheduleStore);
 }
 
+function recordTeamResult(result) {
+  if (state.matchMode === "practice") return;
+  const homeTeam = teamRecord(state.teamId);
+  const awayTeam = teamRecord(state.opponentId);
+  homeTeam.RF += state.score.home;
+  homeTeam.RA += state.score.away;
+  awayTeam.RF += state.score.away;
+  awayTeam.RA += state.score.home;
+  if (result === "win" || result === "walkoff") { homeTeam.W += 1; awayTeam.L += 1; }
+  else if (result === "loss") { homeTeam.L += 1; awayTeam.W += 1; }
+  else { homeTeam.T += 1; awayTeam.T += 1; }
+  leagueStore[state.teamId] = homeTeam;
+  leagueStore[state.opponentId] = awayTeam;
+}
+
 function recordMatchCareer(result) {
   if (state.leagueRecorded) return;
-  if (state.matchMode !== "practice") {
-    const homeTeam = teamRecord(state.teamId);
-    const awayTeam = teamRecord(state.opponentId);
-    homeTeam.RF += state.score.home;
-    homeTeam.RA += state.score.away;
-    awayTeam.RF += state.score.away;
-    awayTeam.RA += state.score.home;
-    if (result === "win" || result === "walkoff") { homeTeam.W += 1; awayTeam.L += 1; }
-    else if (result === "loss") { homeTeam.L += 1; awayTeam.W += 1; }
-    else { homeTeam.T += 1; awayTeam.T += 1; }
-    leagueStore[state.teamId] = homeTeam;
-    leagueStore[state.opponentId] = awayTeam;
-  }
+  recordTeamResult(result);
   Object.entries(state.slots).forEach(([position, slot]) => {
     if (!slot.athleteId) return;
     const profile = profileFor(slot.athleteId);
@@ -1402,6 +1423,9 @@ function recordLocalGuestMatchCareer() {
   if (!profile) return;
   applyMatchToCareerProfile(profile, slot.position, state.playerStats[slot.position] || {}, state.result);
   network.lastGuestRecordedRevision = state.revision;
+  recordTeamResult(state.result);
+  markScheduledGameCompleted(state.result);
+  if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
   persistCustomPlayers();
   const localCustomPlayer = customPlayerIndex[slot.athleteId];
   if (localCustomPlayer?.isCustom) setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
@@ -1454,10 +1478,13 @@ function renderSeasonSchedule() {
   const panel = $("season-schedule-panel");
   if (!panel) return;
   const player = selectedCareerPlayer();
-  const teamId = player?.teamId || selectedTeamId;
+  const teamId = network.role !== "solo" && state.teamId ? state.teamId : player?.teamId || selectedTeamId;
   const team = teamFor(teamId);
   const teamGames = SEASON_SCHEDULE.filter((game) => game.homeTeamId === teamId || game.awayTeamId === teamId);
-  const next = nextScheduledGame(teamId);
+  const activeScheduledGame = state.matchMode === "season" && state.scheduleGameId && state.phase !== "gameover"
+    ? SEASON_SCHEDULE.find((game) => game.id === state.scheduleGameId) || null
+    : null;
+  const next = activeScheduledGame || nextScheduledGame(teamId);
   const played = playedSeasonGameCount(teamId);
   const completedTotal = Object.keys(scheduleStore.completed).length;
   const progress = $("schedule-progress");
@@ -1468,16 +1495,21 @@ function renderSeasonSchedule() {
   if (progress) progress.textContent = `${team.name} ${played} / 120 場 · 全聯盟 ${Math.min(CPBL_TOTAL_SEASON_GAMES, completedTotal)} / ${CPBL_TOTAL_SEASON_GAMES} 場`;
   if (nextLabel) {
     nextLabel.textContent = next
-      ? `下一場：${next.date.replaceAll("-", "/")} ${next.half} · ${teamFor(next.awayTeamId).shortName} @ ${teamFor(next.homeTeamId).shortName} · ${next.stadium}`
+      ? `${activeScheduledGame ? "目前多人賽程" : "下一場"}：${next.date.replaceAll("-", "/")} ${next.half} · ${teamFor(next.awayTeamId).shortName} @ ${teamFor(next.homeTeamId).shortName} · ${next.stadium}`
       : `${team.name} 的 2026 賽季已完成。`;
   }
   if (status) {
-    status.textContent = scheduleStatus;
+    status.textContent = activeScheduledGame
+      ? `${activeScheduledGame.date} · ${teamFor(activeScheduledGame.awayTeamId).name} @ ${teamFor(activeScheduledGame.homeTeamId).name}；${network.role === "guest" ? "房主已啟動，多人玩家共用這場賽程。" : "這場賽程已同步到房間。"}`
+      : scheduleStatus;
     status.className = "season-schedule-status";
   }
   if (button) {
-    button.disabled = !next || network.role !== "solo" || !(state.phase === "pre" || state.phase === "gameover");
-    button.innerHTML = next ? `開始下一場賽季賽 <span>↗</span>` : "本隊賽季已完成";
+    const canRequest = network.role === "solo" || network.role === "host" || (network.role === "guest" && network.connected);
+    button.disabled = !next || !canRequest || !(state.phase === "pre" || state.phase === "gameover");
+    button.innerHTML = next
+      ? `${network.role === "guest" ? "請房主開始賽程" : "開始下一場賽季賽"} <span>↗</span>`
+      : "本隊賽季已完成";
   }
   if (!list) return;
   if (!teamGames.length) {
@@ -1504,9 +1536,9 @@ function renderSeasonSchedule() {
 function renderDevelopment() {
   const panel = $("development-panel");
   if (!panel) return;
+  if (network.role === "guest" && state.teamId) selectedTeamId = state.teamId;
   renderCareerMode();
   renderSeasonSchedule();
-  if (network.role === "guest" && state.teamId) selectedTeamId = state.teamId;
   const teamSelect = $("team-select");
   const opponentSelect = $("opponent-select");
   if (teamSelect) {
@@ -2265,6 +2297,7 @@ function attachHostConnection(connection) {
     else if (message.type === "custom") hostUpdateCustomPlayer(record, message.position, message.customPlayer, message.name);
     else if (message.type === "signal") hostHandleSignal(record, message.signal);
     else if (message.type === "start") requestStartFromPlayer(record);
+    else if (message.type === "start-scheduled") requestScheduledStartFromPlayer(record);
     else if (message.type === "reset") sendConnection(connection, { type: "status", message: "只有房主可以重新開打。", awaiting: false });
     else if (message.type === "action") hostHandleAction(record, message);
   });
@@ -2357,6 +2390,11 @@ function hostHandleSignal(record, signal) {
 function requestStartFromPlayer(record) {
   if (!record.playerId) return;
   startGame();
+}
+
+function requestScheduledStartFromPlayer(record) {
+  if (!record.playerId) return;
+  startScheduledGame();
 }
 
 function hostHandleAction(record, message) {
@@ -2544,15 +2582,15 @@ function reconnectRoom() {
 }
 
 function requestStart() {
+  if (state.matchMode === "season") {
+    startScheduledGame();
+    return;
+  }
   if (network.role === "guest") {
     if (!network.connected) return;
     network.status = "已通知房主開始比賽；NPC 會補足其他位置。";
     sendToHost({ type: "start", protocol: PROTOCOL_VERSION });
     renderNetwork();
-    return;
-  }
-  if (network.role === "solo" && state.matchMode === "season") {
-    startScheduledGame();
     return;
   }
   startGame(network.role === "solo" && state.matchMode === "practice" ? "practice" : "league");
