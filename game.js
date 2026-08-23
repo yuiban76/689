@@ -1896,6 +1896,10 @@ function isGuest() {
   return network.role === "guest";
 }
 
+function canChangePositionNow() {
+  return state.phase === "pre" || state.phase === "gameover" || (state.phase === "home" && state.balls === 0 && state.strikes === 0);
+}
+
 function setStatus(message) {
   network.status = message;
   renderNetwork();
@@ -2145,6 +2149,10 @@ function prepareFreshState() {
 
 function claimLocalPosition(position, shouldCommit = true) {
   if (!POSITION_BY_CODE[position] || !isAuthority()) return false;
+  if (!canChangePositionNow()) {
+    setStatus("下一個安全事件才能換守備位置。");
+    return false;
+  }
   const target = state.slots[position];
   if (target.controller === "human" && target.playerId !== network.localPlayerId) {
     setStatus(`${positionName(position)} 已由其他玩家選擇。`);
@@ -2177,9 +2185,13 @@ function claimLocalPosition(position, shouldCommit = true) {
 }
 
 function releaseLocalPosition(shouldCommit = true) {
-  if (!isAuthority()) return;
+  if (!isAuthority()) return false;
+  if (!canChangePositionNow()) {
+    setStatus("下一個安全事件才能把位置交給 NPC。");
+    return false;
+  }
   const slot = slotForPlayer(network.localPlayerId);
-  if (!slot) return;
+  if (!slot) return false;
   slot.controller = "npc";
   slot.playerId = null;
   slot.sessionId = null;
@@ -2190,6 +2202,7 @@ function releaseLocalPosition(shouldCommit = true) {
   network.assignedPosition = "";
   if (shouldCommit) commitState();
   else render();
+  return true;
 }
 
 function updateLocalName(name, shouldCommit = true) {
@@ -2307,7 +2320,7 @@ function attachHostConnection(connection) {
 
 function hostClaimPlayerPosition(record, position, incomingCustomPlayer = null) {
   if (!POSITION_BY_CODE[position]) return;
-  if (!(state.phase === "pre" || state.phase === "gameover" || (state.phase === "home" && state.balls === 0 && state.strikes === 0))) {
+  if (!canChangePositionNow()) {
     sendConnection(record.connection, { type: "status", message: "下一個安全事件才能換守備位置。" });
     return;
   }
@@ -2345,6 +2358,10 @@ function hostClaimPlayerPosition(record, position, incomingCustomPlayer = null) 
 function hostReleasePlayerPosition(record) {
   const slot = slotForPlayer(record.playerId);
   if (!slot) return;
+  if (!canChangePositionNow()) {
+    sendConnection(record.connection, { type: "status", message: "下一個安全事件才能把位置交給 NPC。" });
+    return;
+  }
   slot.controller = "npc";
   slot.playerId = null;
   slot.connectionKey = null;
@@ -2370,7 +2387,7 @@ function hostUpdatePlayerName(record, name) {
 
 function hostUpdateCustomPlayer(record, position, incomingCustomPlayer, name = "") {
   if (!record.joined) return;
-  if (!(state.phase === "pre" || state.phase === "gameover" || (state.phase === "home" && state.balls === 0 && state.strikes === 0))) {
+  if (!canChangePositionNow()) {
     sendConnection(record.connection, { type: "status", message: "下一個安全事件才能更新自創球員。" });
     return;
   }
