@@ -87,6 +87,93 @@ const CUSTOM_ARCHETYPES = {
   pitcher: { label: "控球投手", role: "自創王牌", adjustments: { contact: -8, power: -7, vision: 2, discipline: 4, clutch: 8, speed: -4, fielding: 3, reaction: 3, velocity: 8, control: 14, break: 12, stamina: 14 } },
 };
 
+const BUILD_POINT_BUDGET = 36;
+const BUILDER_GROUPS = [
+  {
+    key: "batting",
+    label: "打擊",
+    rows: [
+      ["contact", "擊球能力"], ["contactL", "對左投擊球"], ["contactR", "對右投擊球"],
+      ["power", "長打力量"], ["powerL", "對左投長打"], ["powerR", "對右投長打"],
+      ["vision", "擊球視野"], ["discipline", "選球能力"], ["clutch", "關鍵打擊"],
+      ["bunt", "短打能力"], ["dragBunt", "拖曳短打"],
+    ],
+  },
+  {
+    key: "running",
+    label: "跑壘",
+    rows: [["speed", "跑壘速度"], ["stealing", "盜壘能力"]],
+  },
+  {
+    key: "fielding",
+    label: "守備",
+    rows: [["fielding", "守備範圍"], ["reaction", "反應速度"], ["armStrength", "臂力"], ["armAccuracy", "傳球準確度"], ["blocking", "擋球能力"]],
+  },
+  {
+    key: "pitching",
+    label: "投球",
+    rows: [["velocity", "球速"], ["control", "投球控球"], ["break", "變化球"], ["stamina", "投手體力"]],
+  },
+];
+
+const PLAYER_BUILD_TEMPLATES = [
+  { id: "balanced", label: "五工具球員", role: "全能成長", detail: "打擊、跑壘、守備都不偏科", positions: "field", focus: ["contact", "power", "speed", "fielding"], adjustments: CUSTOM_ARCHETYPES.balanced.adjustments },
+  { id: "contact", label: "擊球串聯", role: "高上壘打者", detail: "專注擊球、選球與跑壘壓力", positions: "field", focus: ["contact", "vision", "discipline", "speed"], adjustments: { contact: 11, power: -5, vision: 8, discipline: 8, clutch: 5, speed: 5, stealing: 5, bunt: 8, dragBunt: 7, fielding: 1 } },
+  { id: "slugger", label: "長打砲", role: "中心打者", detail: "用力量與關鍵打擊改變比分", positions: "field", focus: ["power", "powerL", "powerR", "clutch"], adjustments: CUSTOM_ARCHETYPES.slugger.adjustments },
+  { id: "speedster", label: "飛毛腿跑者", role: "速度跑者", detail: "速度、盜壘與短打製造機會", positions: "field", focus: ["speed", "stealing", "bunt", "dragBunt"], adjustments: CUSTOM_ARCHETYPES.speedster.adjustments },
+  { id: "defender", label: "守備魔術師", role: "守備核心", detail: "範圍、反應與傳球穩定可靠", positions: "field", focus: ["fielding", "reaction", "armStrength", "armAccuracy"], adjustments: CUSTOM_ARCHETYPES.defender.adjustments },
+  { id: "catcher-captain", label: "配球指揮官", role: "主戰捕手", detail: "擋球、臂力與關鍵時刻的領導力", positions: ["C"], focus: ["blocking", "armStrength", "armAccuracy", "clutch"], adjustments: { contact: 1, power: 1, discipline: 6, clutch: 9, speed: -4, stealing: -6, fielding: 8, reaction: 6, armStrength: 11, armAccuracy: 9, blocking: 16 } },
+  { id: "pitcher-control", label: "控球王牌", role: "精準先發", detail: "控球、變化球與吃局能力優先", positions: ["P"], focus: ["control", "break", "stamina", "clutch"], adjustments: CUSTOM_ARCHETYPES.pitcher.adjustments },
+  { id: "pitcher-flame", label: "火球強投", role: "三振型先發", detail: "球速與三振威脅拉到最高", positions: ["P"], focus: ["velocity", "break", "stamina"], adjustments: { contact: -9, power: -8, speed: -5, fielding: 2, reaction: 2, velocity: 17, control: -2, break: 10, stamina: 9, clutch: 7 } },
+  { id: "pitcher-break", label: "變化球大師", role: "球路型投手", detail: "用球路位移與控球讓打者失去節奏", positions: ["P"], focus: ["break", "control", "clutch"], adjustments: { contact: -8, power: -7, speed: -4, fielding: 2, velocity: 6, control: 9, break: 17, stamina: 8, clutch: 8 } },
+];
+
+function templatesForPosition(position) {
+  return PLAYER_BUILD_TEMPLATES.filter((template) => template.positions === "field" ? position !== "P" : template.positions.includes(position));
+}
+
+function templateForPosition(position, templateId = "") {
+  const available = templatesForPosition(position);
+  const requested = String(templateId || "");
+  return available.find((template) => template.id === requested)
+    || available.find((template) => template.label === requested)
+    || (position === "P" ? available.find((template) => template.id === "pitcher-control") : available[0])
+    || PLAYER_BUILD_TEMPLATES[0];
+}
+
+function builderCapFor(position, template, key) {
+  const pitchingKeys = ["velocity", "control", "break", "stamina"];
+  const fieldingKeys = ["fielding", "reaction", "armStrength", "armAccuracy", "blocking"];
+  let cap = 92;
+  if (template.focus.includes(key)) cap = 99;
+  if (position === "P" && !pitchingKeys.includes(key) && key !== "clutch") cap = 80;
+  if (position !== "P" && pitchingKeys.includes(key)) cap = 76;
+  if (position === "C" && key === "blocking") cap = 99;
+  if (position !== "C" && key === "blocking") cap = 82;
+  if (fieldingKeys.includes(key) && template.id === "slugger") cap = Math.min(cap, 88);
+  return cap;
+}
+
+function splitBuilderRatings(ratings, bats) {
+  ratings.contactL = Math.max(20, Math.min(99, Number(ratings.contact || 50) + (bats === "左" ? 3 : 0)));
+  ratings.contactR = Math.max(20, Math.min(99, Number(ratings.contact || 50) + (bats === "右" ? 3 : 0)));
+  ratings.powerL = Math.max(20, Math.min(99, Number(ratings.power || 50) + (bats === "左" ? 3 : 0)));
+  ratings.powerR = Math.max(20, Math.min(99, Number(ratings.power || 50) + (bats === "右" ? 3 : 0)));
+  return ratings;
+}
+
+function buildTemplateRatings(position, teamId, bats, templateId) {
+  const blueprint = ROSTER_BLUEPRINTS.find((candidate) => candidate.position === position) || ROSTER_BLUEPRINTS[0];
+  const team = TEAM_BY_ID[teamId] || TEAM_BY_ID[DEFAULT_TEAM_ID];
+  const template = templateForPosition(position, templateId);
+  const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
+    if (key === "popTime") return [key, value];
+    const adjusted = Number(value) + Number(team.bonus[key] || 0) + Number(template.adjustments[key] || 0);
+    return [key, Math.max(20, Math.min(builderCapFor(position, template, key), Math.round(adjusted)))];
+  }));
+  return splitBuilderRatings(ratings, bats);
+}
+
 function buildTeamRoster(team, teamIndex) {
   const names = TEAM_PLAYER_NAMES[team.id] || [];
   return ROSTER_BLUEPRINTS.map((blueprint, playerIndex) => {
@@ -151,16 +238,18 @@ function normalizeCustomPlayer(raw, index = 0) {
   const position = POSITION_BY_CODE[source.position] ? source.position : "CF";
   const teamId = TEAM_BY_ID[source.teamId] ? source.teamId : DEFAULT_TEAM_ID;
   const blueprint = ROSTER_BLUEPRINTS.find((candidate) => candidate.position === position) || ROSTER_BLUEPRINTS[0];
+  const incomingBuilder = source.builder && typeof source.builder === "object" ? source.builder : {};
+  const buildTemplate = templateForPosition(position, incomingBuilder.templateId || source.templateId || source.archetype);
   const rawRatings = source.ratings && typeof source.ratings === "object" ? source.ratings : {};
   const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
     const candidate = Number(rawRatings[key]);
     if (key === "popTime") return [key, Number.isFinite(candidate) ? Math.max(1.78, Math.min(2.3, candidate)) : value];
     return [key, Number.isFinite(candidate) ? Math.max(20, Math.min(99, candidate)) : value];
   }));
-  ratings.contactL = Number(rawRatings.contactL || ratings.contact);
-  ratings.contactR = Number(rawRatings.contactR || ratings.contact);
-  ratings.powerL = Number(rawRatings.powerL || ratings.power);
-  ratings.powerR = Number(rawRatings.powerR || ratings.power);
+  ratings.contactL = Math.max(20, Math.min(99, Number(rawRatings.contactL || ratings.contact)));
+  ratings.contactR = Math.max(20, Math.min(99, Number(rawRatings.contactR || ratings.contact)));
+  ratings.powerL = Math.max(20, Math.min(99, Number(rawRatings.powerL || ratings.power)));
+  ratings.powerR = Math.max(20, Math.min(99, Number(rawRatings.powerR || ratings.power)));
   const stats = source.stats || {};
   const defaults = createSeasonStats();
   return {
@@ -172,7 +261,15 @@ function normalizeCustomPlayer(raw, index = 0) {
     position,
     number: String(source.number || "99").replace(/\D/g, "").slice(0, 2).padStart(2, "0") || "99",
     role: String(source.role || "自創球員").slice(0, 12),
-    archetype: String(source.archetype || "自訂全能").slice(0, 18),
+    archetype: String(source.archetype || buildTemplate.label || "自訂全能").slice(0, 18),
+    builder: {
+      version: 1,
+      templateId: buildTemplate.id,
+      templateLabel: buildTemplate.label,
+      pointBudget: BUILD_POINT_BUDGET,
+      caps: Object.fromEntries(Object.keys(blueprint.ratings).filter((key) => key !== "popTime").map((key) => [key, builderCapFor(position, buildTemplate, key)])),
+      migrated: !incomingBuilder.version,
+    },
     pitchMix: Array.isArray(source.pitchMix) ? source.pitchMix.slice(0, 5) : blueprint.pitchMix || [],
     bats: ["左", "右", "兩側"].includes(source.bats) ? source.bats : "右",
     throws: source.throws === "左" ? "左" : "右",
@@ -217,6 +314,107 @@ let selectedAthleteId = initialCustomPlayer?.id || `${DEFAULT_TEAM_ID}-cf`;
 let selectedCustomPlayerId = initialCustomPlayer?.id || "";
 let careerStatus = "建立自創球員後，就能進入單人訓練場。";
 let careerStatusTone = "";
+let builderDraft = null;
+
+const BUILDER_LABEL_BY_KEY = Object.fromEntries(BUILDER_GROUPS.flatMap((group) => group.rows).map(([key, label]) => [key, label]));
+
+function createBuilderDraft(position, teamId, bats, templateId) {
+  const template = templateForPosition(position, templateId);
+  const baseRatings = buildTemplateRatings(position, teamId, bats, template.id);
+  return {
+    position,
+    teamId,
+    bats,
+    templateId: template.id,
+    baseRatings,
+    ratings: { ...baseRatings },
+    pointsSpent: 0,
+  };
+}
+
+function builderDraftFromForm() {
+  const position = $("custom-player-position")?.value || "CF";
+  const teamId = $("custom-player-team")?.value || selectedTeamId;
+  const bats = $("custom-player-bats")?.value || "右";
+  const templateId = $("custom-player-archetype")?.value || templateForPosition(position).id;
+  if (!builderDraft || builderDraft.position !== position || builderDraft.teamId !== teamId || builderDraft.bats !== bats || builderDraft.templateId !== templateForPosition(position, templateId).id) {
+    builderDraft = createBuilderDraft(position, teamId, bats, templateId);
+  }
+  return builderDraft;
+}
+
+function builderUpgradeCost(value) {
+  if (Number(value) >= 90) return 3;
+  if (Number(value) >= 80) return 2;
+  return 1;
+}
+
+function builderRemainingPoints(draft) {
+  return BUILD_POINT_BUDGET - Number(draft?.pointsSpent || 0);
+}
+
+function builderAdjustRating(key, direction) {
+  const draft = builderDraftFromForm();
+  const template = templateForPosition(draft.position, draft.templateId);
+  const current = Number(draft.ratings[key] || 0);
+  const next = current + (direction > 0 ? 1 : -1);
+  const cap = builderCapFor(draft.position, template, key);
+  if (next < 20 || next > cap) return;
+  const cost = direction > 0 ? builderUpgradeCost(current) : builderUpgradeCost(next);
+  const nextSpent = draft.pointsSpent + (direction > 0 ? cost : -cost);
+  if (direction > 0 && nextSpent > BUILD_POINT_BUDGET) return;
+  draft.ratings[key] = next;
+  draft.pointsSpent = nextSpent;
+  if (["contact", "power"].includes(key)) splitBuilderRatings(draft.ratings, draft.bats);
+  renderBuilder();
+}
+
+function builderStrengths(draft) {
+  const rows = BUILDER_GROUPS.flatMap((group) => group.rows).filter(([key]) => !["contactL", "contactR", "powerL", "powerR"].includes(key));
+  const sorted = rows.map(([key, label]) => ({ key, label, value: Number(draft.ratings[key] || 0) })).sort((a, b) => b.value - a.value);
+  return {
+    strengths: sorted.slice(0, 3).map((item) => `${item.label} ${item.value}`),
+    weaknesses: sorted.slice(-3).reverse().map((item) => `${item.label} ${item.value}`),
+  };
+}
+
+function renderBuilder() {
+  const panel = $("builder-panel");
+  if (!panel) return;
+  const draft = builderDraftFromForm();
+  const template = templateForPosition(draft.position, draft.templateId);
+  const remaining = builderRemainingPoints(draft);
+  const { strengths, weaknesses } = builderStrengths(draft);
+  const overall = overallForPlayer({ position: draft.position, ratings: draft.ratings });
+  const templateSelect = $("custom-player-archetype");
+  if (templateSelect) templateSelect.value = template.id;
+  const templateCopy = $("builder-template-copy");
+  const points = $("builder-points");
+  const overallEl = $("builder-overall");
+  const strengthsEl = $("builder-strengths");
+  const weaknessesEl = $("builder-weaknesses");
+  const capNote = $("builder-cap-note");
+  if (templateCopy) templateCopy.textContent = `${template.label} · ${template.detail}`;
+  if (points) points.textContent = `可用建造點 ${remaining} / ${BUILD_POINT_BUDGET}`;
+  if (overallEl) overallEl.textContent = overall;
+  if (strengthsEl) strengthsEl.textContent = strengths.join(" · ");
+  if (weaknessesEl) weaknessesEl.textContent = weaknesses.join(" · ");
+  if (capNote) capNote.textContent = `模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
+  const templateGrid = $("builder-template-grid");
+  if (templateGrid) {
+    templateGrid.innerHTML = templatesForPosition(draft.position).map((candidate) => `<button type="button" class="builder-template-choice ${candidate.id === template.id ? "is-selected" : ""}" data-builder-template="${candidate.id}"><b>${candidate.label}</b><small>${candidate.role}</small><span>${candidate.detail}</span></button>`).join("");
+  }
+  const attributes = $("builder-attributes");
+  if (!attributes) return;
+  attributes.innerHTML = BUILDER_GROUPS.map((group) => `<section class="builder-attribute-group"><div class="builder-group-heading"><h4>${group.label}</h4><span>${group.rows.filter(([key]) => template.focus.includes(key)).length} 項重點</span></div>${group.rows.map(([key, label]) => {
+    const value = Number(draft.ratings[key] || 0);
+    const cap = builderCapFor(draft.position, template, key);
+    const plusCost = builderUpgradeCost(value);
+    const plusDisabled = value >= cap || remaining < plusCost;
+    const isFocus = template.focus.includes(key);
+    return `<div class="builder-attribute-row ${isFocus ? "is-focus" : ""}"><div class="builder-attribute-name"><b>${label}</b>${isFocus ? "<small>模板重點</small>" : ""}</div><button type="button" class="builder-adjust" data-builder-key="${key}" data-builder-adjust="-1" aria-label="降低${label}">−</button><strong>${value}</strong><button type="button" class="builder-adjust" data-builder-key="${key}" data-builder-adjust="1" ${plusDisabled ? "disabled" : ""} aria-label="提升${label}">＋</button><span class="builder-cap">/${cap}</span><i><b style="width:${Math.min(100, Math.round((value / cap) * 100))}%"></b></i></div>`;
+  }).join("")}</section>`).join("");
+}
 
 function createCareerProfile(player) {
   return {
@@ -355,19 +553,19 @@ function calculateFieldingLine(stats = {}) {
 }
 
 const TRAINING_META = {
-  hitting: { title: "打擊訓練", detail: "CONTACT +1 · VISION +1", cost: 1, xp: 42, gains: { contact: 1, vision: 1 } },
-  power: { title: "力量訓練", detail: "POWER +1 · CLUTCH +1", cost: 1, xp: 42, gains: { power: 1, clutch: 1 } },
-  defense: { title: "守備訓練", detail: "FIELDING +1 · REACTION +1", cost: 1, xp: 42, gains: { fielding: 1, reaction: 1 } },
-  speed: { title: "跑壘訓練", detail: "SPEED +1 · STEALING +1", cost: 1, xp: 38, gains: { speed: 1, stealing: 1 } },
-  pitching: { title: "投球訓練", detail: "CONTROL +1 · BREAK +1", cost: 1, xp: 44, gains: { control: 1, break: 1 } },
+  hitting: { title: "打擊訓練", detail: "擊球能力 +1 · 擊球視野 +1", cost: 1, xp: 42, gains: { contact: 1, vision: 1 } },
+  power: { title: "力量訓練", detail: "長打力量 +1 · 關鍵打擊 +1", cost: 1, xp: 42, gains: { power: 1, clutch: 1 } },
+  defense: { title: "守備訓練", detail: "守備範圍 +1 · 反應速度 +1", cost: 1, xp: 42, gains: { fielding: 1, reaction: 1 } },
+  speed: { title: "跑壘訓練", detail: "跑壘速度 +1 · 盜壘能力 +1", cost: 1, xp: 38, gains: { speed: 1, stealing: 1 } },
+  pitching: { title: "投球訓練", detail: "投球控球 +1 · 變化球 +1", cost: 1, xp: 44, gains: { control: 1, break: 1 } },
   recovery: { title: "恢復訓練", detail: "疲勞 -20 · 士氣 +5", cost: 0, xp: 18, gains: {} },
 };
 
 const PRACTICE_META = {
-  hitting: { title: "打擊挑戰", detail: "CONTACT · VISION · CLUTCH", xp: 28, focus: ["contact", "vision", "clutch"] },
-  defense: { title: "守備反應", detail: "FIELDING · REACTION · ARM", xp: 27, focus: ["fielding", "reaction", "armAccuracy"] },
-  pitching: { title: "投球控制", detail: "CONTROL · BREAK · STAMINA", xp: 30, focus: ["control", "break", "stamina"] },
-  speed: { title: "跑壘判斷", detail: "SPEED · STEALING · BUNT", xp: 25, focus: ["speed", "stealing", "bunt"] },
+  hitting: { title: "打擊挑戰", detail: "擊球能力 · 擊球視野 · 關鍵打擊", xp: 28, focus: ["contact", "vision", "clutch"] },
+  defense: { title: "守備反應", detail: "守備範圍 · 反應速度 · 傳球", xp: 27, focus: ["fielding", "reaction", "armAccuracy"] },
+  pitching: { title: "投球控制", detail: "投球控球 · 變化球 · 體力", xp: 30, focus: ["control", "break", "stamina"] },
+  speed: { title: "跑壘判斷", detail: "跑壘速度 · 盜壘 · 短打", xp: 25, focus: ["speed", "stealing", "bunt"] },
 };
 
 function xpToNextLevel(level) {
@@ -612,29 +810,31 @@ function trainSelectedPlayer(trainingType) {
   render();
 }
 
-function buildCustomPlayer({ name, number, teamId, position, bats, throws, archetype }) {
+function buildCustomPlayer({ name, number, teamId, position, bats, throws, archetype, buildRatings }) {
   const blueprint = ROSTER_BLUEPRINTS.find((candidate) => candidate.position === position) || ROSTER_BLUEPRINTS[0];
-  const team = TEAM_BY_ID[teamId] || TEAM_BY_ID[DEFAULT_TEAM_ID];
-  const style = CUSTOM_ARCHETYPES[archetype] || CUSTOM_ARCHETYPES.balanced;
+  const template = templateForPosition(position, archetype);
+  const templateRatings = buildTemplateRatings(position, teamId, bats, template.id);
+  const sourceRatings = buildRatings && typeof buildRatings === "object" ? buildRatings : templateRatings;
   const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
-    if (key === "popTime") return [key, value];
-    const adjusted = Number(value) + Number(team.bonus[key] || 0) + Number(style.adjustments[key] || 0);
-    return [key, Math.max(20, Math.min(96, Math.round(adjusted)))];
+    if (key === "popTime") return [key, Number(sourceRatings[key] || value)];
+    const adjusted = Number(sourceRatings[key] ?? value);
+    return [key, Math.max(20, Math.min(builderCapFor(position, template, key), Math.round(adjusted)))];
   }));
-  ratings.contactL = Math.max(20, Math.min(99, ratings.contact + (bats === "左" ? 3 : 0)));
-  ratings.contactR = Math.max(20, Math.min(99, ratings.contact + (bats === "右" ? 3 : 0)));
-  ratings.powerL = Math.max(20, Math.min(99, ratings.power + (bats === "左" ? 3 : 0)));
-  ratings.powerR = Math.max(20, Math.min(99, ratings.power + (bats === "右" ? 3 : 0)));
+  splitBuilderRatings(ratings, bats);
+  ["contactL", "contactR", "powerL", "powerR"].forEach((key) => {
+    if (Number.isFinite(Number(sourceRatings[key]))) ratings[key] = Math.max(20, Math.min(99, Math.round(Number(sourceRatings[key]))));
+  });
   const token = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const potential = archetype === "pitcher" ? 96 : archetype === "balanced" ? 92 : 90;
+  const potential = position === "P" ? 96 : template.id === "balanced" ? 92 : 90;
   return normalizeCustomPlayer({
     id: `custom-${token}`,
     teamId,
     name: cleanName(name),
     position,
     number: String(number || "99").replace(/\D/g, "").slice(0, 2).padStart(2, "0") || "99",
-    role: style.role,
-    archetype: style.label,
+    role: template.role,
+    archetype: template.label,
+    builder: { version: 1, templateId: template.id, pointBudget: BUILD_POINT_BUDGET },
     pitchMix: position === "P" ? ["四縫線速球", "滑球", "變速球", "曲球"] : [],
     bats,
     throws,
@@ -714,6 +914,7 @@ function createCustomPlayerFromForm(event) {
     setCustomPlayerStatus(`最多建立 ${MAX_CUSTOM_PLAYERS} 名自創球員，請先使用現有角色。`, "is-error");
     return;
   }
+  const draft = builderDraftFromForm();
   const player = buildCustomPlayer({
     name: $("custom-player-name")?.value,
     number: $("custom-player-number")?.value,
@@ -721,7 +922,8 @@ function createCustomPlayerFromForm(event) {
     position: $("custom-player-position")?.value || "CF",
     bats: $("custom-player-bats")?.value || "右",
     throws: $("custom-player-throws")?.value || "右",
-    archetype: $("custom-player-archetype")?.value || "balanced",
+    archetype: draft.templateId,
+    buildRatings: draft.ratings,
   });
   customPlayers.forEach((candidate) => {
     if (candidate.teamId === player.teamId && candidate.position === player.position) candidate.active = false;
@@ -735,6 +937,7 @@ function createCustomPlayerFromForm(event) {
   persistCustomPlayers();
   const form = $("custom-player-form");
   if (form) form.reset();
+  builderDraft = null;
   network.status = `${player.name} 已建立，${teamFor(player.teamId).name} 的 ${positionName(player.position)} 位置現在由他先發。`;
   useCustomPlayer(player.id);
   setCustomPlayerStatus(`${player.name} 建立完成並已套用到你的角色；現在可以開始比賽。`, "is-success");
@@ -888,6 +1091,14 @@ function renderDevelopment() {
     customPositionSelect.innerHTML = POSITION_DEFS.map((position) => `<option value="${position.code}">${position.code} · ${position.name}</option>`).join("");
     customPositionSelect.value = POSITION_BY_CODE[previousPosition] ? previousPosition : "CF";
   }
+  const customTemplateSelect = $("custom-player-archetype");
+  if (customTemplateSelect) {
+    const currentPosition = customPositionSelect?.value || "CF";
+    const previousTemplate = builderDraft?.position === currentPosition ? builderDraft.templateId : customTemplateSelect.value;
+    customTemplateSelect.innerHTML = templatesForPosition(currentPosition).map((template) => `<option value="${template.id}">${template.label} · ${template.role}</option>`).join("");
+    customTemplateSelect.value = templateForPosition(currentPosition, previousTemplate).id;
+  }
+  renderBuilder();
   $("custom-player-count").textContent = `${customPlayers.length} / ${MAX_CUSTOM_PLAYERS} 名自創球員`;
   const customList = $("custom-player-list");
   if (customList) {
@@ -922,12 +1133,12 @@ function renderDevelopment() {
   $("player-progress").textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · 訓練點 ${profile.trainingPoints} · 潛力 ${player.potential}`;
   $("player-morale").textContent = `士氣 ${profile.morale} · 疲勞 ${profile.fatigue}`;
   const ratingGroups = [
-    ["打擊", [["Contact", ratings.contact], ["vs L Contact", ratings.contactL], ["vs R Contact", ratings.contactR], ["Power", ratings.power], ["vs L Power", ratings.powerL], ["vs R Power", ratings.powerR], ["Vision", ratings.vision], ["Discipline", ratings.discipline], ["Clutch", ratings.clutch], ["Bunt", ratings.bunt]]],
-    ["跑壘", [["Speed", ratings.speed], ["Stealing", ratings.stealing]]],
-    ["守備", [["Fielding", ratings.fielding], ["Reaction", ratings.reaction], ["Arm Strength", ratings.armStrength], ["Arm Accuracy", ratings.armAccuracy], ["Blocking", ratings.blocking], ["Pop Time", Number(ratings.popTime || 0).toFixed(2)]]],
-    ["投球", [["Velocity", ratings.velocity], ["Control", ratings.control], ["Break", ratings.break], ["Stamina", ratings.stamina]]],
+    ["打擊", [["擊球能力", ratings.contact], ["對左投擊球", ratings.contactL], ["對右投擊球", ratings.contactR], ["長打力量", ratings.power], ["對左投長打", ratings.powerL], ["對右投長打", ratings.powerR], ["擊球視野", ratings.vision], ["選球能力", ratings.discipline], ["關鍵打擊", ratings.clutch], ["短打能力", ratings.bunt]]],
+    ["跑壘", [["跑壘速度", ratings.speed], ["盜壘能力", ratings.stealing]]],
+    ["守備", [["守備範圍", ratings.fielding], ["反應速度", ratings.reaction], ["臂力", ratings.armStrength], ["傳球準確度", ratings.armAccuracy], ["擋球能力", ratings.blocking], ["捕手傳球時間", Number(ratings.popTime || 0).toFixed(2)]]],
+    ["投球", [["球速", ratings.velocity], ["投球控球", ratings.control], ["變化球", ratings.break], ["投手體力", ratings.stamina]]],
   ];
-  $("player-attributes").innerHTML = ratingGroups.map(([title, rows]) => `<div class="attribute-group"><h4>${title}</h4>${rows.map(([label, value]) => `<div class="attribute-row"><span>${label}</span><i><b style="width:${label === "Pop Time" ? Math.max(20, 100 - Number(value) * 28) : value}%"></b></i><strong>${value}</strong></div>`).join("")}</div>`).join("");
+  $("player-attributes").innerHTML = ratingGroups.map(([title, rows]) => `<div class="attribute-group"><h4>${title}</h4>${rows.map(([label, value]) => `<div class="attribute-row"><span>${label}</span><i><b style="width:${label === "捕手傳球時間" ? Math.max(20, 100 - Number(value) * 28) : value}%"></b></i><strong>${value}</strong></div>`).join("")}</div>`).join("");
   Object.entries(TRAINING_META).forEach(([key, meta]) => {
     const button = document.querySelector(`[data-training="${key}"]`);
     if (button) button.disabled = profile.trainingPoints < meta.cost;
@@ -2777,6 +2988,41 @@ function bindEvents() {
     renderDevelopment();
   });
   $("custom-player-form")?.addEventListener("submit", createCustomPlayerFromForm);
+  $("custom-player-position")?.addEventListener("change", () => {
+    builderDraft = null;
+    renderDevelopment();
+  });
+  $("custom-player-team")?.addEventListener("change", () => {
+    builderDraft = null;
+    renderDevelopment();
+  });
+  $("custom-player-bats")?.addEventListener("change", () => {
+    builderDraft = null;
+    renderDevelopment();
+  });
+  $("custom-player-archetype")?.addEventListener("change", (event) => {
+    const position = $("custom-player-position")?.value || "CF";
+    const teamId = $("custom-player-team")?.value || selectedTeamId;
+    const bats = $("custom-player-bats")?.value || "右";
+    builderDraft = createBuilderDraft(position, teamId, bats, event.target.value);
+    renderBuilder();
+  });
+  $("builder-panel")?.addEventListener("click", (event) => {
+    const templateButton = event.target.closest("[data-builder-template]");
+    if (templateButton) {
+      const templateSelect = $("custom-player-archetype");
+      if (templateSelect) templateSelect.value = templateButton.dataset.builderTemplate;
+      const position = $("custom-player-position")?.value || "CF";
+      const teamId = $("custom-player-team")?.value || selectedTeamId;
+      const bats = $("custom-player-bats")?.value || "右";
+      builderDraft = createBuilderDraft(position, teamId, bats, templateButton.dataset.builderTemplate);
+      renderBuilder();
+      return;
+    }
+    const adjustButton = event.target.closest("[data-builder-adjust]");
+    if (!adjustButton || adjustButton.disabled) return;
+    builderAdjustRating(adjustButton.dataset.builderKey, Number(adjustButton.dataset.builderAdjust));
+  });
   $("custom-player-list")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-custom-action]");
     if (!button) return;

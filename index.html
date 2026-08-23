@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=career-sync-1" />
+    <link rel="stylesheet" href="./styles.css?v=builder-1" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=career-sync-1" defer></script>
+    <script src="./game.js?v=builder-1" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -112,9 +112,27 @@
             <label class="custom-field">守備位置<select id="custom-player-position" required></select></label>
             <label class="custom-field">打擊方向<select id="custom-player-bats" required><option value="右">右打</option><option value="左">左打</option><option value="兩側">左右開弓</option></select></label>
             <label class="custom-field">投球方向<select id="custom-player-throws" required><option value="右">右投</option><option value="左">左投</option></select></label>
-            <label class="custom-field custom-field-wide">球員類型<select id="custom-player-archetype" required><option value="balanced">五拍工具人 · 全能成長</option><option value="slugger">長打砲 · 力量優先</option><option value="speedster">速度跑者 · 跑壘優先</option><option value="defender">守備專家 · 防守優先</option><option value="pitcher">控球投手 · 投球優先</option></select></label>
+            <label class="custom-field custom-field-wide">球員模板<select id="custom-player-archetype" required><option value="balanced">五工具球員 · 全能成長</option></select></label>
             <button class="custom-player-submit" id="custom-player-submit" type="submit"><span>＋</span>建立我的球員</button>
           </form>
+          <section class="builder-panel" id="builder-panel" aria-labelledby="builder-title">
+            <div class="builder-heading">
+              <div>
+                <p class="eyebrow">MY PLAYER BUILDER</p>
+                <h4 id="builder-title">進階球員建造器</h4>
+                <p id="builder-template-copy">先選模板，再把建造點放到你真正想玩的能力。</p>
+              </div>
+              <div class="builder-overall-wrap"><span>總評</span><strong id="builder-overall">—</strong></div>
+            </div>
+            <div class="builder-build-summary">
+              <span class="builder-points" id="builder-points">可用建造點 36 / 36</span>
+              <span><b>強項</b> <em id="builder-strengths">—</em></span>
+              <span><b>弱項</b> <em id="builder-weaknesses">—</em></span>
+            </div>
+            <div class="builder-template-grid" id="builder-template-grid" aria-label="選擇球員模板"></div>
+            <p class="builder-cap-note" id="builder-cap-note">模板重點與能力上限會依位置改變。</p>
+            <div class="builder-attributes" id="builder-attributes" aria-label="自由分配能力點"></div>
+          </section>
           <div class="custom-player-list" id="custom-player-list" aria-label="我的自創球員"></div>
           <p class="custom-player-status" id="custom-player-status">生涯進度保存在這個瀏覽器；加入多人房間時，當場角色能力會同步給隊友。</p>
         </section>
@@ -172,11 +190,11 @@
                 <span class="mini-label">免費養成</span>
               </div>
               <div class="training-actions" id="training-actions">
-                <button class="training-button" data-training="hitting" type="button"><b>打擊訓練</b><small>CONTACT · VISION</small></button>
-                <button class="training-button" data-training="power" type="button"><b>力量訓練</b><small>POWER · CLUTCH</small></button>
-                <button class="training-button" data-training="defense" type="button"><b>守備訓練</b><small>FIELDING · REACTION</small></button>
-                <button class="training-button" data-training="speed" type="button"><b>跑壘訓練</b><small>SPEED · STEALING</small></button>
-                <button class="training-button" data-training="pitching" type="button"><b>投球訓練</b><small>CONTROL · BREAK</small></button>
+                <button class="training-button" data-training="hitting" type="button"><b>打擊訓練</b><small>擊球能力 · 擊球視野</small></button>
+                <button class="training-button" data-training="power" type="button"><b>力量訓練</b><small>長打力量 · 關鍵打擊</small></button>
+                <button class="training-button" data-training="defense" type="button"><b>守備訓練</b><small>守備範圍 · 反應速度</small></button>
+                <button class="training-button" data-training="speed" type="button"><b>跑壘訓練</b><small>跑壘速度 · 盜壘能力</small></button>
+                <button class="training-button" data-training="pitching" type="button"><b>投球訓練</b><small>投球控球 · 變化球</small></button>
                 <button class="training-button" data-training="recovery" type="button"><b>恢復訓練</b><small>疲勞 -20 · 士氣 +5</small></button>
               </div>
             </div>
