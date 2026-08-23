@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=builder-2" />
+    <link rel="stylesheet" href="./styles.css?v=cpbl-2026" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=builder-2" defer></script>
+    <script src="./game.js?v=cpbl-2026" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -89,7 +89,7 @@
           <div>
             <p class="eyebrow">ROAD TO THE NINE</p>
             <h2 id="development-title">球員中心 · 六隊聯盟</h2>
-            <p>管理球隊、查看 54 名球員的完整能力與賽季數據，透過訓練讓你的球員持續成長。</p>
+            <p>2026 中華職棒六隊、主力先發快照與遊戲化能力值；查看 54 名球員，透過訓練讓你的球員持續成長。</p>
           </div>
           <div class="match-team-controls">
             <label>主隊<select id="team-select" aria-label="選擇主隊"></select></label>
@@ -159,6 +159,22 @@
           </div>
           <p class="career-mode-status" id="career-mode-status">建立自創球員後，就能進入單人訓練場。</p>
         </section>
+        <section class="season-schedule-panel" id="season-schedule-panel" aria-labelledby="season-schedule-title">
+          <div class="season-schedule-heading">
+            <div>
+              <p class="eyebrow">2026 CPBL SEASON</p>
+              <h3 id="season-schedule-title">2026 賽季賽程</h3>
+              <p>依中職六隊、每隊 120 場的賽制建立完整 360 場遊戲排程；你的球隊可以逐場推進，進度只保存在本機。</p>
+            </div>
+            <button class="career-match-button" id="start-next-scheduled-game" type="button">開始下一場賽季賽 <span>↗</span></button>
+          </div>
+          <div class="season-schedule-summary">
+            <span id="schedule-progress">中信兄弟 0 / 120 場 · 全聯盟 0 / 360 場</span>
+            <span id="schedule-next">下一場：—</span>
+          </div>
+          <div class="season-schedule-list" id="season-schedule-list" aria-label="2026 賽季賽程列表"></div>
+          <p class="season-schedule-status" id="season-schedule-status">完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。</p>
+        </section>
         <div class="development-layout">
           <section class="roster-browser" aria-labelledby="roster-title">
             <div class="section-heading">
@@ -168,7 +184,8 @@
               </div>
               <span class="mini-label" id="roster-count">6 隊 · 54 名球員</span>
             </div>
-            <p class="development-team-label" id="development-team-label">台北雷霆 · 台北 · 速度壓迫</p>
+            <p class="development-team-label" id="development-team-label">中信兄弟 · 台中 · 火力與串聯</p>
+            <p class="team-data-note" id="team-data-note">2026 官方數據快照：AVG .282 · OBP .334 · SLG .374 · ERA 3.61</p>
             <div class="team-tabs" id="team-tabs" aria-label="選擇查看球隊"></div>
             <div class="roster-list" id="roster-list"></div>
           </section>
@@ -177,7 +194,7 @@
             <div class="player-detail-header">
               <div>
                 <p class="eyebrow" id="player-detail-position">CF · 全能中外</p>
-                <h3 id="player-detail-name">林昱辰</h3>
+                <h3 id="player-detail-name">岳政華</h3>
                 <p id="player-detail-meta">#07 · 左打／右投 · 24歲</p>
               </div>
               <div class="player-overall-wrap"><span>OVR</span><strong id="player-overall">78</strong></div>
@@ -219,7 +236,7 @@
             <div class="scoreboard-heading">
               <div>
                 <p class="eyebrow">今日賽事 · 決定命運的每一球</p>
-                <h2 id="game-title">台北雷霆 vs. 高雄海鷗</h2>
+                <h2 id="game-title">中信兄弟 vs. 統一7-ELEVEn獅</h2>
               </div>
               <div class="stadium-weather"><span class="weather-dot"></span> 24°C · 微風</div>
             </div>
@@ -227,14 +244,14 @@
             <div class="scoreboard">
               <div class="team-score away-team">
                 <span class="team-tag">客隊</span>
-                <strong id="away-team-name">高雄海鷗</strong>
+                <strong id="away-team-name">統一7-ELEVEn獅</strong>
                 <span class="team-record" id="away-team-record">海風球場 · 先攻</span>
                 <b id="away-score">0</b>
               </div>
               <div class="score-divider"><span>VS</span></div>
               <div class="team-score home-team">
                 <span class="team-tag accent-tag">主隊</span>
-                <strong id="home-team-name">台北雷霆</strong>
+                <strong id="home-team-name">中信兄弟</strong>
                 <span class="team-record" id="home-team-record">最多九人同隊 · NPC 補位</span>
                 <b id="home-score">0</b>
               </div>
@@ -298,7 +315,7 @@
               <div>
                 <p class="eyebrow">現在打者</p>
                 <h3 id="batter-title"><span id="batter-name">等待開賽</span></h3>
-                <p class="batter-meta" id="batter-meta">請按下開始比賽，接管台北雷霆。</p>
+                <p class="batter-meta" id="batter-meta">請按下開始比賽，接管中信兄弟。</p>
               </div>
             </div>
             <div class="batter-meters" aria-label="打者能力">

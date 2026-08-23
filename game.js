@@ -36,18 +36,22 @@ const POSITION_BY_CODE = Object.fromEntries(POSITION_DEFS.map((position) => [pos
 
 const CAREER_STORAGE_KEY = "jiuju-career-v2";
 const LEAGUE_STORAGE_KEY = "jiuju-league-v2";
+const SCHEDULE_STORAGE_KEY = "jiuju-cpbl-season-v1";
 const CUSTOM_PLAYERS_STORAGE_KEY = "jiuju-custom-players-v1";
 const MAX_CUSTOM_PLAYERS = 18;
+const CPBL_SEASON_YEAR = 2026;
+const CPBL_DATA_SNAPSHOT = "2026-08-23";
+const CPBL_TOTAL_SEASON_GAMES = 360;
 const DEFAULT_TEAM_ID = "taipei";
 const DEFAULT_OPPONENT_ID = "kaohsiung";
 
 const TEAM_DEFS = [
-  { id: "taipei", name: "台北雷霆", city: "台北", shortName: "雷霆", stadium: "雷霆巨蛋", style: "速度壓迫", color: "#d8f26d", bonus: { contact: 3, speed: 3, fielding: 1 } },
-  { id: "kaohsiung", name: "高雄海鷗", city: "高雄", shortName: "海鷗", stadium: "海風球場", style: "長打火力", color: "#ff9d59", bonus: { power: 4, armStrength: 2, clutch: 2 } },
-  { id: "taichung", name: "台中獵鷹", city: "台中", shortName: "獵鷹", stadium: "中央公園球場", style: "穩定守備", color: "#8be5d1", bonus: { fielding: 4, reaction: 3, discipline: 1 } },
-  { id: "hsinchu", name: "新竹星火", city: "新竹", shortName: "星火", stadium: "風城球場", style: "選球控場", color: "#b7a7ff", bonus: { vision: 4, control: 3, discipline: 3 } },
-  { id: "taoyuan", name: "桃園飛翼", city: "桃園", shortName: "飛翼", stadium: "航空城球場", style: "全能平衡", color: "#72c9ff", bonus: { contact: 2, speed: 2, armAccuracy: 2, break: 2 } },
-  { id: "chiayi", name: "嘉義巨浪", city: "嘉義", shortName: "巨浪", stadium: "木都球場", style: "投手養成", color: "#f59eb5", bonus: { velocity: 4, stamina: 3, break: 3, power: 2 } },
+  { id: "taipei", name: "中信兄弟", city: "台中", shortName: "兄弟", stadium: "臺中洲際棒球場", style: "火力與串聯", color: "#f4c542", bonus: { contact: 5, power: 5, vision: 2, discipline: 2, armAccuracy: 1 }, leagueStats: { games: 31, wins: 16, losses: 15, ties: 0, battingAvg: .282, onBasePct: .334, sluggingPct: .374, era: 3.61 } },
+  { id: "kaohsiung", name: "統一7-ELEVEn獅", city: "台南", shortName: "統一獅", stadium: "臺南亞太國際棒球場", style: "控球與機動", color: "#f26b38", bonus: { contact: 3, vision: 3, discipline: 3, control: 3, break: 3, speed: 2 }, leagueStats: { games: 31, wins: 15, losses: 16, ties: 0, battingAvg: .271, onBasePct: .334, sluggingPct: .343, era: 2.87 } },
+  { id: "taichung", name: "樂天桃猿", city: "桃園", shortName: "桃猿", stadium: "樂天桃園棒球場", style: "投手壓制", color: "#e74675", bonus: { fielding: 2, reaction: 2, control: 4, break: 5, stamina: 2 }, leagueStats: { games: 27, wins: 15, losses: 12, ties: 0, battingAvg: .253, onBasePct: .308, sluggingPct: .334, era: 2.14 } },
+  { id: "hsinchu", name: "富邦悍將", city: "新北", shortName: "悍將", stadium: "新莊棒球場", style: "長打與強肩", color: "#5a8dee", bonus: { power: 2, armStrength: 2, velocity: -1, control: -2, fielding: -1 }, leagueStats: { games: 27, wins: 12, losses: 15, ties: 0, battingAvg: .248, onBasePct: .305, sluggingPct: .316, era: 4.26 } },
+  { id: "taoyuan", name: "味全龍", city: "台北", shortName: "味全", stadium: "天母棒球場", style: "守備與先發", color: "#cf3038", bonus: { fielding: 3, reaction: 3, control: 4, break: 3, stamina: 2, contact: -2 }, leagueStats: { games: 29, wins: 16, losses: 13, ties: 0, battingAvg: .232, onBasePct: .305, sluggingPct: .315, era: 2.87 } },
+  { id: "chiayi", name: "台鋼雄鷹", city: "高雄", shortName: "雄鷹", stadium: "澄清湖棒球場", style: "速度與選球", color: "#61b6c9", bonus: { contact: 3, discipline: 4, speed: 4, stealing: 3, power: 1, control: -1, velocity: -1 }, leagueStats: { games: 29, wins: 13, losses: 16, ties: 0, battingAvg: .271, onBasePct: .340, sluggingPct: .355, era: 3.95 } },
 ];
 
 const ROSTER_BLUEPRINTS = [
@@ -63,12 +67,83 @@ const ROSTER_BLUEPRINTS = [
 ];
 
 const TEAM_PLAYER_NAMES = {
-  taipei: ["林昱辰", "陳柏翰", "王子謙", "吳承恩", "張偉倫", "李明哲", "蔡瑞峰", "高宇翔", "周凱翔"],
-  kaohsiung: ["蘇冠廷", "洪政勳", "葉俊豪", "鄭凱文", "林威廷", "黃彥翔", "許廷威", "曾冠宇", "何昊恩"],
-  taichung: ["邱品睿", "羅立安", "沈柏勳", "江承翰", "陳奕勳", "郭柏辰", "吳俊賢", "賴志豪", "謝秉哲"],
-  hsinchu: ["彭子皓", "廖冠霖", "鄧皓文", "許家銘", "高靖凱", "柯宇翔", "方彥鈞", "蘇子謙", "朱柏翰"],
-  taoyuan: ["黃少謙", "林冠宇", "徐睿恩", "鄭博元", "謝承翰", "陳昱安", "楊哲維", "洪士軒", "吳柏勳"],
-  chiayi: ["張凱傑", "李冠廷", "蔡岳霖", "王俊皓", "郭彥廷", "陳柏宇", "曾奕翔", "林家佑", "趙子豪"],
+  taipei: ["岳政華", "詹子賢", "王威晨", "許基宏", "宋晟睿", "王政順", "江坤宇", "高宇杰", "鄭浩均"],
+  kaohsiung: ["陳傑憲", "林佳緯", "潘傑楷", "林子豪", "蘇智傑", "林靖凱", "陳聖平", "陳重羽", "布雷克"],
+  taichung: ["成晉", "林政華", "梁家榮", "廖健富", "陳晨威", "林立", "林承飛", "林泓育", "威能帝"],
+  hsinchu: ["林哲瑄", "申皓瑋", "李宗賢", "范國宸", "孔念恩", "王正棠", "王勝偉", "戴培峰", "鈴木駿輔"],
+  taoyuan: ["郭天信", "陳子豪", "劉基鴻", "朱育賢", "拿莫．伊漾", "李凱威", "張政禹", "吉力吉撈．鞏冠", "鋼龍"],
+  chiayi: ["藍寅倫", "王柏融", "郭阜林", "魔鷹", "陳文杰", "吳念庭", "曾子祐", "吳明鴻", "後勁"],
+};
+
+// 2026 CPBL 主力先發快照：以官方球員名單、團隊攻守數據與球員成績做遊戲化換算。
+// 數值調整保持在小幅範圍，避免單一球員破壞多人房間平衡。
+const CPBL_PLAYER_PROFILES = {
+  taipei: {
+    CF: { adjustments: { contact: 2, speed: 7, stealing: 5, fielding: 2 } },
+    RF: { adjustments: { contact: 5, power: 7, clutch: 4, armStrength: 2 } },
+    "3B": { adjustments: { contact: 4, discipline: 4, speed: 3, fielding: 3 } },
+    "1B": { adjustments: { contact: 3, power: 8, discipline: 2, speed: -4 } },
+    LF: { adjustments: { contact: 5, power: 5, speed: 2, armStrength: 3 } },
+    "2B": { adjustments: { contact: 3, vision: 3, fielding: 2 } },
+    SS: { adjustments: { fielding: 7, reaction: 7, armAccuracy: 5, speed: 3 } },
+    C: { adjustments: { blocking: 6, armStrength: 4, armAccuracy: 4 } },
+    P: { adjustments: { velocity: 4, control: 5, break: 4, stamina: 4 } },
+  },
+  kaohsiung: {
+    CF: { adjustments: { contact: 12, vision: 8, discipline: 8, clutch: 5, speed: 3 }, performance: { avg: .335, obp: .418, slg: .443, ops: .861 } },
+    RF: { adjustments: { contact: 4, speed: 5, fielding: 3 } },
+    "3B": { adjustments: { contact: 4, power: 3, speed: 2 } },
+    "1B": { adjustments: { contact: 2, power: 7 } },
+    LF: { adjustments: { power: 7, clutch: 5, armStrength: 2 } },
+    "2B": { adjustments: { fielding: 5, reaction: 4, speed: 3 } },
+    SS: { adjustments: { fielding: 4, reaction: 4, armAccuracy: 3 } },
+    C: { adjustments: { blocking: 5, armAccuracy: 4 } },
+    P: { adjustments: { control: 5, break: 6, stamina: 3 } },
+  },
+  taichung: {
+    CF: { adjustments: { contact: 5, speed: 4, fielding: 3 } },
+    RF: { adjustments: { speed: 5, fielding: 3, armStrength: 3 } },
+    "3B": { adjustments: { contact: 3, power: 4, fielding: 3 } },
+    "1B": { adjustments: { contact: 4, power: 5, clutch: 4 } },
+    LF: { adjustments: { contact: 3, speed: 6, stealing: 4 } },
+    "2B": { adjustments: { contact: 9, power: 7, speed: 5, fielding: 3 } },
+    SS: { adjustments: { fielding: 5, reaction: 4, armAccuracy: 3 } },
+    C: { adjustments: { power: 7, contact: 4, clutch: 5 } },
+    P: { adjustments: { velocity: 5, control: 6, break: 6, stamina: 4 } },
+  },
+  hsinchu: {
+    CF: { adjustments: { fielding: 6, reaction: 5, armStrength: 3 } },
+    RF: { adjustments: { contact: 3, power: 4, speed: 3 } },
+    "3B": { adjustments: { contact: 4, speed: 3, fielding: 4 } },
+    "1B": { adjustments: { power: 7, clutch: 4 } },
+    LF: { adjustments: { contact: 7, discipline: 2 }, performance: { avg: .308, obp: .323, slg: .411, ops: .734 } },
+    "2B": { adjustments: { contact: 4, vision: 4, discipline: 3 } },
+    SS: { adjustments: { fielding: 5, reaction: 5, armAccuracy: 4 } },
+    C: { adjustments: { blocking: 5, armStrength: 4 } },
+    P: { adjustments: { control: 4, break: 3, stamina: 4 } },
+  },
+  taoyuan: {
+    CF: { adjustments: { contact: 6, speed: 5, stealing: 4 }, performance: { avg: .291, obp: .342, slg: .421, ops: .763 } },
+    RF: { adjustments: { power: 7, clutch: 4 } },
+    "3B": { adjustments: { power: 7, contact: 3 } },
+    "1B": { adjustments: { power: 8, contact: 3 } },
+    LF: { adjustments: { contact: 3, speed: 4 } },
+    "2B": { adjustments: { contact: 5, vision: 4, fielding: 3 } },
+    SS: { adjustments: { fielding: 5, reaction: 4, speed: 2 } },
+    C: { adjustments: { power: 8, armStrength: 3, blocking: 3 } },
+    P: { adjustments: { control: 4, break: 5, stamina: 3 } },
+  },
+  chiayi: {
+    CF: { adjustments: { contact: 4, speed: 5 } },
+    RF: { adjustments: { contact: 4, power: 5, clutch: 4 } },
+    "3B": { adjustments: { power: 6, armStrength: 3 } },
+    "1B": { adjustments: { power: 10, contact: 2, clutch: 5 } },
+    LF: { adjustments: { contact: 7, speed: 3 }, performance: { avg: .286, obp: .344, slg: .389, ops: .733 } },
+    "2B": { adjustments: { contact: 5, vision: 4, discipline: 3 } },
+    SS: { adjustments: { contact: 8, speed: 3, fielding: 3 }, performance: { avg: .299, obp: .367, slg: .386, ops: .753 } },
+    C: { adjustments: { blocking: 5, armStrength: 4 } },
+    P: { adjustments: { velocity: 4, control: 3, break: 3, stamina: 5 } },
+  },
 };
 
 function createSeasonStats() {
@@ -212,9 +287,11 @@ function buildTemplateRatings(position, teamId, bats, templateId) {
 function buildTeamRoster(team, teamIndex) {
   const names = TEAM_PLAYER_NAMES[team.id] || [];
   return ROSTER_BLUEPRINTS.map((blueprint, playerIndex) => {
+    const profile = CPBL_PLAYER_PROFILES[team.id]?.[blueprint.position] || {};
+    const playerAdjustments = profile.adjustments || {};
     const variance = ((teamIndex * 5 + playerIndex * 3) % 7) - 3;
     const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
-      const bonus = team.bonus[key] || 0;
+      const bonus = (team.bonus[key] || 0) + (playerAdjustments[key] || 0);
       const adjustedVariance = ["popTime"].includes(key) ? variance * -0.015 : variance;
       const adjusted = key === "popTime" ? Math.max(1.78, Math.min(2.3, value + adjustedVariance)) : Math.max(20, Math.min(99, value + bonus + adjustedVariance));
       return [key, Number(adjusted.toFixed(key === "popTime" ? 2 : 0))];
@@ -234,6 +311,10 @@ function buildTeamRoster(team, teamIndex) {
       pitchMix: blueprint.pitchMix || [],
       bats: blueprint.bats,
       throws: blueprint.throws,
+      starting: true,
+      isOfficial: true,
+      dataSource: `CPBL ${CPBL_SEASON_YEAR} · ${CPBL_DATA_SNAPSHOT}`,
+      performance: profile.performance || null,
       age: 21 + ((teamIndex * 3 + playerIndex * 2) % 13),
       height: 168 + ((teamIndex * 7 + playerIndex * 4) % 21),
       weight: 66 + ((teamIndex * 9 + playerIndex * 6) % 31),
@@ -247,6 +328,67 @@ function buildTeamRoster(team, teamIndex) {
 const LEAGUE_TEAMS = TEAM_DEFS.map((team, teamIndex) => ({ ...team, roster: buildTeamRoster(team, teamIndex) }));
 const TEAM_BY_ID = Object.fromEntries(LEAGUE_TEAMS.map((team) => [team.id, team]));
 const BASE_PLAYER_BY_ID = Object.fromEntries(LEAGUE_TEAMS.flatMap((team) => team.roster).map((player) => [player.id, player]));
+
+const CPBL_SEASON_START_DATE = new Date(Date.UTC(CPBL_SEASON_YEAR, 2, 28));
+const CPBL_SEASON_END_DATE = new Date(Date.UTC(CPBL_SEASON_YEAR, 9, 31));
+
+function formatSeasonDate(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function seasonDateForMatchday(matchdayIndex) {
+  const matchdays = CPBL_TOTAL_SEASON_GAMES / (TEAM_DEFS.length / 2);
+  const ratio = matchdays <= 1 ? 0 : matchdayIndex / (matchdays - 1);
+  const timestamp = CPBL_SEASON_START_DATE.getTime() + (CPBL_SEASON_END_DATE.getTime() - CPBL_SEASON_START_DATE.getTime()) * ratio;
+  return formatSeasonDate(new Date(timestamp));
+}
+
+function roundRobinRounds(teamIds) {
+  const circle = teamIds.slice();
+  const rounds = [];
+  for (let round = 0; round < circle.length - 1; round += 1) {
+    const games = [];
+    for (let pair = 0; pair < circle.length / 2; pair += 1) {
+      const first = circle[pair];
+      const second = circle[circle.length - 1 - pair];
+      const homeFirst = (round + pair) % 2 === 0;
+      games.push({ homeTeamId: homeFirst ? first : second, awayTeamId: homeFirst ? second : first });
+    }
+    rounds.push(games);
+    circle.splice(1, 0, circle.pop());
+  }
+  return rounds;
+}
+
+function createSeasonSchedule() {
+  const rounds = roundRobinRounds(TEAM_DEFS.map((team) => team.id));
+  const games = [];
+  let gameNo = 1;
+  for (let cycle = 0; cycle < CPBL_TOTAL_SEASON_GAMES / (TEAM_DEFS.length * (TEAM_DEFS.length - 1) / 2); cycle += 1) {
+    rounds.forEach((roundGames, roundIndex) => {
+      const matchdayIndex = cycle * rounds.length + roundIndex;
+      roundGames.forEach(({ homeTeamId, awayTeamId }, pairIndex) => {
+        const alternatingHome = (cycle + roundIndex + pairIndex) % 2 === 0;
+        const finalHomeTeamId = alternatingHome ? homeTeamId : awayTeamId;
+        const finalAwayTeamId = alternatingHome ? awayTeamId : homeTeamId;
+        games.push({
+          id: `${CPBL_SEASON_YEAR}-${String(gameNo).padStart(3, "0")}`,
+          gameNo,
+          date: seasonDateForMatchday(matchdayIndex),
+          half: matchdayIndex < rounds.length * 12 ? "上半季" : "下半季",
+          homeTeamId: finalHomeTeamId,
+          awayTeamId: finalAwayTeamId,
+          stadium: TEAM_BY_ID[finalHomeTeamId]?.stadium || "主場球場",
+          status: "scheduled",
+        });
+        gameNo += 1;
+      });
+    });
+  }
+  return games;
+}
+
+const SEASON_SCHEDULE = createSeasonSchedule();
 
 function readStorage(key, fallback) {
   try {
@@ -341,6 +483,14 @@ refreshCustomPlayerIndex();
 
 let careerStore = readStorage(CAREER_STORAGE_KEY, {});
 let leagueStore = readStorage(LEAGUE_STORAGE_KEY, {});
+function normalizeScheduleStore(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  return {
+    seasonYear: CPBL_SEASON_YEAR,
+    completed: source.seasonYear === CPBL_SEASON_YEAR && source.completed && typeof source.completed === "object" ? source.completed : {},
+  };
+}
+let scheduleStore = normalizeScheduleStore(readStorage(SCHEDULE_STORAGE_KEY, {}));
 const initialCustomPlayer = customPlayers.slice().reverse().find((player) => player.active !== false) || null;
 let selectedTeamId = DEFAULT_TEAM_ID;
 let selectedOpponentId = DEFAULT_OPPONENT_ID;
@@ -349,6 +499,7 @@ let selectedAthleteId = initialCustomPlayer?.id || `${DEFAULT_TEAM_ID}-cf`;
 let selectedCustomPlayerId = initialCustomPlayer?.id || "";
 let careerStatus = "建立自創球員後，就能進入單人訓練場。";
 let careerStatusTone = "";
+let scheduleStatus = "完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。";
 let builderDraft = null;
 
 const BUILDER_LABEL_BY_KEY = Object.fromEntries(BUILDER_GROUPS.flatMap((group) => group.rows).map(([key, label]) => [key, label]));
@@ -767,6 +918,44 @@ function startPracticeGame() {
   startGame("practice");
 }
 
+function startScheduledGame() {
+  if (network.role !== "solo") {
+    scheduleStatus = "2026 賽季模式只在單機進行；多人房間仍可使用一般對戰。";
+    renderDevelopment();
+    return;
+  }
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    scheduleStatus = "目前已有比賽進行中，完成後才能開始下一場賽季賽。";
+    renderDevelopment();
+    return;
+  }
+  const player = selectedCareerPlayer();
+  const playerTeamId = player?.teamId || selectedTeamId;
+  const scheduled = nextScheduledGame(playerTeamId);
+  if (!scheduled) {
+    scheduleStatus = `${teamFor(playerTeamId).name} 的 2026 賽季已完成。`;
+    renderDevelopment();
+    return;
+  }
+  const playerIsAway = scheduled.awayTeamId === playerTeamId;
+  const opponentId = playerIsAway ? scheduled.homeTeamId : scheduled.awayTeamId;
+  if (state.teamId !== playerTeamId || state.opponentId !== opponentId) replaceMatchTeams(playerTeamId, opponentId, false);
+  selectedTeamId = playerTeamId;
+  selectedOpponentId = opponentId;
+  developmentTeamId = playerTeamId;
+  selectedAthleteId = player?.id || rosterForTeam(playerTeamId)[0]?.id || selectedAthleteId;
+  claimLocalPosition(player?.position || network.assignedPosition || "CF", false);
+  scheduleStatus = `${scheduled.date} · ${teamFor(scheduled.awayTeamId).name} @ ${teamFor(scheduled.homeTeamId).name}；開始後會以玩家球隊視角進行。`;
+  startGame("season", {
+    id: scheduled.id,
+    gameNo: scheduled.gameNo,
+    date: scheduled.date,
+    officialHomeTeamId: scheduled.homeTeamId,
+    officialAwayTeamId: scheduled.awayTeamId,
+    playerIsAway,
+  });
+}
+
 function replaceMatchTeams(teamId, opponentId, shouldCommit = true) {
   if (!isAuthority() || !TEAM_BY_ID[teamId] || !TEAM_BY_ID[opponentId] || teamId === opponentId) return false;
   const previousSlots = clone(state.slots);
@@ -1017,6 +1206,38 @@ function applyMatchToCareerProfile(profile, position, match, result) {
   profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
 }
 
+function nextScheduledGame(teamId = selectedCareerPlayer()?.teamId || selectedTeamId) {
+  return SEASON_SCHEDULE.find((game) => !scheduleStore.completed[game.id] && (!teamId || game.homeTeamId === teamId || game.awayTeamId === teamId)) || null;
+}
+
+function playedSeasonGameCount(teamId = "") {
+  return SEASON_SCHEDULE.reduce((count, game) => {
+    if (!scheduleStore.completed[game.id]) return count;
+    if (!teamId || game.homeTeamId === teamId || game.awayTeamId === teamId) return count + 1;
+    return count;
+  }, 0);
+}
+
+function markScheduledGameCompleted(result) {
+  if (state.matchMode !== "season" || !state.scheduleGameId || scheduleStore.completed[state.scheduleGameId]) return;
+  const scheduled = SEASON_SCHEDULE.find((game) => game.id === state.scheduleGameId);
+  if (!scheduled) return;
+  const playerWon = result === "win" || result === "walkoff";
+  const playerIsAway = Boolean(state.schedulePlayerIsAway);
+  const officialHomeScore = playerIsAway ? state.score.away : state.score.home;
+  const officialAwayScore = playerIsAway ? state.score.home : state.score.away;
+  const officialHomeResult = playerIsAway ? (playerWon ? "loss" : result === "loss" ? "win" : "tie") : result;
+  scheduleStore.completed[state.scheduleGameId] = {
+    gameNo: scheduled.gameNo,
+    date: scheduled.date,
+    homeScore: officialHomeScore,
+    awayScore: officialAwayScore,
+    result: officialHomeResult,
+    playedAt: new Date().toISOString(),
+  };
+  writeStorage(SCHEDULE_STORAGE_KEY, scheduleStore);
+}
+
 function recordMatchCareer(result) {
   if (state.leagueRecorded) return;
   if (state.matchMode !== "practice") {
@@ -1038,6 +1259,7 @@ function recordMatchCareer(result) {
     if (!profile) return;
     applyMatchToCareerProfile(profile, position, state.playerStats[position] || {}, result);
   });
+  markScheduledGameCompleted(result);
   state.leagueRecorded = true;
   if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
   writeStorage(CAREER_STORAGE_KEY, careerStore);
@@ -1097,10 +1319,62 @@ function renderCareerMode() {
   }
 }
 
+function renderSeasonSchedule() {
+  const panel = $("season-schedule-panel");
+  if (!panel) return;
+  const player = selectedCareerPlayer();
+  const teamId = player?.teamId || selectedTeamId;
+  const team = teamFor(teamId);
+  const teamGames = SEASON_SCHEDULE.filter((game) => game.homeTeamId === teamId || game.awayTeamId === teamId);
+  const next = nextScheduledGame(teamId);
+  const played = playedSeasonGameCount(teamId);
+  const completedTotal = Object.keys(scheduleStore.completed).length;
+  const progress = $("schedule-progress");
+  const nextLabel = $("schedule-next");
+  const status = $("season-schedule-status");
+  const list = $("season-schedule-list");
+  const button = $("start-next-scheduled-game");
+  if (progress) progress.textContent = `${team.name} ${played} / 120 場 · 全聯盟 ${Math.min(CPBL_TOTAL_SEASON_GAMES, completedTotal)} / ${CPBL_TOTAL_SEASON_GAMES} 場`;
+  if (nextLabel) {
+    nextLabel.textContent = next
+      ? `下一場：${next.date.replaceAll("-", "/")} ${next.half} · ${teamFor(next.awayTeamId).shortName} @ ${teamFor(next.homeTeamId).shortName} · ${next.stadium}`
+      : `${team.name} 的 2026 賽季已完成。`;
+  }
+  if (status) {
+    status.textContent = scheduleStatus;
+    status.className = "season-schedule-status";
+  }
+  if (button) {
+    button.disabled = !next || network.role !== "solo" || !(state.phase === "pre" || state.phase === "gameover");
+    button.innerHTML = next ? `開始下一場賽季賽 <span>↗</span>` : "本隊賽季已完成";
+  }
+  if (!list) return;
+  if (!teamGames.length) {
+    list.innerHTML = `<p class="season-schedule-empty">尚未找到 ${escapeHtml(team.name)} 的賽程。</p>`;
+    return;
+  }
+  const nextIndex = Math.max(0, teamGames.findIndex((game) => game.id === next?.id));
+  const visibleGames = teamGames.slice(Math.max(0, nextIndex - 2), nextIndex + 8);
+  list.innerHTML = visibleGames.map((game) => {
+    const completed = scheduleStore.completed[game.id];
+    const isNext = game.id === next?.id;
+    const home = teamFor(game.homeTeamId);
+    const away = teamFor(game.awayTeamId);
+    const score = completed ? ` · ${completed.homeScore}：${completed.awayScore}` : "";
+    const stateLabel = completed ? "已完成" : isNext ? "下一場" : "待進行";
+    return `<div class="season-schedule-row ${isNext ? "is-next" : ""} ${completed ? "is-completed" : ""}">
+      <span class="season-schedule-date"><b>${game.date.slice(5).replace("-", "/")}</b><small>${game.half}</small></span>
+      <span class="season-schedule-match"><b>${escapeHtml(away.shortName)} @ ${escapeHtml(home.shortName)}</b><small>${escapeHtml(away.name)} 對 ${escapeHtml(home.name)} · ${escapeHtml(game.stadium)}${score}</small></span>
+      <strong>${stateLabel}</strong>
+    </div>`;
+  }).join("");
+}
+
 function renderDevelopment() {
   const panel = $("development-panel");
   if (!panel) return;
   renderCareerMode();
+  renderSeasonSchedule();
   if (network.role === "guest" && state.teamId) selectedTeamId = state.teamId;
   const teamSelect = $("team-select");
   const opponentSelect = $("opponent-select");
@@ -1148,12 +1422,15 @@ function renderDevelopment() {
   }
   const browseTeam = teamFor(developmentTeamId);
   const browseRoster = rosterForTeam(developmentTeamId);
-  $("development-team-label").textContent = `${browseTeam.name} · ${browseTeam.city} · ${browseTeam.style}`;
+  $("development-team-label").textContent = `${browseTeam.name} · ${browseTeam.city} · ${browseTeam.style} · 2026 主力先發快照`;
+  const teamStats = browseTeam.leagueStats || {};
+  const teamDataNote = $("team-data-note");
+  if (teamDataNote) teamDataNote.textContent = `2026 官方數據快照（${CPBL_DATA_SNAPSHOT}）：${teamStats.wins || 0} 勝 ${teamStats.losses || 0} 敗 · AVG ${Number(teamStats.battingAvg || 0).toFixed(3)} · OBP ${Number(teamStats.onBasePct || 0).toFixed(3)} · SLG ${Number(teamStats.sluggingPct || 0).toFixed(3)} · ERA ${Number(teamStats.era || 0).toFixed(2)}`;
   $("team-tabs").innerHTML = TEAM_DEFS.map((team) => `<button class="team-tab ${team.id === developmentTeamId ? "is-active" : ""}" data-development-team="${team.id}" type="button"><span>${team.shortName}</span><small>${team.city}</small></button>`).join("");
   $("roster-count").textContent = `${LEAGUE_TEAMS.length} 隊 · ${LEAGUE_TEAMS.reduce((sum, team) => sum + team.roster.length, 0)} 名球員 · ${customPlayers.length} 名自創`;
   $("roster-list").innerHTML = browseRoster.map((basePlayer) => {
     const player = developedPlayer(basePlayer.id);
-    return `<button class="roster-player ${player.id === selectedAthleteId ? "is-selected" : ""}" data-athlete-id="${player.id}" type="button"><span class="roster-number">${player.number}</span><span class="roster-player-main"><b>${escapeHtml(player.name)}</b><small>${player.position} · ${player.isCustom ? "自創" : player.role}</small></span><strong>${player.overall}</strong></button>`;
+    return `<button class="roster-player ${player.id === selectedAthleteId ? "is-selected" : ""}" data-athlete-id="${player.id}" type="button"><span class="roster-number">${player.number}</span><span class="roster-player-main"><b>${escapeHtml(player.name)}</b><small>${player.position} · ${player.isCustom ? "自創" : player.isOfficial ? "2026 主力先發" : player.role}</small></span><strong>${player.overall}</strong></button>`;
   }).join("");
   const selectedInBrowse = browseRoster.some((candidate) => candidate.id === selectedAthleteId);
   const player = selectedInBrowse ? developedPlayer(selectedAthleteId) : developedPlayer(browseRoster[0]?.id);
@@ -1163,7 +1440,8 @@ function renderDevelopment() {
   const ratings = player.ratings;
   $("player-detail-name").textContent = player.name;
   $("player-detail-position").textContent = `${player.position} · ${player.role}`;
-  $("player-detail-meta").textContent = `#${player.number} · ${player.bats}打／${player.throws}投 · ${player.age}歲 · ${player.height}cm / ${player.weight}kg · ${player.archetype}`;
+  const officialPerformance = player.performance ? ` · 2026 AVG ${Number(player.performance.avg || 0).toFixed(3)} / OPS ${Number(player.performance.ops || 0).toFixed(3)}` : "";
+  $("player-detail-meta").textContent = `#${player.number} · ${player.bats}打／${player.throws}投 · ${player.age}歲 · ${player.height}cm / ${player.weight}kg · ${player.archetype}${officialPerformance}`;
   $("player-overall").textContent = player.overall;
   $("player-progress").textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · 訓練點 ${profile.trainingPoints} · 潛力 ${player.potential}`;
   $("player-morale").textContent = `士氣 ${profile.morale} · 疲勞 ${profile.fatigue}`;
@@ -1198,15 +1476,15 @@ function renderDevelopment() {
 }
 
 const lineup = [
-  { position: "CF", number: "07", name: "林昱辰", contact: 82, power: 67 },
-  { position: "RF", number: "23", name: "陳柏翰", contact: 74, power: 86 },
-  { position: "3B", number: "31", name: "王子謙", contact: 79, power: 77 },
-  { position: "1B", number: "44", name: "吳承恩", contact: 76, power: 92 },
-  { position: "LF", number: "12", name: "張偉倫", contact: 76, power: 81 },
-  { position: "2B", number: "08", name: "李明哲", contact: 70, power: 64 },
-  { position: "SS", number: "19", name: "蔡瑞峰", contact: 70, power: 72 },
-  { position: "C", number: "02", name: "高宇翔", contact: 73, power: 58 },
-  { position: "P", number: "55", name: "周凱翔", contact: 61, power: 56 },
+  { position: "CF", number: "07", name: "岳政華", contact: 82, power: 67 },
+  { position: "RF", number: "23", name: "詹子賢", contact: 74, power: 86 },
+  { position: "3B", number: "31", name: "王威晨", contact: 79, power: 77 },
+  { position: "1B", number: "44", name: "許基宏", contact: 76, power: 92 },
+  { position: "LF", number: "12", name: "宋晟睿", contact: 76, power: 81 },
+  { position: "2B", number: "08", name: "王政順", contact: 70, power: 64 },
+  { position: "SS", number: "19", name: "江坤宇", contact: 70, power: 72 },
+  { position: "C", number: "02", name: "高宇杰", contact: 73, power: 58 },
+  { position: "P", number: "55", name: "鄭浩均", contact: 61, power: 56 },
 ];
 
 const ACTION_META = {
@@ -1337,12 +1615,19 @@ function createSlots(teamId = DEFAULT_TEAM_ID) {
   return Object.fromEntries(POSITION_DEFS.map((definition) => [definition.code, createSlot(definition, teamId)]));
 }
 
-function createState(teamId = selectedTeamId, opponentId = selectedOpponentId, matchMode = "league") {
+function createState(teamId = selectedTeamId, opponentId = selectedOpponentId, matchMode = "league", scheduleContext = null) {
+  const schedule = scheduleContext && typeof scheduleContext === "object" ? scheduleContext : {};
   return {
     version: PROTOCOL_VERSION,
     teamId,
     opponentId,
     matchMode,
+    scheduleGameId: String(schedule.id || ""),
+    scheduleGameNo: Number(schedule.gameNo || 0),
+    scheduleDate: String(schedule.date || ""),
+    scheduleOfficialHomeTeamId: String(schedule.officialHomeTeamId || ""),
+    scheduleOfficialAwayTeamId: String(schedule.officialAwayTeamId || ""),
+    schedulePlayerIsAway: Boolean(schedule.playerIsAway),
     phase: "pre",
     inning: 1,
     half: "top",
@@ -2134,6 +2419,10 @@ function requestStart() {
     renderNetwork();
     return;
   }
+  if (network.role === "solo" && state.matchMode === "season") {
+    startScheduledGame();
+    return;
+  }
   startGame(network.role === "solo" && state.matchMode === "practice" ? "practice" : "league");
 }
 
@@ -2430,19 +2719,23 @@ function render() {
   const batterSlot = state.slots[batter.position];
   const homeTeam = teamFor(state.teamId);
   const awayTeam = teamFor(state.opponentId);
-  const modePrefix = state.matchMode === "practice" ? "單人練習 · " : "";
+  const scheduleHomeTeam = state.matchMode === "season" && state.scheduleOfficialHomeTeamId ? teamFor(state.scheduleOfficialHomeTeamId) : homeTeam;
+  const scheduleAwayTeam = state.matchMode === "season" && state.scheduleOfficialAwayTeamId ? teamFor(state.scheduleOfficialAwayTeamId) : awayTeam;
+  const displayHomeScore = state.matchMode === "season" && state.schedulePlayerIsAway ? state.score.away : state.score.home;
+  const displayAwayScore = state.matchMode === "season" && state.schedulePlayerIsAway ? state.score.home : state.score.away;
+  const modePrefix = state.matchMode === "practice" ? "單人練習 · " : state.matchMode === "season" ? `2026 賽季${state.scheduleGameNo ? `第 ${state.scheduleGameNo} 場` : ""} · ` : "";
   const phaseText = { pre: `${modePrefix}賽前準備`, defense: `${modePrefix}${homeTeam.shortName}守備 · ${state.defenseOwner || "P"}`, cpu: `${modePrefix}NPC 客隊進攻`, home: `${modePrefix}輪到 ${batter.position}`, gameover: `${modePrefix}比賽結束` }[state.phase];
-  $("game-title").textContent = `${homeTeam.name} vs. ${awayTeam.name}`;
-  $("away-team-name").textContent = awayTeam.name;
-  $("away-team-record").textContent = `${awayTeam.stadium} · 先攻`;
-  $("home-team-name").textContent = homeTeam.name;
-  $("home-team-record").textContent = `${homeTeam.style} · NPC 補位`;
+  $("game-title").textContent = `${scheduleHomeTeam.name} vs. ${scheduleAwayTeam.name}`;
+  $("away-team-name").textContent = scheduleAwayTeam.name;
+  $("away-team-record").textContent = `${scheduleAwayTeam.stadium} · 先攻`;
+  $("home-team-name").textContent = scheduleHomeTeam.name;
+  $("home-team-record").textContent = `${scheduleHomeTeam.style} · NPC 補位`;
   $("phase-chip").textContent = phaseText;
   $("inning-label").textContent = state.phase === "pre" ? "尚未開打" : state.phase === "gameover" ? `${state.inning} 局結束` : `${state.inning} 局${state.half === "top" ? "上" : "下"}`;
   $("outs-label").textContent = `${state.outs} 出局`;
   $("count-label").textContent = formatCount();
-  $("away-score").textContent = state.score.away;
-  $("home-score").textContent = state.score.home;
+  $("away-score").textContent = displayAwayScore;
+  $("home-score").textContent = displayHomeScore;
   $("situation-text").textContent = state.phase === "pre"
     ? "選擇你的守備位置；空缺位置由免費 NPC 補位，房主驗證每個團隊決策。"
     : state.phase === "defense"
@@ -2469,7 +2762,8 @@ function render() {
   $("gameover-panel").hidden = state.phase !== "gameover";
   $("start-game").disabled = (network.role === "guest" && !network.connected) || !slotForPlayer(network.localPlayerId);
   $("gameover-title").textContent = state.result === "win" || state.result === "walkoff" ? "主場勝利！" : state.result === "tie" ? "延長賽後仍然平手" : "客隊帶走勝利";
-  $("gameover-copy").textContent = `${state.matchMode === "practice" ? "練習賽完成。" : "最終比分："} ${homeTeam.name} ${state.score.home}：${state.score.away} ${awayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
+  const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "season" ? `2026 賽季第 ${state.scheduleGameNo} 場完成。` : "最終比分：";
+  $("gameover-copy").textContent = `${resultCopy} ${scheduleHomeTeam.name} ${displayHomeScore}：${displayAwayScore} ${scheduleAwayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
   updateBaseView();
   renderLineScore();
@@ -2482,12 +2776,12 @@ function render() {
   scheduleNpcTurn();
 }
 
-function resetMatchState(matchMode = "league") {
+function resetMatchState(matchMode = "league", scheduleContext = null) {
   window.clearTimeout(network.actionTimer);
   network.actionTimer = null;
   const previousSlots = clone(state.slots);
   const previousRevision = state.revision;
-  state = createState(state.teamId, state.opponentId, matchMode);
+  state = createState(state.teamId, state.opponentId, matchMode, scheduleContext);
   state.revision = previousRevision;
   POSITION_DEFS.forEach(({ code }) => {
     const previous = previousSlots[code];
@@ -2516,9 +2810,9 @@ function resetGame() {
   commitState();
 }
 
-function startGame(matchMode = "league") {
+function startGame(matchMode = "league", scheduleContext = null) {
   if (!isAuthority() || !(state.phase === "pre" || state.phase === "gameover")) return;
-  resetMatchState(matchMode);
+  resetMatchState(matchMode, scheduleContext);
   addLog(`比賽開始！NPC ${teamFor(state.opponentId).name} 先攻，${teamFor(state.teamId).name} 準備在主場接手。`, "big");
   beginDefenseHalf();
   commitState();
@@ -3069,6 +3363,7 @@ function bindEvents() {
     runPracticeDrill(button.dataset.practice);
   });
   $("start-career-match")?.addEventListener("click", startPracticeGame);
+  $("start-next-scheduled-game")?.addEventListener("click", startScheduledGame);
   $("training-actions")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-training]");
     if (!button || button.disabled) return;
