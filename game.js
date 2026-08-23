@@ -88,6 +88,7 @@ const CUSTOM_ARCHETYPES = {
 };
 
 const BUILD_POINT_BUDGET = 36;
+const BUILD_STARTING_OVERALL = 60;
 const BUILDER_GROUPS = [
   {
     key: "batting",
@@ -154,6 +155,39 @@ function builderCapFor(position, template, key) {
   return cap;
 }
 
+function builderOverallKeys(position) {
+  return position === "P"
+    ? ["velocity", "control", "break", "stamina", "clutch"]
+    : position === "C"
+      ? ["contact", "power", "fielding", "armStrength", "blocking"]
+      : ["contact", "power", "speed", "fielding", "reaction"];
+}
+
+function normalizeBuilderOverall(position, ratings, template) {
+  const keys = builderOverallKeys(position);
+  const targetTotal = BUILD_STARTING_OVERALL * keys.length;
+  let difference = targetTotal - keys.reduce((sum, key) => sum + Number(ratings[key] || 0), 0);
+  let guard = 0;
+  while (difference !== 0 && guard < 500) {
+    const direction = difference > 0 ? 1 : -1;
+    const candidates = keys.filter((key) => direction > 0
+      ? Number(ratings[key] || 0) < builderCapFor(position, template, key)
+      : Number(ratings[key] || 0) > 20);
+    if (!candidates.length) break;
+    candidates.sort((a, b) => {
+      const aFocus = template.focus.includes(a) ? 1 : 0;
+      const bFocus = template.focus.includes(b) ? 1 : 0;
+      if (aFocus !== bFocus) return direction > 0 ? bFocus - aFocus : aFocus - bFocus;
+      return direction > 0 ? Number(ratings[a] || 0) - Number(ratings[b] || 0) : Number(ratings[b] || 0) - Number(ratings[a] || 0);
+    });
+    const key = candidates[0];
+    ratings[key] = Number(ratings[key] || 0) + direction;
+    difference -= direction;
+    guard += 1;
+  }
+  return ratings;
+}
+
 function splitBuilderRatings(ratings, bats) {
   ratings.contactL = Math.max(20, Math.min(99, Number(ratings.contact || 50) + (bats === "左" ? 3 : 0)));
   ratings.contactR = Math.max(20, Math.min(99, Number(ratings.contact || 50) + (bats === "右" ? 3 : 0)));
@@ -171,6 +205,7 @@ function buildTemplateRatings(position, teamId, bats, templateId) {
     const adjusted = Number(value) + Number(team.bonus[key] || 0) + Number(template.adjustments[key] || 0);
     return [key, Math.max(20, Math.min(builderCapFor(position, template, key), Math.round(adjusted)))];
   }));
+  normalizeBuilderOverall(position, ratings, template);
   return splitBuilderRatings(ratings, bats);
 }
 
@@ -399,7 +434,7 @@ function renderBuilder() {
   if (overallEl) overallEl.textContent = overall;
   if (strengthsEl) strengthsEl.textContent = strengths.join(" · ");
   if (weaknessesEl) weaknessesEl.textContent = weaknesses.join(" · ");
-  if (capNote) capNote.textContent = `模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
+  if (capNote) capNote.textContent = `初始總評統一為 ${BUILD_STARTING_OVERALL}；模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
   const templateGrid = $("builder-template-grid");
   if (templateGrid) {
     templateGrid.innerHTML = templatesForPosition(draft.position).map((candidate) => `<button type="button" class="builder-template-choice ${candidate.id === template.id ? "is-selected" : ""}" data-builder-template="${candidate.id}"><b>${candidate.label}</b><small>${candidate.role}</small><span>${candidate.detail}</span></button>`).join("");
