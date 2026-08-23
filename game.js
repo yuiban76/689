@@ -46,6 +46,9 @@ const CAREER_STORAGE_KEY = "jiuju-career-v2";
 const LEAGUE_STORAGE_KEY = "jiuju-league-v2";
 const SCHEDULE_STORAGE_KEY = "jiuju-cpbl-season-v1";
 const CUSTOM_PLAYERS_STORAGE_KEY = "jiuju-custom-players-v1";
+const PLAYER_SAVE_META_KEY = "jiuju-player-save-meta-v1";
+const PLAYER_SAVE_FORMAT = "689-player-save";
+const PLAYER_SAVE_VERSION = 1;
 const MAX_CUSTOM_PLAYERS = 18;
 const CPBL_SEASON_YEAR = 2026;
 const CPBL_DATA_SNAPSHOT = "2026-08-23";
@@ -1050,7 +1053,7 @@ function trainSelectedPlayer(trainingType) {
   }
   const previousLevel = profile.level;
   const levels = awardCareerXp(profile, meta.xp);
-  writeStorage(CAREER_STORAGE_KEY, careerStore);
+  persistCustomPlayers();
   if (network.role === "guest" && network.connected && player.isCustom) {
     const localCustom = customPlayerIndex[player.id];
     if (localCustom) sendToHost({ type: "custom", protocol: PROTOCOL_VERSION, position: localCustom.position, customPlayer: networkPlayerSnapshotFor(localCustom), name: localCustom.name });
@@ -1118,9 +1121,106 @@ function setCustomPlayerStatus(message, tone = "") {
   status.className = `custom-player-status ${tone}`.trim();
 }
 
+function playerSavePayload() {
+  const savedAt = new Date().toISOString();
+  return {
+    format: PLAYER_SAVE_FORMAT,
+    version: PLAYER_SAVE_VERSION,
+    savedAt,
+    activePlayerId: selectedCustomPlayerId || customPlayers.find((player) => player.active !== false)?.id || "",
+    customPlayers: customPlayers.map((player) => clone(player)),
+    career: Object.fromEntries(customPlayers.map((player) => [player.id, clone(careerStore[player.id] || profileFor(player.id))])),
+  };
+}
+
+function formatPlayerSaveTime(value) {
+  const timestamp = Date.parse(value || "");
+  if (!Number.isFinite(timestamp)) return "尚未建立角色存檔";
+  return `上次保存：${new Date(timestamp).toLocaleString("zh-TW", { hour12: false })}`;
+}
+
+function renderPlayerSaveStatus(message = "") {
+  const status = $("player-save-status");
+  if (!status) return;
+  const meta = readStorage(PLAYER_SAVE_META_KEY, {});
+  status.textContent = message || (meta.savedAt ? `${formatPlayerSaveTime(meta.savedAt)}；存在此瀏覽器` : "角色會保存在這個瀏覽器；想換裝置時，請匯出角色檔。");
+}
+
+function persistPlayerSaveMeta(savedAt = new Date().toISOString()) {
+  writeStorage(PLAYER_SAVE_META_KEY, { savedAt, playerCount: customPlayers.length });
+  renderPlayerSaveStatus();
+}
+
 function persistCustomPlayers() {
   writeStorage(CUSTOM_PLAYERS_STORAGE_KEY, customPlayers);
   writeStorage(CAREER_STORAGE_KEY, careerStore);
+  persistPlayerSaveMeta();
+}
+
+function savePlayerNow() {
+  persistCustomPlayers();
+  setCustomPlayerStatus(customPlayers.length ? "角色與生涯進度已立即保存。" : "目前還沒有自創球員；建立角色後會自動保存。", "is-success");
+  render();
+}
+
+function exportPlayerSave() {
+  if (!customPlayers.length) {
+    setCustomPlayerStatus("目前沒有可匯出的自創球員，請先建立角色。", "is-error");
+    return;
+  }
+  const payload = playerSavePayload();
+  const fileDate = payload.savedAt.slice(0, 10);
+  const activePlayer = customPlayerIndex[payload.activePlayerId];
+  const safeName = String(activePlayer?.name || "player-save").replace(/[^\w\u4e00-\u9fff-]/g, "-").slice(0, 20) || "player-save";
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `689-${safeName}-${fileDate}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  renderPlayerSaveStatus(`已匯出角色檔：${activePlayer?.name || "自創球員"}；請妥善保存檔案。`);
+  setCustomPlayerStatus("角色檔已下載；換裝置時可用匯入角色檔恢復。", "is-success");
+}
+
+async function importPlayerSave(event) {
+  const input = event.target;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (file.size > 1024 * 1024) {
+    setCustomPlayerStatus("角色檔太大，請選擇 1 MB 以內的 JSON 檔。", "is-error");
+    return;
+  }
+  try {
+    const payload = JSON.parse(await file.text());
+    if (payload?.format !== PLAYER_SAVE_FORMAT || Number(payload.version) !== PLAYER_SAVE_VERSION || !Array.isArray(payload.customPlayers)) throw new Error("invalid-save");
+    const incomingPlayers = payload.customPlayers.slice(0, MAX_CUSTOM_PLAYERS).map((player, index) => normalizeCustomPlayer(player, index));
+    if (!incomingPlayers.length) throw new Error("empty-save");
+    if (!window.confirm(`匯入後會取代目前的 ${customPlayers.length} 名自創球員與其生涯進度，確定要匯入嗎？`)) return;
+    const previousCustomIds = new Set(customPlayers.map((player) => player.id));
+    previousCustomIds.forEach((playerId) => delete careerStore[playerId]);
+    customPlayers = incomingPlayers;
+    refreshCustomPlayerIndex();
+    const incomingCareer = payload.career && typeof payload.career === "object" ? payload.career : {};
+    customPlayers.forEach((player) => {
+      if (incomingCareer[player.id] && typeof incomingCareer[player.id] === "object") careerStore[player.id] = incomingCareer[player.id];
+      profileFor(player.id);
+    });
+    const activePlayer = customPlayerIndex[payload.activePlayerId] || customPlayers.find((player) => player.active !== false) || customPlayers[0];
+    selectedCustomPlayerId = activePlayer?.id || "";
+    selectedAthleteId = selectedCustomPlayerId || `${DEFAULT_TEAM_ID}-cf`;
+    developmentTeamId = activePlayer?.teamId || DEFAULT_TEAM_ID;
+    builderDraft = null;
+    persistCustomPlayers();
+    if (activePlayer) useCustomPlayer(activePlayer.id);
+    setCustomPlayerStatus(`已匯入 ${customPlayers.length} 名角色；${activePlayer?.name || "自創球員"} 現在是目前使用角色。`, "is-success");
+    render();
+  } catch {
+    setCustomPlayerStatus("角色檔格式不正確，請匯入由 689 匯出的 JSON 檔。", "is-error");
+  }
 }
 
 function useCustomPlayer(playerId) {
@@ -1289,6 +1389,7 @@ function recordMatchCareer(result) {
   state.leagueRecorded = true;
   if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
   writeStorage(CAREER_STORAGE_KEY, careerStore);
+  persistPlayerSaveMeta();
 }
 
 function recordLocalGuestMatchCareer() {
@@ -1300,6 +1401,7 @@ function recordLocalGuestMatchCareer() {
   applyMatchToCareerProfile(profile, slot.position, state.playerStats[slot.position] || {}, state.result);
   network.lastGuestRecordedRevision = state.revision;
   writeStorage(CAREER_STORAGE_KEY, careerStore);
+  persistPlayerSaveMeta();
 }
 
 function formatRate(value, digits = 3) {
@@ -1434,6 +1536,7 @@ function renderDevelopment() {
     customTemplateSelect.value = templateForPosition(currentPosition, previousTemplate).id;
   }
   renderBuilder();
+  renderPlayerSaveStatus();
   $("custom-player-count").textContent = `${customPlayers.length} / ${MAX_CUSTOM_PLAYERS} 名自創球員`;
   const customList = $("custom-player-list");
   if (customList) {
@@ -3360,6 +3463,9 @@ function bindEvents() {
     renderDevelopment();
   });
   $("custom-player-form")?.addEventListener("submit", createCustomPlayerFromForm);
+  $("save-player-now")?.addEventListener("click", savePlayerNow);
+  $("export-player-save")?.addEventListener("click", exportPlayerSave);
+  $("import-player-save")?.addEventListener("change", importPlayerSave);
   $("custom-player-position")?.addEventListener("change", () => {
     builderDraft = null;
     renderDevelopment();

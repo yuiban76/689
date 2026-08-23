@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-2026" />
+    <link rel="stylesheet" href="./styles.css?v=save-2026" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-2026" defer></script>
+    <script src="./game.js?v=save-2026" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -157,6 +157,17 @@
           </section>
           <div class="custom-player-list" id="custom-player-list" aria-label="我的自創球員"></div>
           <p class="custom-player-status" id="custom-player-status">生涯進度保存在這個瀏覽器；加入多人房間時，當場角色能力會同步給隊友。</p>
+          <div class="player-save-panel" aria-label="角色存檔">
+            <div class="player-save-copy">
+              <div><span class="save-status-dot"></span><b>角色存檔</b><span class="save-auto-badge">自動保存</span></div>
+              <small id="player-save-status">角色會保存在這個瀏覽器；想換裝置時，請匯出角色檔。</small>
+            </div>
+            <div class="player-save-actions">
+              <button class="player-save-button" id="save-player-now" type="button">立即保存</button>
+              <button class="player-save-button" id="export-player-save" type="button">匯出角色檔</button>
+              <label class="player-save-button player-save-upload" for="import-player-save">匯入角色檔<input id="import-player-save" type="file" accept="application/json,.json" /></label>
+            </div>
+          </div>
         </section>
         </details>
         <details class="feature-disclosure" id="career-feature">
