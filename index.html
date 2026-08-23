@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=multi-schedule-2026b" />
+    <link rel="stylesheet" href="./styles.css?v=ui-redesign-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=qa-fix-2026a" defer></script>
+    <script src="./game.js?v=ui-redesign-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -36,14 +36,48 @@
         </a>
         <a class="section-nav-link" href="#network-card">
           <span class="section-nav-index">02</span>
-          <span><b>多人房間</b><small>九人協作</small></span>
+          <span><b>多人</b><small>九人協作</small></span>
         </a>
-        <a class="section-nav-link" href="#development-panel">
+        <a class="section-nav-link" href="#career-feature">
           <span class="section-nav-index">03</span>
-          <span><b>球員中心</b><small>建立與成長</small></span>
+          <span><b>My Player</b><small>自主發展</small></span>
         </a>
-        <span class="section-nav-note">競技難度 · NPC 自動補位</span>
+        <a class="section-nav-link" href="#season-feature">
+          <span class="section-nav-index">04</span>
+          <span><b>賽季</b><small>逐場推進</small></span>
+        </a>
+        <span class="section-nav-note">免費 NPC · 最多 9 人</span>
       </nav>
+
+      <section class="player-hub" id="player-hub" aria-labelledby="player-hub-title">
+        <div class="hub-player-block">
+          <div class="hub-kicker"><span class="hub-live-dot"></span> PLAYER HUB</div>
+          <div class="hub-player-row">
+            <div class="hub-avatar" id="hub-avatar">MP</div>
+            <div class="hub-player-copy">
+              <h2 id="player-hub-title">建立你的 My Player</h2>
+              <p id="hub-player-meta">從 60 OVR 開始，選擇自己的位置與成長路線。</p>
+            </div>
+            <div class="hub-overall"><span>OVR</span><strong id="hub-player-ovr">—</strong></div>
+          </div>
+          <div class="hub-progress-row">
+            <span id="hub-level">Lv.—</span>
+            <span class="hub-progress-track"><i id="hub-progress-bar"></i></span>
+            <span id="hub-xp">XP —</span>
+          </div>
+        </div>
+        <div class="hub-next-card">
+          <span class="hub-next-label">NEXT UP</span>
+          <strong id="hub-next-title">先建立你的球員</strong>
+          <p id="hub-next-copy">選一個模板，再把建造點放到你真正想玩的能力。</p>
+        </div>
+        <div class="hub-actions" aria-label="快速入口">
+          <a class="hub-action hub-action-primary" id="hub-build-player" href="#player-builder-feature"><b>建立球員</b><small>從 OVR 60 開始 ↗</small></a>
+          <a class="hub-action" id="hub-open-career" href="#career-feature"><b>發展球員</b><small>訓練與目標 ↗</small></a>
+          <a class="hub-action" id="hub-open-room" href="#network-card"><b>加入多人</b><small>選位置進房間 ↗</small></a>
+          <a class="hub-action" id="hub-open-season" href="#season-feature"><b>推進賽季</b><small>下一場比賽 ↗</small></a>
+        </div>
+      </section>
 
       <section class="network-card" id="network-card" aria-labelledby="network-title">
         <div class="network-copy">
@@ -92,6 +126,11 @@
               <strong id="lobby-role-ovr">—</strong>
               <small id="lobby-role-level">等級 —</small>
             </div>
+          </div>
+          <div class="room-status-strip" aria-label="多人房間即時狀態">
+            <div><span>團隊狀態</span><strong id="room-live-status">單機補位</strong></div>
+            <div><span>真人玩家</span><strong id="room-human-count">1 / 9</strong></div>
+            <div><span>現在事件</span><strong id="room-event-owner">等待開賽</strong></div>
           </div>
           <div class="lobby-readiness-row">
             <span>房間狀態</span>
@@ -207,6 +246,18 @@
             <span id="career-mode-progress">Lv.— · XP— · OVR—</span>
             <span id="career-mode-energy">今日訓練 0 / 3</span>
             <span id="career-mode-score">累積評分 —</span>
+          </div>
+          <div class="career-development-panel">
+            <div class="career-development-heading">
+              <div><p class="eyebrow">DEVELOPMENT PATH</p><h4>選擇你的成長路線</h4></div>
+              <span class="mini-label" id="career-focus-label">尚未選擇</span>
+            </div>
+            <div class="development-paths" id="development-paths" aria-label="選擇成長路線"></div>
+            <div class="career-goal-row">
+              <div><span>目前目標</span><strong id="career-goal-title">建立球員後解鎖</strong></div>
+              <div class="career-goal-progress"><i id="career-goal-bar"></i></div>
+              <span id="career-goal-copy">完成訓練或比賽，累積你的生涯進度。</span>
+            </div>
           </div>
           <div class="practice-actions" id="practice-actions" aria-label="位置訓練">
             <button class="practice-button" data-practice="hitting" type="button"><span>↗</span><b>打擊挑戰</b><small>選球與擊球判斷</small></button>
