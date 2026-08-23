@@ -530,6 +530,7 @@ body {
 .development-panel { order: 6; margin-top: 17px; }
 .footer-note { order: 7; }
 .main-grid, .network-card, .development-panel { scroll-margin-top: 82px; }
+#game-card { scroll-margin-top: 82px; }
 #career-feature, #season-feature { scroll-margin-top: 82px; }
 
 .room-status-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
