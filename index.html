@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=cpbl-2026" />
+    <link rel="stylesheet" href="./styles.css?v=ui-2026" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=difficulty-2026" defer></script>
+    <script src="./game.js?v=ui-2026" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -29,7 +29,23 @@
         </div>
       </header>
 
-      <section class="network-card" aria-labelledby="network-title">
+      <nav class="section-nav" aria-label="遊戲主選單">
+        <a class="section-nav-link is-active" href="#game-card">
+          <span class="section-nav-index">01</span>
+          <span><b>比賽</b><small>即時決策</small></span>
+        </a>
+        <a class="section-nav-link" href="#network-card">
+          <span class="section-nav-index">02</span>
+          <span><b>多人房間</b><small>九人協作</small></span>
+        </a>
+        <a class="section-nav-link" href="#development-panel">
+          <span class="section-nav-index">03</span>
+          <span><b>球員中心</b><small>建立與成長</small></span>
+        </a>
+        <span class="section-nav-note">競技難度 · NPC 自動補位</span>
+      </nav>
+
+      <section class="network-card" id="network-card" aria-labelledby="network-title">
         <div class="network-copy">
           <div class="network-title-row">
             <p class="eyebrow">ONLINE CO-OP</p>
@@ -96,6 +112,12 @@
             <label>對手<select id="opponent-select" aria-label="選擇對手"></select></label>
           </div>
         </div>
+        <details class="feature-disclosure" id="player-builder-feature">
+          <summary class="feature-disclosure-summary">
+            <span class="feature-disclosure-index">01</span>
+            <span class="feature-disclosure-copy"><b>自創球員工坊</b><small>建立角色、分配能力與查看自己的球員</small></span>
+            <span class="feature-disclosure-state">展開</span>
+          </summary>
         <section class="custom-player-studio" aria-labelledby="custom-player-title">
           <div class="section-heading">
             <div>
@@ -136,6 +158,13 @@
           <div class="custom-player-list" id="custom-player-list" aria-label="我的自創球員"></div>
           <p class="custom-player-status" id="custom-player-status">生涯進度保存在這個瀏覽器；加入多人房間時，當場角色能力會同步給隊友。</p>
         </section>
+        </details>
+        <details class="feature-disclosure" id="career-feature">
+          <summary class="feature-disclosure-summary">
+            <span class="feature-disclosure-index">02</span>
+            <span class="feature-disclosure-copy"><b>單人球員生涯</b><small>離線訓練、練習賽與 My Player 成長</small></span>
+            <span class="feature-disclosure-state">展開</span>
+          </summary>
         <section class="career-mode-panel" id="career-mode-panel" aria-labelledby="career-mode-title">
           <div class="career-mode-heading">
             <div>
@@ -159,6 +188,13 @@
           </div>
           <p class="career-mode-status" id="career-mode-status">建立自創球員後，就能進入單人訓練場。</p>
         </section>
+        </details>
+        <details class="feature-disclosure" id="season-feature">
+          <summary class="feature-disclosure-summary">
+            <span class="feature-disclosure-index">03</span>
+            <span class="feature-disclosure-copy"><b>2026 賽季賽程</b><small>逐場推進你的球隊與完整聯盟賽季</small></span>
+            <span class="feature-disclosure-state">展開</span>
+          </summary>
         <section class="season-schedule-panel" id="season-schedule-panel" aria-labelledby="season-schedule-title">
           <div class="season-schedule-heading">
             <div>
@@ -175,6 +211,13 @@
           <div class="season-schedule-list" id="season-schedule-list" aria-label="2026 賽季賽程列表"></div>
           <p class="season-schedule-status" id="season-schedule-status">完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。</p>
         </section>
+        </details>
+        <details class="feature-disclosure" id="roster-feature">
+          <summary class="feature-disclosure-summary">
+            <span class="feature-disclosure-index">04</span>
+            <span class="feature-disclosure-copy"><b>球員資料與聯盟排名</b><small>查看 54 名主力球員、能力值與戰績</small></span>
+            <span class="feature-disclosure-state">展開</span>
+          </summary>
         <div class="development-layout">
           <section class="roster-browser" aria-labelledby="roster-title">
             <div class="section-heading">
@@ -228,6 +271,7 @@
             <p class="standings-note">勝率相同時以得失分差排序。每場結束後會把球隊戰績與球員成長保存在本機。</p>
           </aside>
         </div>
+        </details>
       </section>
 
       <main class="main-grid">
@@ -333,13 +377,16 @@
           </section>
 
           <section class="action-zone" aria-labelledby="action-title">
-            <div class="welcome-panel" id="welcome-panel">
+          <div class="welcome-panel" id="welcome-panel">
               <div>
                 <p class="eyebrow">YOUR POSITION, YOUR PLAY</p>
                 <h3 id="action-title">從你的守備位置開始</h3>
                 <p>選一個位置後即可開始；隊友可以加入其他位置，尚未有人控制的球員會由免費 NPC 補位。</p>
               </div>
-              <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
+              <div class="welcome-actions">
+                <a class="secondary-button" href="#network-card">調整位置</a>
+                <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
+              </div>
             </div>
 
             <div class="batting-panel" id="batting-panel" hidden>

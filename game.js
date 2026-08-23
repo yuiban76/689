@@ -3412,6 +3412,10 @@ function bindEvents() {
     if (!button || button.disabled) return;
     trainSelectedPlayer(button.dataset.training);
   });
+  document.querySelectorAll(".section-nav-link").forEach((link) => link.addEventListener("click", () => {
+    document.querySelectorAll(".section-nav-link").forEach((item) => item.classList.remove("is-active"));
+    link.classList.add("is-active");
+  }));
   actionButtons.forEach((button) => button.addEventListener("click", () => handleAction(button.dataset.action)));
   document.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
