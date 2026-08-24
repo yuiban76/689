@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-cleanup-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=ui-count-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-cleanup-2026a" defer></script>
+    <script src="./game.js?v=ui-count-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -398,21 +398,7 @@
             <div class="line-score" id="line-score" aria-label="逐局比分"></div>
           </div>
 
-          <div class="game-content-grid">
-            <section class="commentary-panel" aria-labelledby="commentary-title">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">PLAY-BY-PLAY</p>
-                  <h3 id="commentary-title">現場文字轉播</h3>
-                </div>
-                <span class="mini-label">即時更新</span>
-              </div>
-              <p class="situation-copy" id="situation-text">
-                這裡會記下每一球。你的一個選擇，可能讓比賽提前結束，也可能讓全場站起來。
-              </p>
-              <div class="play-log" id="play-log" role="log" aria-live="polite"></div>
-            </section>
-
+          <div class="game-content-grid field-only-grid">
             <aside class="field-panel" aria-label="球場狀況">
               <div class="section-heading compact-heading">
                 <div>
@@ -491,7 +477,19 @@
                   <h3 id="action-title-batting">你要怎麼處理這一球？</h3>
                 </div>
                 <div class="action-status-stack">
-                  <span class="pitch-count-note" id="pitch-count-note">選擇一個策略</span>
+                  <div class="pitch-count-display">
+                    <span class="pitch-count-note" id="pitch-count-note">選擇一個策略</span>
+                    <div class="count-lights" id="count-lights" aria-label="壞球 0、好球 0">
+                      <span class="count-light-group" aria-label="壞球 0 顆">
+                        <b>壞球</b>
+                        <span class="count-light-row" aria-hidden="true"><i class="count-light" data-count-light="balls"></i><i class="count-light" data-count-light="balls"></i><i class="count-light" data-count-light="balls"></i><i class="count-light" data-count-light="balls"></i></span>
+                      </span>
+                      <span class="count-light-group" aria-label="好球 0 顆">
+                        <b>好球</b>
+                        <span class="count-light-row" aria-hidden="true"><i class="count-light" data-count-light="strikes"></i><i class="count-light" data-count-light="strikes"></i><i class="count-light" data-count-light="strikes"></i></span>
+                      </span>
+                    </div>
+                  </div>
                   <span class="decision-timer" id="decision-timer" aria-live="polite">—</span>
                 </div>
               </div>
@@ -523,6 +521,19 @@
                 </button>
               </div>
               <p class="action-hint" id="action-hint">提示：兩好球後不要害怕推打，界外球可以把打席延長。</p>
+              <section class="commentary-panel decision-commentary" aria-labelledby="commentary-title">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">PLAY-BY-PLAY</p>
+                    <h3 id="commentary-title">現場文字轉播</h3>
+                  </div>
+                  <span class="mini-label">即時更新</span>
+                </div>
+                <p class="situation-copy" id="situation-text">
+                  這裡會記下每一球。你的一個選擇，可能讓比賽提前結束，也可能讓全場站起來。
+                </p>
+                <div class="play-log" id="play-log" role="log" aria-live="polite"></div>
+              </section>
             </div>
 
             <div class="gameover-panel" id="gameover-panel" hidden>

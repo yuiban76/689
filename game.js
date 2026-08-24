@@ -3288,6 +3288,26 @@ function renderDecisionTimer() {
   }
 }
 
+function renderCountLights() {
+  const lights = $("count-lights");
+  if (!lights) return;
+  const balls = Math.max(0, Math.min(4, Number(state.balls) || 0));
+  const strikes = Math.max(0, Math.min(3, Number(state.strikes) || 0));
+  const isBatterDecision = state.phase === "home";
+  lights.hidden = !isBatterDecision;
+  lights.setAttribute("aria-label", `壞球 ${balls}、好球 ${strikes}`);
+  [
+    ["balls", balls, "壞球"],
+    ["strikes", strikes, "好球"],
+  ].forEach(([type, value, label]) => {
+    document.querySelectorAll(`[data-count-light="${type}"]`).forEach((light, index) => {
+      light.classList.toggle("is-on", index < value);
+    });
+    const group = lights.querySelector(`.count-light-group[aria-label^="${label}"]`);
+    group?.setAttribute("aria-label", `${label} ${value} 顆`);
+  });
+}
+
 function renderActions() {
   const batter = currentBatter();
   const defense = state.phase === "defense";
@@ -3298,6 +3318,7 @@ function renderActions() {
   const ownerText = slot?.controller === "npc" ? "NPC 正在閱讀球況" : slot?.playerId === network.localPlayerId ? "輪到你決定" : `等待 ${slot?.name || "隊友"}`;
   $("action-title-batting").textContent = defense ? `${positionName(position)} ${state.defenseMode === "fielding" ? "守備事件" : "守備決策"} · ${ownerText}` : state.phase === "home" ? `${batter.position} ${batter.name} · ${ownerText}` : "選擇一個策略";
   $("pitch-count-note").textContent = network.awaiting ? "決策已送出，等待同步" : defense ? state.defenseMode === "fielding" ? `客隊攻勢：${state.pendingAwayRuns} 分危機` : "選擇客隊進攻前的守備策略" : state.phase === "home" ? `${state.balls} 壞球 · ${state.strikes} 好球` : "選擇一個策略";
+  renderCountLights();
   const actionKeys = Object.keys(actionMeta);
   actionButtons.forEach((button) => {
     const action = actionKeys[actionButtons.indexOf(button)];
