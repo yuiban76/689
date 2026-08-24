@@ -229,6 +229,8 @@ function templateForPosition(position, templateId = "") {
 }
 
 function builderCapFor(position, template, key) {
+  const splitParent = { contactL: "contact", contactR: "contact", powerL: "power", powerR: "power" }[key];
+  if (splitParent) return Math.min(99, builderCapFor(position, template, splitParent) + 3);
   const pitchingKeys = ["velocity", "control", "break", "stamina"];
   const fieldingKeys = ["fielding", "reaction", "armStrength", "armAccuracy", "blocking"];
   let cap = 92;
@@ -529,8 +531,10 @@ let selectedOpponentId = DEFAULT_OPPONENT_ID;
 let developmentTeamId = initialCustomPlayer?.teamId || DEFAULT_TEAM_ID;
 let selectedAthleteId = initialCustomPlayer?.id || `${DEFAULT_TEAM_ID}-cf`;
 let selectedCustomPlayerId = initialCustomPlayer?.id || "";
-let careerStatus = "建立自創球員後，就能進入單人訓練場。";
+let careerStatus = "建立自創球員後，就能展開自己的球員生涯。";
 let careerStatusTone = "";
+let activeCareerTab = "overview";
+let activePracticeChallenge = null;
 let scheduleStatus = "完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。";
 let builderDraft = null;
 
@@ -651,6 +655,10 @@ function createCareerProfile(player) {
     goalIndex: 0,
     goalProgress: 0,
     lastGrade: 0,
+    legacyPoints: 0,
+    focusMeter: 0,
+    keyGameIndex: 0,
+    keyGamesCompleted: 0,
     recentMatches: [],
     record: { games: 0, wins: 0, losses: 0, ties: 0 },
     stats: createSeasonStats(),
@@ -682,6 +690,10 @@ function profileFor(playerId) {
   profile.goalIndex = clamp(Number(profile.goalIndex || 0), 0, CAREER_GOALS.length - 1);
   profile.goalProgress = Math.max(0, Number(profile.goalProgress || 0));
   profile.lastGrade = clamp(Number(profile.lastGrade || 0), 0, 99);
+  profile.legacyPoints = Math.max(0, Number(profile.legacyPoints || 0));
+  profile.focusMeter = clamp(Number(profile.focusMeter || 0), 0, 100);
+  profile.keyGameIndex = Math.max(0, Number(profile.keyGameIndex || 0));
+  profile.keyGamesCompleted = Math.max(0, Number(profile.keyGamesCompleted || 0));
   profile.recentMatches = Array.isArray(profile.recentMatches) ? profile.recentMatches.slice(0, 5) : [];
   profile.record = {
     games: Math.max(0, Number(profile.record?.games || 0)),
@@ -824,6 +836,25 @@ const PRACTICE_META = {
   speed: { title: "跑壘判斷", detail: "跑壘速度 · 盜壘 · 短打", xp: 25, focus: ["speed", "stealing", "bunt"] },
 };
 
+const PRACTICE_SCENARIOS = {
+  hitting: [
+    { question: "球數 3 壞 1 好，投手控球開始不穩，你要怎麼進攻？", choices: ["鎖定好球帶中央，等失投", "任何球都全力揮擊", "直接嘗試短打"], correct: 0, lesson: "領先球數時縮小攻擊區，能提高上壘與強擊球機會。" },
+    { question: "兩好球後遇到外角變化球，你的優先目標是？", choices: ["保護好球帶、往反方向推打", "只等紅中速球", "每球都拉打"], correct: 0, lesson: "兩好球後先延長打席，再等待能確實處理的球。" },
+  ],
+  defense: [
+    { question: "一出局、三壘有人，淺外野飛球落向你，你要先做什麼？", choices: ["確認接球並快速對準本壘", "提早往內野跑", "接到後慢慢回傳"], correct: 0, lesson: "先確實接殺，再用腳步與傳球壓制犧牲飛球。" },
+    { question: "滾地球穿向二游間、跑者速度快，你的最佳處理是？", choices: ["正面擋下後快速傳一壘", "冒險空手反手撈球", "放慢等隊友處理"], correct: 0, lesson: "先把球留在身前，穩定完成出局比華麗動作更重要。" },
+  ],
+  pitching: [
+    { question: "滿球數、壘上有人，打者剛連續追打外角球，你要怎麼配？", choices: ["外角邊緣控球，保留引誘空間", "紅中直球硬拚", "連投三顆相同位置"], correct: 0, lesson: "滿球數仍要利用打者傾向，不必把球送進最甜的位置。" },
+    { question: "第一球搶到好球後，下一球最合理的目的？", choices: ["改變速度或視線高度", "完全重複上一球", "故意投到正中央"], correct: 0, lesson: "球速差與進壘點變化能破壞打者節奏。" },
+  ],
+  speed: [
+    { question: "一壘有人、兩出局，外野深遠飛球落地，你在一壘要怎麼做？", choices: ["兩出局立即啟動，全速推進", "先回壘確認接球", "只前進到二壘"], correct: 0, lesson: "兩出局不需等待接殺結果，起跑能多爭取一個壘包。" },
+    { question: "你在一壘準備盜壘，最該觀察哪個訊號？", choices: ["投手固定式節奏與捕手傳球", "觀眾音量", "下一棒背號"], correct: 0, lesson: "抓住投手固定節奏，並評估捕手臂力，才是成功盜壘的基礎。" },
+  ],
+};
+
 const DEVELOPMENT_PATHS = {
   balanced: { label: "全能養成", short: "均衡", detail: "每個位置都穩定成長", training: "hitting", keys: ["contact", "fielding", "speed"] },
   contact: { label: "上壘核心", short: "選球", detail: "擊球、視野與選球", training: "hitting", keys: ["contact", "vision", "discipline"] },
@@ -838,6 +869,29 @@ const CAREER_GOALS = [
   { label: "完成 1 場比賽", detail: "把訓練成果帶進真正的比賽。", kind: "match", target: 1 },
   { label: "訓練拿到 85 分", detail: "專注完成一次高品質訓練。", kind: "score", target: 1 },
   { label: "累積 120 XP", detail: "持續投入，解鎖下一個等級。", kind: "xp", target: 120 },
+];
+
+const KEY_GAME_DEFS = [
+  { label: "證明自己", detail: "拿下本場勝利", xp: 90, legacy: 25, reward: "90 XP · 25 生涯聲望", test: ({ result }) => result === "win" || result === "walkoff" },
+  { label: "教練的考驗", detail: "單場評分達到 78", xp: 80, legacy: 22, reward: "80 XP · 22 生涯聲望", test: ({ grade }) => grade >= 78 },
+  { label: "站穩先發", detail: "完成 2 次有效決策", xp: 75, legacy: 20, reward: "75 XP · 20 生涯聲望", test: ({ match }) => Number(match.decisions || 0) >= 2 },
+  { label: "攻守建功", detail: "敲出安打或完成守備機會", xp: 85, legacy: 24, reward: "85 XP · 24 生涯聲望", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 1 },
+];
+
+const CAREER_RANKS = [
+  { label: "新人報到", min: 0, next: 60 },
+  { label: "輪值成員", min: 60, next: 150 },
+  { label: "穩定先發", min: 150, next: 300 },
+  { label: "球隊核心", min: 300, next: 520 },
+  { label: "聯盟明星", min: 520, next: 800 },
+  { label: "傳奇門檻", min: 800, next: 1100 },
+];
+
+const CAREER_BADGES = [
+  { id: "contact", label: "精準擊球", detail: "由安打與保送累積", value: (stats, profile) => Number(stats.batting.H || 0) * 14 + Number(stats.batting.BB || 0) * 8 + Number(profile.keyGamesCompleted || 0) * 4 },
+  { id: "power", label: "長打威脅", detail: "由二壘打、三壘打與全壘打累積", value: (stats) => Number(stats.batting.doubles || 0) * 12 + Number(stats.batting.triples || 0) * 18 + Number(stats.batting.HR || 0) * 30 },
+  { id: "defense", label: "鐵壁守備", detail: "由刺殺與助殺累積，失誤會扣分", value: (stats) => Math.max(0, Number(stats.fielding.PO || 0) * 14 + Number(stats.fielding.A || 0) * 9 - Number(stats.fielding.E || 0) * 12) },
+  { id: "speed", label: "飛毛腿", detail: "由成功盜壘與得分累積", value: (stats) => Number(stats.batting.SB || 0) * 28 + Number(stats.batting.R || 0) * 8 },
 ];
 
 function developmentPathFor(pathId) {
@@ -895,6 +949,10 @@ function serializeCareerProfile(profile) {
     goalIndex: clamp(Number(profile?.goalIndex || 0), 0, CAREER_GOALS.length - 1),
     goalProgress: Math.max(0, Number(profile?.goalProgress || 0)),
     lastGrade: clamp(Number(profile?.lastGrade || 0), 0, 99),
+    legacyPoints: Math.max(0, Number(profile?.legacyPoints || 0)),
+    focusMeter: clamp(Number(profile?.focusMeter || 0), 0, 100),
+    keyGameIndex: Math.max(0, Number(profile?.keyGameIndex || 0)),
+    keyGamesCompleted: Math.max(0, Number(profile?.keyGamesCompleted || 0)),
     recentMatches: Array.isArray(profile?.recentMatches) ? profile.recentMatches.slice(0, 5) : [],
     record: {
       games: Math.max(0, Number(profile?.record?.games || 0)),
@@ -936,6 +994,10 @@ function normalizeNetworkPlayerSnapshot(raw, teamId = state?.teamId || selectedT
     goalIndex: clamp(Number(incomingProfile.goalIndex || 0), 0, CAREER_GOALS.length - 1),
     goalProgress: Math.max(0, Number(incomingProfile.goalProgress || 0)),
     lastGrade: clamp(Number(incomingProfile.lastGrade || 0), 0, 99),
+    legacyPoints: Math.max(0, Number(incomingProfile.legacyPoints || 0)),
+    focusMeter: clamp(Number(incomingProfile.focusMeter || 0), 0, 100),
+    keyGameIndex: Math.max(0, Number(incomingProfile.keyGameIndex || 0)),
+    keyGamesCompleted: Math.max(0, Number(incomingProfile.keyGamesCompleted || 0)),
     recentMatches: Array.isArray(incomingProfile.recentMatches) ? incomingProfile.recentMatches.slice(0, 5) : [],
     record: {
       games: Math.max(0, Number(incomingProfile.record?.games || 0)),
@@ -992,6 +1054,20 @@ function setCareerStatus(message, tone = "") {
   }
 }
 
+function setCareerTab(tabId) {
+  activeCareerTab = ["overview", "keygame", "training", "badges"].includes(tabId) ? tabId : "overview";
+  document.querySelectorAll("[data-career-tab]").forEach((button) => {
+    const active = button.dataset.careerTab === activeCareerTab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll("[data-career-panel]").forEach((panel) => {
+    const active = panel.dataset.careerPanel === activeCareerTab;
+    panel.hidden = !active;
+    panel.classList.toggle("is-active", active);
+  });
+}
+
 function runPracticeDrill(drillType) {
   const player = selectedCareerPlayer();
   const meta = PRACTICE_META[drillType];
@@ -1012,11 +1088,40 @@ function runPracticeDrill(drillType) {
     setCareerStatus("今天的訓練次數已用完；明天會自動恢復。", "is-error");
     return;
   }
+  const scenarios = PRACTICE_SCENARIOS[drillType] || [];
+  const scenario = scenarios[Math.floor(Math.random() * Math.max(1, scenarios.length))];
+  if (!scenario) return;
+  const options = scenario.choices.map((label, index) => ({ label, correct: index === scenario.correct }));
+  for (let index = options.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [options[index], options[target]] = [options[target], options[index]];
+  }
+  activePracticeChallenge = { drillType, question: scenario.question, lesson: scenario.lesson, options };
+  activeCareerTab = "training";
+  setCareerStatus(`${meta.title}已開始；先讀懂情境，再做出你的決策。`);
+  render();
+}
+
+function resolvePracticeChallenge(choiceIndex) {
+  const challenge = activePracticeChallenge;
+  const player = selectedCareerPlayer();
+  const meta = challenge ? PRACTICE_META[challenge.drillType] : null;
+  const option = challenge?.options?.[choiceIndex];
+  if (!challenge || !player || !meta || !option) return;
+  const profile = profileFor(player.id);
+  if (!profile || profile.practiceSessions <= 0) {
+    activePracticeChallenge = null;
+    setCareerStatus("今天的訓練次數已用完；明天會自動恢復。", "is-error");
+    render();
+    return;
+  }
   const focusAverage = meta.focus.reduce((sum, key) => sum + Number(player.ratings[key] || 50), 0) / meta.focus.length;
-  const score = clamp(Math.round(focusAverage + (Math.random() * 18 - 9)), 35, 99);
+  const score = option.correct
+    ? clamp(Math.round(82 + focusAverage * 0.12 + Math.random() * 7), 86, 99)
+    : clamp(Math.round(48 + focusAverage * 0.18 + Math.random() * 7), 50, 74);
   const bonusXp = Math.max(0, Math.round((score - 70) / 8));
   const path = developmentPathFor(profile.developmentPath);
-  const pathBonus = path.training === drillType ? 8 : 0;
+  const pathBonus = path.training === challenge.drillType ? 8 : 0;
   profile.practiceSessions -= 1;
   profile.practiceScore += score;
   profile.lastPractice = `${meta.title} · ${score} 分`;
@@ -1027,14 +1132,18 @@ function runPracticeDrill(drillType) {
   profile.trainingPoints = Math.min(12, profile.trainingPoints + (score >= 86 ? 1 : 0));
   profile.fatigue = Math.min(100, profile.fatigue + 5);
   profile.morale = Math.min(99, profile.morale + (score >= 80 ? 2 : 0));
+  profile.focusMeter = clamp(Number(profile.focusMeter || 0) + (option.correct ? 18 : 5), 0, 100);
   const practiceGoal = activeCareerGoal(profile);
   const goalValue = practiceGoal.kind === "score" ? score : practiceGoal.kind === "xp" ? earnedXp : 1;
-  const goalMessage = advanceCareerGoal(profile, practiceGoal.kind, goalValue);
+  const practiceEventKind = practiceGoal.kind === "score" ? "score" : practiceGoal.kind === "xp" ? "xp" : "practice";
+  const goalMessage = advanceCareerGoal(profile, practiceEventKind, goalValue);
   persistCustomPlayers();
   const levelText = levels ? `，升到 Lv.${profile.level}` : "";
   const pathText = pathBonus ? `；符合${path.label}，額外 +${pathBonus} XP` : "";
   const goalText = goalMessage ? `；${goalMessage}` : "";
-  setCareerStatus(`${player.name} 完成${meta.title}，評分 ${score}；獲得 ${earnedXp} XP${pathText}${levelText}${goalText}。`);
+  const resultText = option.correct ? "判斷正確" : "判斷失誤";
+  setCareerStatus(`${resultText}：${challenge.lesson} 評分 ${score}，獲得 ${earnedXp} XP${pathText}${levelText}${goalText}。`, option.correct ? "" : "is-error");
+  activePracticeChallenge = null;
   if (previousLevel !== profile.level || score >= 90) flashCard("celebrate");
   render();
 }
@@ -1057,15 +1166,15 @@ function selectDevelopmentPath(pathId) {
 function startPracticeGame() {
   const player = selectedCareerPlayer();
   if (!player) {
-    setCareerStatus("先建立一名自創球員，才能開始球員生涯練習賽。", "is-error");
+    setCareerStatus("先建立一名自創球員，才能開始關鍵賽事。", "is-error");
     return;
   }
   if (network.role !== "solo") {
-    setCareerStatus("練習賽是你的單人內容；請先離開多人房間。", "is-error");
+    setCareerStatus("關鍵賽事是你的單人生涯內容；請先離開多人房間。", "is-error");
     return;
   }
   if (!(state.phase === "pre" || state.phase === "gameover")) {
-    setCareerStatus("目前已有比賽進行中，完成後才能開始下一場練習賽。", "is-error");
+    setCareerStatus("目前已有比賽進行中，完成後才能開始下一場關鍵賽事。", "is-error");
     return;
   }
   const opponentId = chooseOpponentFor(player.teamId, selectedOpponentId);
@@ -1075,8 +1184,9 @@ function startPracticeGame() {
   developmentTeamId = player.teamId;
   selectedAthleteId = player.id;
   claimLocalPosition(player.position, false);
-  setCareerStatus(`${player.name} 已進入單人練習賽，隊友與對手由免費 NPC 補位。`);
-  startGame("practice");
+  const keyGame = KEY_GAME_DEFS[profileFor(player.id).keyGameIndex % KEY_GAME_DEFS.length];
+  setCareerStatus(`${player.name} 已進入「${keyGame.label}」，隊友與對手由免費 NPC 補位。`);
+  startGame("career");
 }
 
 function startScheduledGame() {
@@ -1401,7 +1511,7 @@ function useCustomPlayer(playerId) {
     if (state.teamId === player.teamId) claimLocalPosition(player.position, false);
     syncMatchAthletes();
     commitState();
-    setCareerStatus(`${player.name} 已選為你的 My Player；現在可以訓練或開始單人練習賽。`);
+    setCareerStatus(`${player.name} 已選為你的 My Player；現在可以進行訓練或挑戰關鍵賽事。`);
     setCustomPlayerStatus(`${player.name} 已套用到 ${teamFor(player.teamId).name} 的 ${positionName(player.position)}，現在可以開始比賽。`, "is-success");
   } else {
     setCareerStatus(`${player.name} 已選為你的 My Player；下一場比賽會套用最新能力。`);
@@ -1494,6 +1604,19 @@ function createCustomPlayerFromForm(event) {
   setCustomPlayerStatus(`${player.name} 建立完成並已套用到你的角色；現在可以開始比賽。`, "is-success");
 }
 
+function careerRankFor(points = 0) {
+  const value = Math.max(0, Number(points || 0));
+  return CAREER_RANKS.slice().reverse().find((rank) => value >= rank.min) || CAREER_RANKS[0];
+}
+
+function badgeLevelFor(value = 0) {
+  const score = Math.max(0, Number(value || 0));
+  if (score >= 150) return { label: "金", next: 150, className: "is-gold" };
+  if (score >= 70) return { label: "銀", next: 150, className: "is-silver" };
+  if (score >= 24) return { label: "銅", next: 70, className: "is-bronze" };
+  return { label: "未解鎖", next: 24, className: "" };
+}
+
 function applyMatchToCareerProfile(profile, position, match, result) {
   if (!profile) return;
   const season = profile.stats;
@@ -1528,16 +1651,39 @@ function applyMatchToCareerProfile(profile, position, match, result) {
     season.pitching.SO += Number(match.strikeouts || 0);
   }
   const matchXp = (match.decisions || 0) * 4 + (match.hits || 0) * 8 + (match.putouts || 0) * 3 + 20;
+  let totalMatchXp = matchXp;
   awardCareerXp(profile, matchXp);
   const matchGrade = clamp(Math.round(60 + (match.hits || 0) * 12 + (match.runs || 0) * 8 + (match.putouts || 0) * 2 + (match.decisions || 0) * 1.5 - (match.timeouts || 0) * 8), 35, 99);
+  const focusWasReady = Number(profile.focusMeter || 0) >= 100;
+  let keyGameResult = null;
+  if (state.matchMode === "career") {
+    const keyGame = KEY_GAME_DEFS[Number(profile.keyGameIndex || 0) % KEY_GAME_DEFS.length];
+    const completed = keyGame.test({ result, grade: matchGrade, match, position });
+    keyGameResult = { label: keyGame.label, completed };
+    if (completed) {
+      const keyGameXp = keyGame.xp + (focusWasReady ? 20 : 0);
+      awardCareerXp(profile, keyGameXp);
+      totalMatchXp += keyGameXp;
+      profile.legacyPoints = Number(profile.legacyPoints || 0) + keyGame.legacy + Math.max(0, Math.round((matchGrade - 70) / 3));
+      profile.keyGamesCompleted = Number(profile.keyGamesCompleted || 0) + 1;
+      profile.trainingPoints = Math.min(12, Number(profile.trainingPoints || 0) + 1);
+    } else {
+      profile.legacyPoints = Number(profile.legacyPoints || 0) + 5;
+    }
+    profile.keyGameIndex = Number(profile.keyGameIndex || 0) + 1;
+  }
+  profile.focusMeter = focusWasReady
+    ? 35
+    : clamp(Number(profile.focusMeter || 0) + Math.max(6, Math.round((matchGrade - 55) * 0.8)), 0, 100);
   profile.lastGrade = matchGrade;
-  profile.recentMatches = [{ result, grade: matchGrade, xp: matchXp, date: careerDayKey() }, ...(profile.recentMatches || [])].slice(0, 5);
+  profile.recentMatches = [{ result, grade: matchGrade, xp: totalMatchXp, keyGame: keyGameResult, date: careerDayKey() }, ...(profile.recentMatches || [])].slice(0, 5);
   profile.record.games += 1;
   if (result === "win" || result === "walkoff") profile.record.wins += 1;
   else if (result === "loss") profile.record.losses += 1;
   else profile.record.ties += 1;
   const matchGoal = activeCareerGoal(profile);
-  advanceCareerGoal(profile, matchGoal.kind, matchGoal.kind === "xp" ? matchXp : 1);
+  const matchEventKind = matchGoal.kind === "xp" ? "xp" : "match";
+  advanceCareerGoal(profile, matchEventKind, matchGoal.kind === "xp" ? totalMatchXp : 1);
   profile.trainingPoints = Math.min(12, profile.trainingPoints + 1);
   profile.fatigue = Math.min(100, profile.fatigue + 8);
   profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
@@ -1576,7 +1722,7 @@ function markScheduledGameCompleted(result) {
 }
 
 function recordTeamResult(result) {
-  if (state.matchMode === "practice") return;
+  if (state.matchMode === "practice" || state.matchMode === "career") return;
   const homeTeam = teamRecord(state.teamId);
   const awayTeam = teamRecord(state.opponentId);
   homeTeam.RF += state.score.home;
@@ -1605,7 +1751,14 @@ function recordMatchCareer(result) {
   persistCustomPlayers();
   const localSlot = slotForPlayer(network.localPlayerId);
   const localCustomPlayer = localSlot?.athleteId ? customPlayerIndex[localSlot.athleteId] : null;
-  if (localCustomPlayer?.isCustom) setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
+  if (localCustomPlayer?.isCustom) {
+    setCustomPlayerStatus(`${localCustomPlayer.name} 的賽後成長已保存。`, "is-success");
+    if (state.matchMode === "career") {
+      const recent = profileFor(localCustomPlayer.id)?.recentMatches?.[0];
+      const keyText = recent?.keyGame?.completed ? `完成「${recent.keyGame.label}」` : `未完成「${recent?.keyGame?.label || "本場挑戰"}」`;
+      setCareerStatus(`${localCustomPlayer.name} ${keyText}；評分 ${recent?.grade || "—"}，獲得 ${recent?.xp || 0} XP。`, recent?.keyGame?.completed ? "" : "is-error");
+    }
+  }
 }
 
 function recordLocalGuestMatchCareer() {
@@ -1621,7 +1774,14 @@ function recordLocalGuestMatchCareer() {
   if (state.matchMode !== "practice") writeStorage(LEAGUE_STORAGE_KEY, leagueStore);
   persistCustomPlayers();
   const localCustomPlayer = customPlayerIndex[slot.athleteId];
-  if (localCustomPlayer?.isCustom) setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
+  if (localCustomPlayer?.isCustom) {
+    setCustomPlayerStatus(`${localCustomPlayer.name} 的多人賽後成長已保存。`, "is-success");
+    if (state.matchMode === "career") {
+      const recent = profileFor(localCustomPlayer.id)?.recentMatches?.[0];
+      const keyText = recent?.keyGame?.completed ? `完成「${recent.keyGame.label}」` : `未完成「${recent?.keyGame?.label || "本場挑戰"}」`;
+      setCareerStatus(`${localCustomPlayer.name} ${keyText}；評分 ${recent?.grade || "—"}，獲得 ${recent?.xp || 0} XP。`, recent?.keyGame?.completed ? "" : "is-error");
+    }
+  }
 }
 
 function formatRate(value, digits = 3) {
@@ -1677,6 +1837,96 @@ function renderCareerFeedback(player, profile) {
   if (perkLine) perkLine.textContent = profile.unlockedPerks?.length ? `已解鎖：${profile.unlockedPerks.join("、")}` : `Lv.${profile.level < 3 ? 3 : 5} 解鎖下一個能力`;
 }
 
+function renderCareerSpotlight(player, profile) {
+  const rankLabel = $("career-legacy-rank");
+  const rankCopy = $("career-legacy-copy");
+  const rankBar = $("career-legacy-bar");
+  const focusState = $("career-focus-state");
+  const focusCopy = $("career-focus-meter-copy");
+  const focusBar = $("career-focus-bar");
+  if (!player || !profile) {
+    if (rankLabel) rankLabel.textContent = "新人報到";
+    if (rankCopy) rankCopy.textContent = "建立球員後開始累積生涯聲望。";
+    if (rankBar) rankBar.style.width = "0%";
+    if (focusState) focusState.textContent = "累積中";
+    if (focusCopy) focusCopy.textContent = "訓練與比賽好表現會填滿專注條。";
+    if (focusBar) focusBar.style.width = "0%";
+    return;
+  }
+  const rank = careerRankFor(profile.legacyPoints);
+  const rankProgress = rank.next > rank.min ? ((profile.legacyPoints - rank.min) / (rank.next - rank.min)) * 100 : 100;
+  if (rankLabel) rankLabel.textContent = rank.label;
+  if (rankCopy) rankCopy.textContent = `${profile.legacyPoints} 聲望 · 下一階段 ${rank.next}`;
+  if (rankBar) rankBar.style.width = `${clamp(Math.round(rankProgress), 0, 100)}%`;
+  const ready = Number(profile.focusMeter || 0) >= 100;
+  if (focusState) focusState.textContent = ready ? "火熱啟動" : `${Math.round(profile.focusMeter || 0)} / 100`;
+  if (focusCopy) focusCopy.textContent = ready ? "下一場關鍵賽事獲得擊球與 XP 加成。" : "答對訓練情境與比賽好表現會累積專注。";
+  if (focusBar) focusBar.style.width = `${clamp(Math.round(profile.focusMeter || 0), 0, 100)}%`;
+}
+
+function renderCareerKeyGame(player, profile) {
+  const title = $("career-key-game-title");
+  const opponent = $("career-key-game-opponent");
+  const goal = $("career-key-game-goal");
+  const reward = $("career-key-game-reward");
+  const history = $("career-history");
+  if (!player || !profile) {
+    if (title) title.textContent = "建立球員後解鎖";
+    if (opponent) opponent.textContent = "關鍵賽事會依你的球隊與生涯階段安排。";
+    if (goal) goal.textContent = "—";
+    if (reward) reward.textContent = "獎勵：—";
+    if (history) history.innerHTML = '<p class="career-history-empty">尚無生涯賽事紀錄。</p>';
+    return;
+  }
+  const keyGame = KEY_GAME_DEFS[Number(profile.keyGameIndex || 0) % KEY_GAME_DEFS.length];
+  const opponentId = chooseOpponentFor(player.teamId, selectedOpponentId);
+  if (title) title.textContent = keyGame.label;
+  if (opponent) opponent.textContent = `${teamFor(player.teamId).shortName} vs ${teamFor(opponentId).shortName} · 第 ${Number(profile.keyGameIndex || 0) + 1} 場關鍵賽事`;
+  if (goal) goal.textContent = keyGame.detail;
+  if (reward) reward.textContent = `獎勵：${keyGame.reward}${profile.focusMeter >= 100 ? " · 火熱加成已就緒" : ""}`;
+  if (history) {
+    const recent = profile.recentMatches || [];
+    history.innerHTML = recent.length ? recent.map((match) => {
+      const resultLabel = ({ win: "勝", walkoff: "再見勝", loss: "敗", tie: "和" }[match.result] || "完賽");
+      const keyLabel = match.keyGame ? `${match.keyGame.completed ? "完成" : "未完成"} · ${match.keyGame.label}` : "一般賽事";
+      return `<div class="career-history-row"><b>${resultLabel} · ${match.grade} 分</b><span>${keyLabel}</span><small>+${match.xp} XP</small></div>`;
+    }).join("") : '<p class="career-history-empty">完成第一場關鍵賽事後，這裡會留下紀錄。</p>';
+  }
+}
+
+function renderCareerBadges(player, profile) {
+  const grid = $("career-badge-grid");
+  if (!grid) return;
+  if (!player || !profile) {
+    grid.innerHTML = '<p class="career-history-empty">建立球員後，能力徽章會依實際比賽數據成長。</p>';
+    return;
+  }
+  grid.innerHTML = CAREER_BADGES.map((badge) => {
+    const value = Math.max(0, Math.round(badge.value(profile.stats, profile)));
+    const level = badgeLevelFor(value);
+    const previous = level.label === "金" ? 150 : level.label === "銀" ? 70 : level.label === "銅" ? 24 : 0;
+    const progress = level.label === "金" ? 100 : clamp(Math.round(((value - previous) / Math.max(1, level.next - previous)) * 100), 0, 100);
+    return `<article class="career-badge ${level.className}"><span>${level.label}</span><b>${badge.label}</b><small>${badge.detail}</small><div class="career-meter"><i style="width:${progress}%"></i></div><em>${value} / ${level.next}</em></article>`;
+  }).join("");
+}
+
+function renderPracticeChallenge() {
+  const panel = $("practice-challenge");
+  const label = $("practice-challenge-label");
+  const question = $("practice-challenge-question");
+  const choices = $("practice-choices");
+  if (!panel || !choices) return;
+  panel.hidden = !activePracticeChallenge;
+  if (!activePracticeChallenge) {
+    choices.innerHTML = "";
+    return;
+  }
+  const meta = PRACTICE_META[activePracticeChallenge.drillType];
+  if (label) label.textContent = `${meta.title} · 情境決策`;
+  if (question) question.textContent = activePracticeChallenge.question;
+  choices.innerHTML = activePracticeChallenge.options.map((option, index) => `<button type="button" data-practice-choice="${index}">${option.label}</button>`).join("");
+}
+
 function renderCareerMode() {
   const panel = $("career-mode-panel");
   if (!panel) return;
@@ -1694,19 +1944,24 @@ function renderCareerMode() {
     if (modeName) modeName.textContent = "尚未建立自創球員";
     if (modeMeta) modeMeta.textContent = "先到上方工坊建立你的 My Player";
     if (modeProgress) modeProgress.textContent = "Lv.— · XP— · OVR—";
-    if (modeCopy) modeCopy.textContent = "這裡會成為你的個人主場：訓練、練習賽與生涯成長都不需要加入多人房間。";
+    if (modeCopy) modeCopy.textContent = "建立角色後，關鍵賽事、情境訓練與能力徽章會在這裡展開。";
     if (energy) energy.textContent = "今日訓練 0 / 3";
     if (score) score.textContent = "累積評分 —";
   } else {
     if (modeName) modeName.textContent = player.name;
     if (modeMeta) modeMeta.textContent = `${player.position} · ${positionName(player.position)} · ${player.archetype}`;
     if (modeProgress) modeProgress.textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · OVR ${player.overall}`;
-    if (modeCopy) modeCopy.textContent = connectedToRoom ? "目前在多人房間；離開房間後即可進行自己的單人訓練。" : "把今天的訓練做好，再帶著成長後的角色加入九人房間。";
+    if (modeCopy) modeCopy.textContent = connectedToRoom ? "目前在多人房間；角色仍會保存，離開後可繼續單人生涯。" : "完成關鍵賽事、訓練判斷與徽章里程碑，再帶著角色加入九人房間。";
     if (energy) energy.textContent = `今日訓練 ${profile.practiceSessions} / ${PRACTICE_SESSIONS_PER_DAY}`;
     if (score) score.textContent = `累積評分 ${profile.practiceScore || 0} · 最近 ${profile.lastGrade || "—"}`;
   }
   renderCareerDevelopment(player, profile);
   renderCareerFeedback(player, profile);
+  renderCareerSpotlight(player, profile);
+  renderCareerKeyGame(player, profile);
+  renderCareerBadges(player, profile);
+  renderPracticeChallenge();
+  setCareerTab(activeCareerTab);
   document.querySelectorAll("[data-practice]").forEach((button) => {
     button.disabled = !player || !profile || profile.practiceSessions <= 0 || connectedToRoom || !(state.phase === "pre" || state.phase === "gameover");
   });
@@ -3494,7 +3749,7 @@ function render() {
   $("gameover-panel").hidden = state.phase !== "gameover";
   $("start-game").disabled = (network.role === "guest" && !network.connected) || !slotForPlayer(network.localPlayerId);
   $("gameover-title").textContent = state.result === "win" || state.result === "walkoff" ? "主場勝利！" : state.result === "tie" ? "延長賽後仍然平手" : "客隊帶走勝利";
-  const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "season" ? `2026 賽季第 ${state.scheduleGameNo} 場完成。` : "最終比分：";
+  const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "career" ? "關鍵賽事完成。" : state.matchMode === "season" ? `2026 賽季第 ${state.scheduleGameNo} 場完成。` : "最終比分：";
   $("gameover-copy").textContent = `${resultCopy} ${scheduleHomeTeam.name} ${displayHomeScore}：${displayAwayScore} ${scheduleAwayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
   renderPlayerMatchResult();
@@ -3693,13 +3948,11 @@ function nextBatter() {
 
 function finishPlateAppearance(result = {}) {
   markPlateAppearance(result);
-  state.balls = 0;
-  state.strikes = 0;
+  nextBatter();
   if (state.outs >= 3) {
     finishHomeHalf();
     return;
   }
-  nextBatter();
 }
 
 function recordOut(reason) {
@@ -3777,12 +4030,17 @@ function opponentPitchingFactor() {
   return clamp(1.02 - pitchingQuality * 0.12 - eraPressure, 0.84, 0.98);
 }
 
+function careerFocusMultiplier(player) {
+  if (state.matchMode !== "career" || !player?.id || !customPlayerIndex[player.id]) return 1;
+  return Number(profileFor(player.id)?.focusMeter || 0) >= 100 ? 1.1 : 1;
+}
+
 function resolveSwing(action) {
   const batter = currentBatter();
   const roll = nextRandom();
   const ratings = batter.ratings || batter;
   const countFactor = state.strikes === 2 ? 0.92 : state.balls >= 2 ? 1.04 : 1;
-  const swingWindow = DIFFICULTY_CONFIG.swingWindow * opponentPitchingFactor() * countFactor * teamPlanMultiplier(action);
+  const swingWindow = DIFFICULTY_CONFIG.swingWindow * opponentPitchingFactor() * countFactor * teamPlanMultiplier(action) * careerFocusMultiplier(batter);
   const contactBoost = (Number(ratings.contact || 60) * 0.72 + Number(ratings.vision || 60) * 0.28) / 1180 * swingWindow;
   const powerBoost = (Number(ratings.power || 60) * 0.84 + Number(ratings.clutch || 60) * 0.16) / 1450 * swingWindow;
   let result = "out";
@@ -4125,6 +4383,16 @@ function bindEvents() {
     const button = event.target.closest("[data-practice]");
     if (!button || button.disabled) return;
     runPracticeDrill(button.dataset.practice);
+  });
+  $("practice-challenge")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-practice-choice]");
+    if (!button) return;
+    resolvePracticeChallenge(Number(button.dataset.practiceChoice));
+  });
+  $("career-mode-panel")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-career-tab]");
+    if (!button) return;
+    setCareerTab(button.dataset.careerTab);
   });
   $("development-paths")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-development-path]");

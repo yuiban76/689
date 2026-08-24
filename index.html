@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-count-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=mc-career-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-count-2026a" defer></script>
+    <script src="./game.js?v=mc-career-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -228,17 +228,17 @@
         <details class="feature-disclosure" id="career-feature">
           <summary class="feature-disclosure-summary">
             <span class="feature-disclosure-index">02</span>
-            <span class="feature-disclosure-copy"><b>單人球員生涯</b><small>離線訓練、練習賽與 My Player 成長</small></span>
+            <span class="feature-disclosure-copy"><b>單人球員生涯</b><small>關鍵賽事、情境訓練、徽章與生涯聲望</small></span>
             <span class="feature-disclosure-state">展開</span>
           </summary>
         <section class="career-mode-panel" id="career-mode-panel" aria-labelledby="career-mode-title">
           <div class="career-mode-heading">
             <div>
               <p class="eyebrow">MY PLAYER · SOLO CAREER</p>
-              <h3 id="career-mode-title">球員生涯訓練場</h3>
-              <p id="career-mode-copy">這裡會成為你的個人主場：訓練、練習賽與生涯成長都不需要加入多人房間。</p>
+              <h3 id="career-mode-title">我的球員生涯</h3>
+              <p id="career-mode-copy">從關鍵賽事、實戰訓練到能力徽章，每一次選擇都推進你的棒球生涯。</p>
             </div>
-            <button class="career-match-button" id="start-career-match" type="button">開始單人練習賽 <span>↗</span></button>
+            <button class="career-match-button" id="start-career-match" type="button">開始關鍵賽事 <span>↗</span></button>
           </div>
           <div class="career-mode-summary">
             <div class="career-player-identity"><span class="career-avatar-mark">MP</span><div><strong id="career-mode-name">尚未建立自創球員</strong><small id="career-mode-meta">先到上方工坊建立你的 My Player</small></div></div>
@@ -246,30 +246,69 @@
             <span id="career-mode-energy">今日訓練 0 / 3</span>
             <span id="career-mode-score">累積評分 —</span>
           </div>
-          <div class="career-development-panel">
-            <div class="career-development-heading">
-              <div><p class="eyebrow">DEVELOPMENT PATH</p><h4>選擇你的成長路線</h4></div>
-              <span class="mini-label" id="career-focus-label">尚未選擇</span>
+          <div class="career-tabs" role="tablist" aria-label="球員生涯功能">
+            <button class="career-tab is-active" data-career-tab="overview" type="button" role="tab" aria-selected="true">生涯總覽</button>
+            <button class="career-tab" data-career-tab="keygame" type="button" role="tab" aria-selected="false">關鍵賽事</button>
+            <button class="career-tab" data-career-tab="training" type="button" role="tab" aria-selected="false">實戰訓練</button>
+            <button class="career-tab" data-career-tab="badges" type="button" role="tab" aria-selected="false">能力徽章</button>
+          </div>
+
+          <div class="career-tab-panel is-active" data-career-panel="overview" role="tabpanel">
+            <div class="career-spotlight-grid">
+              <article class="career-spotlight-card career-legacy-card">
+                <span>生涯地位</span><strong id="career-legacy-rank">新人報到</strong><small id="career-legacy-copy">完成關鍵賽事，建立你的聯盟地位。</small>
+                <div class="career-meter"><i id="career-legacy-bar"></i></div>
+              </article>
+              <article class="career-spotlight-card career-focus-card">
+                <span>專注狀態</span><strong id="career-focus-state">累積中</strong><small id="career-focus-meter-copy">好表現會填滿專注條，下一場獲得加成。</small>
+                <div class="career-meter"><i id="career-focus-bar"></i></div>
+              </article>
             </div>
-            <div class="development-paths" id="development-paths" aria-label="選擇成長路線"></div>
-            <div class="career-goal-row">
+            <div class="career-goal-row career-overview-goal">
               <div><span>目前目標</span><strong id="career-goal-title">建立球員後解鎖</strong></div>
               <div class="career-goal-progress"><i id="career-goal-bar"></i></div>
               <span id="career-goal-copy">完成訓練或比賽，累積你的生涯進度。</span>
             </div>
+            <div class="career-feedback-row" aria-label="生涯回饋">
+              <div class="career-feedback-card"><span>最近表現</span><strong id="career-last-grade">—</strong><small id="career-last-copy">完成訓練或比賽後，這裡會留下你的評分。</small></div>
+              <div class="career-feedback-card"><span>成長重點</span><strong id="career-focus-stat">—</strong><small id="career-focus-copy">選擇一條養成路線，讓每次投入都有方向。</small></div>
+              <div class="career-feedback-card"><span>生涯紀錄</span><strong id="career-record-line">0 場 · 0 勝</strong><small id="career-perk-line">尚未解鎖生涯能力</small></div>
+            </div>
           </div>
-          <div class="career-feedback-row" aria-label="生涯回饋">
-            <div class="career-feedback-card"><span>最近表現</span><strong id="career-last-grade">—</strong><small id="career-last-copy">完成訓練或比賽後，這裡會留下你的評分。</small></div>
-            <div class="career-feedback-card"><span>成長重點</span><strong id="career-focus-stat">—</strong><small id="career-focus-copy">選擇一條養成路線，讓每次投入都有方向。</small></div>
-            <div class="career-feedback-card"><span>生涯紀錄</span><strong id="career-record-line">0 場 · 0 勝</strong><small id="career-perk-line">尚未解鎖生涯能力</small></div>
+
+          <div class="career-tab-panel" data-career-panel="keygame" role="tabpanel" hidden>
+            <article class="career-key-game">
+              <div class="career-key-game-copy"><p class="eyebrow">NEXT KEY GAME</p><h4 id="career-key-game-title">建立球員後解鎖</h4><p id="career-key-game-opponent">關鍵賽事會依你的球隊與生涯階段安排。</p></div>
+              <div class="career-key-game-objective"><span>本場挑戰</span><strong id="career-key-game-goal">—</strong><small id="career-key-game-reward">獎勵：—</small></div>
+            </article>
+            <div class="career-history" id="career-history" aria-label="最近生涯賽事"></div>
           </div>
-          <div class="practice-actions" id="practice-actions" aria-label="位置訓練">
-            <button class="practice-button" data-practice="hitting" type="button"><span>↗</span><b>打擊挑戰</b><small>選球與擊球判斷</small></button>
-            <button class="practice-button" data-practice="defense" type="button"><span>✦</span><b>守備反應</b><small>接球、反應與傳球</small></button>
-            <button class="practice-button" data-practice="pitching" type="button"><span>◉</span><b>投球控制</b><small>控球、球路與體力</small></button>
-            <button class="practice-button" data-practice="speed" type="button"><span>»</span><b>跑壘判斷</b><small>速度、盜壘與短打</small></button>
+
+          <div class="career-tab-panel" data-career-panel="training" role="tabpanel" hidden>
+            <div class="practice-actions" id="practice-actions" aria-label="位置訓練">
+              <button class="practice-button" data-practice="hitting" type="button"><span>↗</span><b>打擊挑戰</b><small>閱讀球數與擊球策略</small></button>
+              <button class="practice-button" data-practice="defense" type="button"><span>✦</span><b>守備反應</b><small>判斷落點與傳球選擇</small></button>
+              <button class="practice-button" data-practice="pitching" type="button"><span>◉</span><b>投球控制</b><small>配球、控球與危機處理</small></button>
+              <button class="practice-button" data-practice="speed" type="button"><span>»</span><b>跑壘判斷</b><small>觀察守備與推進時機</small></button>
+            </div>
+            <div class="practice-challenge" id="practice-challenge" hidden>
+              <span id="practice-challenge-label">訓練情境</span><strong id="practice-challenge-question">選擇訓練後開始</strong>
+              <div class="practice-choices" id="practice-choices"></div>
+            </div>
+            <div class="career-development-panel">
+              <div class="career-development-heading">
+                <div><p class="eyebrow">DEVELOPMENT PATH</p><h4>成長路線</h4></div>
+                <span class="mini-label" id="career-focus-label">尚未選擇</span>
+              </div>
+              <div class="development-paths" id="development-paths" aria-label="選擇成長路線"></div>
+            </div>
           </div>
-          <p class="career-mode-status" id="career-mode-status">建立自創球員後，就能進入單人訓練場。</p>
+
+          <div class="career-tab-panel" data-career-panel="badges" role="tabpanel" hidden>
+            <div class="career-badge-grid" id="career-badge-grid" aria-label="能力徽章"></div>
+            <p class="career-badge-note">徽章只靠實際比賽數據升級，不使用付費點數。銅、銀、金會依你的安打、長打、守備與跑壘表現解鎖。</p>
+          </div>
+          <p class="career-mode-status" id="career-mode-status">建立自創球員後，就能展開自己的球員生涯。</p>
         </section>
         </details>
         <details class="feature-disclosure" id="season-feature">
