@@ -3328,6 +3328,35 @@ function renderActions() {
               : "提示：隊友在壘上時，短打與盜壘會改變整個半局。";
 }
 
+function renderPlayerMatchResult() {
+  const panel = $("player-result-card");
+  if (!panel) return;
+  panel.hidden = state.phase !== "gameover";
+  if (state.phase !== "gameover") return;
+  const localSlot = slotForPlayer(network.localPlayerId);
+  const position = localSlot?.position || network.assignedPosition || "CF";
+  const athleteId = localSlot?.athleteId || state.lineupIds?.[position];
+  const player = developedPlayer(athleteId) || matchPlayerForPosition(position, state.teamId) || POSITION_BY_CODE[position];
+  const profile = athleteId ? profileFor(athleteId) : null;
+  const stats = state.playerStats[position] || {};
+  const recent = profile?.recentMatches?.[0];
+  const resultLabel = { win: "勝利", walkoff: "再見勝利", loss: "敗戰", tie: "和局" }[state.result] || "完成比賽";
+  const defenseValue = `${Number(stats.putouts || 0) + Number(stats.assists || 0)} 處理 · ${Number(stats.errors || 0)} 失誤`;
+  const cells = [
+    ["安打", stats.hits || 0],
+    ["得分", stats.runs || 0],
+    ["打點", stats.runsBattedIn || 0],
+    ["盜壘", stats.steals || 0],
+    ["守備", defenseValue],
+    ["獎勵 XP", `+${recent?.xp || 0}`],
+  ];
+  $("player-result-name").textContent = `${player?.name || "本場球員"} · ${positionName(position)}`;
+  $("player-result-grade").textContent = profile?.lastGrade ? `${profile.lastGrade}` : "—";
+  $("player-result-grid").innerHTML = cells.map(([label, value]) => `<div class="player-result-stat"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+  const record = profile?.record || { games: 0, wins: 0, losses: 0, ties: 0 };
+  $("player-result-copy").textContent = `${resultLabel} · ${recent?.xp ? `獲得 ${recent.xp} XP` : "本場沒有額外 XP"} · 目前 Lv.${profile?.level || 1}、訓練點 ${profile?.trainingPoints || 0}、士氣 ${profile?.morale || 72} · 生涯 ${record.games} 場 ${record.wins} 勝。`;
+}
+
 function renderResultSummary() {
   const panel = $("result-summary");
   if (!panel) return;
@@ -3441,6 +3470,7 @@ function render() {
   const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "season" ? `2026 賽季第 ${state.scheduleGameNo} 場完成。` : "最終比分：";
   $("gameover-copy").textContent = `${resultCopy} ${scheduleHomeTeam.name} ${displayHomeScore}：${displayAwayScore} ${scheduleAwayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
+  renderPlayerMatchResult();
   updateBaseView();
   renderLineScore();
   renderLog();

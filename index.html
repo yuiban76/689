@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-lineup-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=ui-postmatch-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-lineup-2026a" defer></script>
+    <script src="./game.js?v=ui-postmatch-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -537,8 +537,19 @@
                 <h3 id="gameover-title">比賽結束</h3>
                 <p id="gameover-copy">—</p>
               </div>
+              <div class="player-result-card" id="player-result-card" aria-label="個人賽後結算">
+                <div class="player-result-heading">
+                  <div><p class="eyebrow">MY PLAYER REPORT</p><h4 id="player-result-name">本場球員結算</h4></div>
+                  <div class="player-result-grade"><span>評分</span><strong id="player-result-grade">—</strong></div>
+                </div>
+                <div class="player-result-grid" id="player-result-grid"></div>
+                <p class="player-result-copy" id="player-result-copy">完成比賽後，這裡會顯示你的個人表現與成長獎勵。</p>
+              </div>
               <div class="result-summary" id="result-summary" aria-label="團隊結算"></div>
-              <button class="primary-button" id="rematch" type="button">再打一場 <span>↻</span></button>
+              <div class="gameover-actions">
+                <a class="secondary-button" data-view="career" href="#career-feature">查看球員中心 <span>↗</span></a>
+                <button class="primary-button" id="rematch" type="button">再打一場 <span>↻</span></button>
+              </div>
             </div>
           </section>
         </section>
