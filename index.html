@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-postmatch-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=ui-cleanup-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-postmatch-2026a" defer></script>
+    <script src="./game.js?v=ui-cleanup-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -25,7 +25,7 @@
         </div>
         <div class="topbar-actions">
           <span class="live-indicator"><span></span> LIVE FROM TAOYUAN</span>
-          <button class="ghost-button" id="new-game" type="button">重新開打</button>
+          <button class="ghost-button" id="new-game" type="button">回到賽前</button>
         </div>
       </header>
 
@@ -74,12 +74,7 @@
           <span class="hub-next-label">NEXT UP</span>
           <strong id="hub-next-title">先建立你的球員</strong>
           <p id="hub-next-copy">選一個模板，再把建造點放到你真正想玩的能力。</p>
-        </div>
-        <div class="hub-actions" aria-label="快速入口">
-          <a class="hub-action hub-action-primary" data-view="career" id="hub-build-player" href="#player-builder-feature"><b>建立球員</b><small>從 OVR 60 開始 ↗</small></a>
-          <a class="hub-action" data-view="career" id="hub-open-career" href="#career-feature"><b>發展球員</b><small>訓練與目標 ↗</small></a>
-          <a class="hub-action" data-view="multiplayer" id="hub-open-room" href="#network-card"><b>加入多人</b><small>選位置進房間 ↗</small></a>
-          <a class="hub-action" data-view="season" id="hub-open-season" href="#season-feature"><b>推進賽季</b><small>下一場比賽 ↗</small></a>
+          <a class="hub-next-action hub-action-primary" data-view="career" id="hub-next-action" href="#player-builder-feature" aria-label="前往下一步"><span><b>建立球員</b><small>進入自創球員工坊</small></span><span aria-hidden="true">↗</span></a>
         </div>
       </section>
 
@@ -221,10 +216,9 @@
           <div class="player-save-panel" aria-label="角色存檔">
             <div class="player-save-copy">
               <div><span class="save-status-dot"></span><b>角色存檔</b><span class="save-auto-badge">自動保存</span></div>
-              <small id="player-save-status">角色會保存在這個瀏覽器；想換裝置時，請匯出角色檔。</small>
+              <small id="player-save-status">角色會自動保存在這個瀏覽器；換裝置時請匯出角色檔。</small>
             </div>
             <div class="player-save-actions">
-              <button class="player-save-button" id="save-player-now" type="button">立即保存</button>
               <button class="player-save-button" id="export-player-save" type="button">匯出角色檔</button>
               <label class="player-save-button player-save-upload" for="import-player-save">匯入角色檔<input id="import-player-save" type="file" accept="application/json,.json" /></label>
             </div>
@@ -477,7 +471,7 @@
                 <p>選一個位置後即可開始；隊友可以加入其他位置，尚未有人控制的球員會由免費 NPC 補位。</p>
               </div>
               <div class="welcome-actions">
-                <a class="secondary-button" data-view="multiplayer" href="#network-card">調整位置</a>
+                <a class="secondary-button" data-view="multiplayer" href="#network-card">變更位置</a>
                 <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
               </div>
             </div>
@@ -548,7 +542,7 @@
               <div class="result-summary" id="result-summary" aria-label="團隊結算"></div>
               <div class="gameover-actions">
                 <a class="secondary-button" data-view="career" href="#career-feature">查看球員中心 <span>↗</span></a>
-                <button class="primary-button" id="rematch" type="button">再打一場 <span>↻</span></button>
+                <button class="primary-button" id="rematch" type="button">直接再打一場 <span>↻</span></button>
               </div>
             </div>
           </section>

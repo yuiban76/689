@@ -1294,7 +1294,7 @@ function renderPlayerSaveStatus(message = "") {
   const status = $("player-save-status");
   if (!status) return;
   const meta = readStorage(PLAYER_SAVE_META_KEY, {});
-  status.textContent = message || (meta.savedAt ? `${formatPlayerSaveTime(meta.savedAt)}；存在此瀏覽器` : "角色會保存在這個瀏覽器；想換裝置時，請匯出角色檔。");
+  status.textContent = message || (meta.savedAt ? `${formatPlayerSaveTime(meta.savedAt)}；存在此瀏覽器` : "角色會自動保存在這個瀏覽器；換裝置時請匯出角色檔。");
 }
 
 function persistPlayerSaveMeta(savedAt = new Date().toISOString()) {
@@ -2406,7 +2406,7 @@ function renderPlayerHub() {
   const progressBar = $("hub-progress-bar");
   const nextTitle = $("hub-next-title");
   const nextCopy = $("hub-next-copy");
-  const buildLink = $("hub-build-player");
+  const nextAction = $("hub-next-action");
   if (!player || !profile) {
     if (avatar) avatar.textContent = "MP";
     if (name) name.textContent = "建立你的 My Player";
@@ -2417,9 +2417,12 @@ function renderPlayerHub() {
     if (progressBar) progressBar.style.width = "0%";
     if (nextTitle) nextTitle.textContent = "先建立你的球員";
     if (nextCopy) nextCopy.textContent = "選一個模板，再把建造點放到你真正想玩的能力。";
-    if (buildLink) {
-      buildLink.classList.add("hub-action-primary");
-      buildLink.querySelector("b")?.replaceChildren("建立球員");
+    if (nextAction) {
+      nextAction.classList.add("hub-action-primary");
+      nextAction.dataset.view = "career";
+      nextAction.href = "#player-builder-feature";
+      nextAction.querySelector("b")?.replaceChildren("建立球員");
+      nextAction.querySelector("small")?.replaceChildren("進入自創球員工坊");
     }
     return;
   }
@@ -2436,9 +2439,12 @@ function renderPlayerHub() {
   if (progressBar) progressBar.style.width = `${Math.min(100, Math.round((profile.xp / nextXp) * 100))}%`;
   if (nextTitle) nextTitle.textContent = goal.label;
   if (nextCopy) nextCopy.textContent = `${goal.detail} ${goalProgress}/${goal.target}；${path.label}訓練可獲得額外 XP。`;
-  if (buildLink) {
-    buildLink.classList.remove("hub-action-primary");
-    buildLink.querySelector("b")?.replaceChildren("管理球員");
+  if (nextAction) {
+    nextAction.classList.remove("hub-action-primary");
+    nextAction.dataset.view = "career";
+    nextAction.href = "#career-feature";
+    nextAction.querySelector("b")?.replaceChildren("前往訓練");
+    nextAction.querySelector("small")?.replaceChildren("完成下一個生涯目標");
   }
 }
 
@@ -2708,7 +2714,7 @@ function attachHostConnection(connection) {
     else if (message.type === "signal") hostHandleSignal(record, message.signal);
     else if (message.type === "start") requestStartFromPlayer(record);
     else if (message.type === "start-scheduled") requestScheduledStartFromPlayer(record);
-    else if (message.type === "reset") sendConnection(connection, { type: "status", message: "只有房主可以重新開打。", awaiting: false });
+    else if (message.type === "reset") sendConnection(connection, { type: "status", message: "只有房主可以回到賽前設定。", awaiting: false });
     else if (message.type === "action") hostHandleAction(record, message);
   });
   connection.on("close", remove);
@@ -3014,7 +3020,7 @@ function requestStart() {
 
 function requestReset() {
   if (network.role === "guest") {
-    network.status = network.connected ? "只有房主可以重新開打，請由房主按下重新開打。" : "目前尚未連上房主，無法重新開打。";
+    network.status = network.connected ? "只有房主可以回到賽前設定，請由房主按下回到賽前。" : "目前尚未連上房主，無法回到賽前設定。";
     renderNetwork();
     return;
   }
