@@ -16,7 +16,7 @@ const DIFFICULTY_CONFIG = {
 };
 const SESSION_STORAGE_KEY = "jiuju-session-id-v1";
 const PRACTICE_SESSIONS_PER_DAY = 3;
-const MAX_NETWORK_BOOST = 20;
+const MAX_NETWORK_BOOST = 45;
 
 function readPersistentSessionId() {
   const fallback = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -173,7 +173,7 @@ const CUSTOM_ARCHETYPES = {
   pitcher: { label: "控球投手", role: "自創王牌", adjustments: { contact: -8, power: -7, vision: 2, discipline: 4, clutch: 8, speed: -4, fielding: 3, reaction: 3, velocity: 8, control: 14, break: 12, stamina: 14 } },
 };
 
-const BUILD_POINT_BUDGET = 36;
+const BUILD_POINT_BUDGET = 18;
 const BUILD_STARTING_OVERALL = 60;
 const BUILDER_GROUPS = [
   {
@@ -204,15 +204,19 @@ const BUILDER_GROUPS = [
 ];
 
 const PLAYER_BUILD_TEMPLATES = [
-  { id: "balanced", label: "五工具球員", role: "全能成長", detail: "打擊、跑壘、守備都不偏科", positions: "field", focus: ["contact", "power", "speed", "fielding"], adjustments: CUSTOM_ARCHETYPES.balanced.adjustments },
-  { id: "contact", label: "擊球串聯", role: "高上壘打者", detail: "專注擊球、選球與跑壘壓力", positions: "field", focus: ["contact", "vision", "discipline", "speed"], adjustments: { contact: 11, power: -5, vision: 8, discipline: 8, clutch: 5, speed: 5, stealing: 5, bunt: 8, dragBunt: 7, fielding: 1 } },
-  { id: "slugger", label: "長打砲", role: "中心打者", detail: "用力量與關鍵打擊改變比分", positions: "field", focus: ["power", "powerL", "powerR", "clutch"], adjustments: CUSTOM_ARCHETYPES.slugger.adjustments },
-  { id: "speedster", label: "飛毛腿跑者", role: "速度跑者", detail: "速度、盜壘與短打製造機會", positions: "field", focus: ["speed", "stealing", "bunt", "dragBunt"], adjustments: CUSTOM_ARCHETYPES.speedster.adjustments },
-  { id: "defender", label: "守備魔術師", role: "守備核心", detail: "範圍、反應與傳球穩定可靠", positions: "field", focus: ["fielding", "reaction", "armStrength", "armAccuracy"], adjustments: CUSTOM_ARCHETYPES.defender.adjustments },
-  { id: "catcher-captain", label: "配球指揮官", role: "主戰捕手", detail: "擋球、臂力與關鍵時刻的領導力", positions: ["C"], focus: ["blocking", "armStrength", "armAccuracy", "clutch"], adjustments: { contact: 1, power: 1, discipline: 6, clutch: 9, speed: -4, stealing: -6, fielding: 8, reaction: 6, armStrength: 11, armAccuracy: 9, blocking: 16 } },
-  { id: "pitcher-control", label: "控球王牌", role: "精準先發", detail: "控球、變化球與吃局能力優先", positions: ["P"], focus: ["control", "break", "stamina", "clutch"], adjustments: CUSTOM_ARCHETYPES.pitcher.adjustments },
-  { id: "pitcher-flame", label: "火球強投", role: "三振型先發", detail: "球速與三振威脅拉到最高", positions: ["P"], focus: ["velocity", "break", "stamina"], adjustments: { contact: -9, power: -8, speed: -5, fielding: 2, reaction: 2, velocity: 17, control: -2, break: 10, stamina: 9, clutch: 7 } },
-  { id: "pitcher-break", label: "變化球大師", role: "球路型投手", detail: "用球路位移與控球讓打者失去節奏", positions: ["P"], focus: ["break", "control", "clutch"], adjustments: { contact: -8, power: -7, speed: -4, fielding: 2, velocity: 6, control: 9, break: 17, stamina: 8, clutch: 8 } },
+  { id: "balanced", label: "五工具球員", role: "全能成長", detail: "攻守均衡，所有主項都有中高上限", positions: "field", focus: ["contact", "power", "speed", "fielding"], adjustments: CUSTOM_ARCHETYPES.balanced.adjustments, capBoosts: { contact: 3, power: 3, speed: 3, fielding: 3 }, potential: 91 },
+  { id: "contact", label: "擊球串聯", role: "高上壘打者", detail: "高擊球與選球上限，以持續上壘帶動攻勢", positions: "field", focus: ["contact", "vision", "discipline", "speed"], adjustments: { contact: 11, power: -5, vision: 8, discipline: 8, clutch: 5, speed: 5, stealing: 5, bunt: 8, dragBunt: 7, fielding: 1 }, capBoosts: { contact: 5, vision: 5, discipline: 5, speed: 2 }, potential: 92 },
+  { id: "slugger", label: "長打砲", role: "中心打者", detail: "長打與關鍵打擊高上限，守備與速度受到限制", positions: "field", focus: ["power", "clutch", "contact"], adjustments: CUSTOM_ARCHETYPES.slugger.adjustments, capBoosts: { power: 6, clutch: 5, contact: 2 }, potential: 93 },
+  { id: "speedster", label: "飛毛腿跑者", role: "速度跑者", detail: "速度、盜壘、短打為主，力量上限較低", positions: "field", focus: ["speed", "stealing", "bunt", "dragBunt"], adjustments: CUSTOM_ARCHETYPES.speedster.adjustments, capBoosts: { speed: 6, stealing: 6, bunt: 5, dragBunt: 5 }, potential: 91 },
+  { id: "defender", label: "守備魔術師", role: "守備核心", detail: "範圍、反應與傳球高上限，長打受到限制", positions: "field", focus: ["fielding", "reaction", "armStrength", "armAccuracy"], adjustments: CUSTOM_ARCHETYPES.defender.adjustments, capBoosts: { fielding: 6, reaction: 6, armStrength: 4, armAccuracy: 5 }, potential: 92 },
+  { id: "middle-infield", label: "內野引擎", role: "二游核心", detail: "適合二壘與游擊：守備、反應、速度兼備", positions: ["2B", "SS"], focus: ["fielding", "reaction", "speed", "contact"], adjustments: { contact: 6, power: -6, speed: 9, stealing: 5, fielding: 11, reaction: 12, armAccuracy: 8 }, capBoosts: { fielding: 6, reaction: 6, speed: 4, armAccuracy: 4 }, potential: 92 },
+  { id: "corner-cannon", label: "強肩角落", role: "邊線攻防", detail: "適合三壘與角落外野：長打、臂力與關鍵一擊", positions: ["3B", "LF", "RF"], focus: ["power", "clutch", "armStrength"], adjustments: { contact: 3, power: 10, clutch: 8, speed: 1, fielding: 4, armStrength: 12, armAccuracy: 5 }, capBoosts: { power: 5, clutch: 4, armStrength: 6 }, potential: 92 },
+  { id: "catcher-captain", label: "配球指揮官", role: "主戰捕手", detail: "擋球、臂力與關鍵時刻的領導力", positions: ["C"], focus: ["blocking", "armStrength", "armAccuracy", "clutch"], adjustments: { contact: 1, power: 1, discipline: 6, clutch: 9, speed: -4, stealing: -6, fielding: 8, reaction: 6, armStrength: 11, armAccuracy: 9, blocking: 16 }, capBoosts: { blocking: 7, armStrength: 5, armAccuracy: 5, clutch: 3 }, potential: 93 },
+  { id: "pitcher-control", label: "控球王牌", role: "精準先發", detail: "控球、變化球與吃局能力優先", positions: ["P"], focus: ["control", "break", "stamina", "clutch"], adjustments: CUSTOM_ARCHETYPES.pitcher.adjustments, capBoosts: { control: 6, break: 5, stamina: 4 }, potential: 93 },
+  { id: "pitcher-flame", label: "火球強投", role: "三振型先發", detail: "球速與三振威脅極高，控球上限較低", positions: ["P"], focus: ["velocity", "break", "stamina"], adjustments: { contact: -9, power: -8, speed: -5, fielding: 2, reaction: 2, velocity: 17, control: -2, break: 10, stamina: 9, clutch: 7 }, capBoosts: { velocity: 7, break: 4, stamina: 3 }, potential: 94 },
+  { id: "pitcher-break", label: "變化球大師", role: "球路型投手", detail: "用球路位移與控球讓打者失去節奏", positions: ["P"], focus: ["break", "control", "clutch"], adjustments: { contact: -8, power: -7, speed: -4, fielding: 2, velocity: 6, control: 9, break: 17, stamina: 8, clutch: 8 }, capBoosts: { break: 7, control: 4, clutch: 3 }, potential: 93 },
+  { id: "pitcher-workhorse", label: "耐投工作馬", role: "吃局先發", detail: "體力、控球與守備穩定，球速成長較慢", positions: ["P"], focus: ["stamina", "control", "fielding"], adjustments: { contact: -6, power: -7, speed: -3, fielding: 8, reaction: 5, velocity: -2, control: 10, break: 5, stamina: 17, clutch: 5 }, capBoosts: { stamina: 7, control: 5, fielding: 3 }, potential: 92 },
+  { id: "pitcher-closer", label: "終結者", role: "高壓後援", detail: "球速、變化球與關鍵能力高，體力上限受限", positions: ["P"], focus: ["velocity", "break", "clutch"], adjustments: { contact: -9, power: -8, speed: -4, velocity: 13, control: 2, break: 12, stamina: -7, clutch: 13 }, capBoosts: { velocity: 6, break: 6, clutch: 5 }, potential: 93 },
 ];
 
 function templatesForPosition(position) {
@@ -233,14 +237,18 @@ function builderCapFor(position, template, key) {
   if (splitParent) return Math.min(99, builderCapFor(position, template, splitParent) + 3);
   const pitchingKeys = ["velocity", "control", "break", "stamina"];
   const fieldingKeys = ["fielding", "reaction", "armStrength", "armAccuracy", "blocking"];
-  let cap = 92;
-  if (template.focus.includes(key)) cap = 99;
-  if (position === "P" && !pitchingKeys.includes(key) && key !== "clutch") cap = 80;
-  if (position !== "P" && pitchingKeys.includes(key)) cap = 76;
-  if (position === "C" && key === "blocking") cap = 99;
-  if (position !== "C" && key === "blocking") cap = 82;
-  if (fieldingKeys.includes(key) && template.id === "slugger") cap = Math.min(cap, 88);
-  return cap;
+  let cap = 84;
+  if (position === "P" && pitchingKeys.includes(key)) cap = 88;
+  if (position === "P" && !pitchingKeys.includes(key) && key !== "clutch") cap = 72;
+  if (position !== "P" && pitchingKeys.includes(key)) cap = 68;
+  if (position === "C" && key === "blocking") cap = 90;
+  if (position !== "C" && key === "blocking") cap = 72;
+  if (template.focus.includes(key)) cap += 6;
+  cap += Number(template.capBoosts?.[key] || 0);
+  if (fieldingKeys.includes(key) && template.id === "slugger") cap = Math.min(cap, 82);
+  if (["speed", "stealing"].includes(key) && template.id === "slugger") cap = Math.min(cap, 76);
+  if (key === "stamina" && template.id === "pitcher-closer") cap = Math.min(cap, 82);
+  return Math.min(96, Math.max(60, Math.round(cap)));
 }
 
 const OVERALL_WEIGHTS_BY_POSITION = {
@@ -311,7 +319,9 @@ function buildTemplateRatings(position, teamId, bats, templateId) {
   const template = templateForPosition(position, templateId);
   const ratings = Object.fromEntries(Object.entries(blueprint.ratings).map(([key, value]) => {
     if (key === "popTime") return [key, value];
-    const adjusted = Number(value) + Number(team.bonus[key] || 0) + Number(template.adjustments[key] || 0);
+    const pitchingKey = ["velocity", "control", "break", "stamina"].includes(key);
+    const base = position === "P" ? (pitchingKey ? 53 : 38) : (pitchingKey ? 35 : key === "blocking" ? (position === "C" ? 52 : 32) : 50);
+    const adjusted = base + Number(team.bonus[key] || 0) * 0.35 + Number(template.adjustments[key] || 0) * 0.55;
     return [key, Math.max(20, Math.min(builderCapFor(position, template, key), Math.round(adjusted)))];
   }));
   normalizeBuilderOverall(position, ratings, template);
@@ -474,11 +484,11 @@ function normalizeCustomPlayer(raw, index = 0) {
     role: String(source.role || "自創球員").slice(0, 12),
     archetype: String(source.archetype || buildTemplate.label || "自訂全能").slice(0, 18),
     builder: {
-      version: 1,
+      version: 2,
       templateId: buildTemplate.id,
       templateLabel: buildTemplate.label,
       pointBudget: BUILD_POINT_BUDGET,
-      caps: Object.fromEntries(Object.keys(blueprint.ratings).filter((key) => key !== "popTime").map((key) => [key, builderCapFor(position, buildTemplate, key)])),
+      caps: Object.fromEntries(Object.keys(blueprint.ratings).filter((key) => key !== "popTime").map((key) => [key, Math.max(builderCapFor(position, buildTemplate, key), Number(ratings[key] || 0))])),
       migrated: !incomingBuilder.version,
     },
     pitchMix: Array.isArray(source.pitchMix) ? source.pitchMix.slice(0, 5) : blueprint.pitchMix || [],
@@ -621,7 +631,7 @@ function renderBuilder() {
   if (overallEl) overallEl.textContent = overall;
   if (strengthsEl) strengthsEl.textContent = strengths.join(" · ");
   if (weaknessesEl) weaknessesEl.textContent = weaknesses.join(" · ");
-  if (capNote) capNote.textContent = `初始總評統一為 ${BUILD_STARTING_OVERALL}；OVR 會依位置權重計算，模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}；能力上限會依位置與模板改變。`;
+  if (capNote) capNote.textContent = `初始總評統一為 ${BUILD_STARTING_OVERALL}，只有 ${BUILD_POINT_BUDGET} 點可微調；模板先決定每項硬上限，建立後須靠生涯幣逐點成長。模板重點：${template.focus.map((key) => BUILDER_LABEL_BY_KEY[key] || key).join("、")}。`;
   const templateGrid = $("builder-template-grid");
   if (templateGrid) {
     templateGrid.innerHTML = templatesForPosition(draft.position).map((candidate) => `<button type="button" class="builder-template-choice ${candidate.id === template.id ? "is-selected" : ""}" data-builder-template="${candidate.id}"><b>${candidate.label}</b><small>${candidate.role}</small><span>${candidate.detail}</span></button>`).join("");
@@ -642,7 +652,8 @@ function createCareerProfile(player) {
   return {
     level: 1,
     xp: 0,
-    trainingPoints: 6,
+    trainingPoints: 0,
+    careerCoins: 80,
     fatigue: 0,
     morale: 72,
     boosts: Object.fromEntries(Object.keys(player.ratings).map((key) => [key, 0])),
@@ -686,6 +697,9 @@ function profileFor(playerId) {
   profile.practiceSessions = clamp(Number(profile.practiceSessions ?? PRACTICE_SESSIONS_PER_DAY), 0, PRACTICE_SESSIONS_PER_DAY);
   profile.practiceScore = Math.max(0, Number(profile.practiceScore || 0));
   profile.lastPractice = String(profile.lastPractice || "");
+  const legacyTrainingPoints = Math.max(0, Number(profile.trainingPoints || 0));
+  profile.careerCoins = Math.max(0, Number.isFinite(Number(profile.careerCoins)) ? Number(profile.careerCoins) : 80 + legacyTrainingPoints * 35);
+  profile.trainingPoints = 0;
   profile.developmentPath = DEVELOPMENT_PATHS[profile.developmentPath] ? profile.developmentPath : "balanced";
   profile.goalIndex = clamp(Number(profile.goalIndex || 0), 0, CAREER_GOALS.length - 1);
   profile.goalProgress = Math.max(0, Number(profile.goalProgress || 0));
@@ -714,12 +728,19 @@ function overallForPlayer(player) {
 function developedPlayerFromProfile(base, profile) {
   if (!base) return null;
   const ratings = Object.fromEntries(Object.entries(base.ratings).map(([key, value]) => [key, Math.min(key === "popTime" ? 2.3 : 99, Number(value) + Number(profile?.boosts?.[key] || 0))]));
+  const leftContactBonus = base.bats === "左" ? 3 : 0;
+  const rightContactBonus = base.bats === "右" ? 3 : 0;
+  ratings.contactL = clamp(Number(ratings.contact || 0) + leftContactBonus, 20, 99);
+  ratings.contactR = clamp(Number(ratings.contact || 0) + rightContactBonus, 20, 99);
+  ratings.powerL = clamp(Number(ratings.power || 0) + leftContactBonus, 20, 99);
+  ratings.powerR = clamp(Number(ratings.power || 0) + rightContactBonus, 20, 99);
   return {
     ...base,
     ratings,
     level: profile?.level || 1,
     xp: profile?.xp || 0,
     trainingPoints: profile?.trainingPoints || 0,
+    careerCoins: profile?.careerCoins || 0,
     fatigue: profile?.fatigue || 0,
     morale: profile?.morale || 72,
     overall: overallForPlayer({ ...base, ratings }),
@@ -820,15 +841,6 @@ function calculateFieldingLine(stats = {}) {
   return { FPCT: chances ? (Number(stats.PO || 0) + Number(stats.A || 0)) / chances : 0, RF9: Number(stats.INN || 0) ? ((Number(stats.PO || 0) + Number(stats.A || 0)) * 9) / Number(stats.INN) : 0 };
 }
 
-const TRAINING_META = {
-  hitting: { title: "打擊訓練", detail: "擊球能力 +1 · 擊球視野 +1", cost: 1, xp: 42, gains: { contact: 1, vision: 1 } },
-  power: { title: "力量訓練", detail: "長打力量 +1 · 關鍵打擊 +1", cost: 1, xp: 42, gains: { power: 1, clutch: 1 } },
-  defense: { title: "守備訓練", detail: "守備範圍 +1 · 反應速度 +1", cost: 1, xp: 42, gains: { fielding: 1, reaction: 1 } },
-  speed: { title: "跑壘訓練", detail: "跑壘速度 +1 · 盜壘能力 +1", cost: 1, xp: 38, gains: { speed: 1, stealing: 1 } },
-  pitching: { title: "投球訓練", detail: "投球控球 +1 · 變化球 +1", cost: 1, xp: 44, gains: { control: 1, break: 1 } },
-  recovery: { title: "恢復訓練", detail: "疲勞 -20 · 士氣 +5", cost: 0, xp: 18, gains: {} },
-};
-
 const PRACTICE_META = {
   hitting: { title: "打擊挑戰", detail: "擊球能力 · 擊球視野 · 關鍵打擊", xp: 28, focus: ["contact", "vision", "clutch"] },
   defense: { title: "守備反應", detail: "守備範圍 · 反應速度 · 傳球", xp: 27, focus: ["fielding", "reaction", "armAccuracy"] },
@@ -872,10 +884,10 @@ const CAREER_GOALS = [
 ];
 
 const KEY_GAME_DEFS = [
-  { label: "證明自己", detail: "拿下本場勝利", xp: 90, legacy: 25, reward: "90 XP · 25 生涯聲望", test: ({ result }) => result === "win" || result === "walkoff" },
-  { label: "教練的考驗", detail: "單場評分達到 78", xp: 80, legacy: 22, reward: "80 XP · 22 生涯聲望", test: ({ grade }) => grade >= 78 },
-  { label: "站穩先發", detail: "完成 2 次有效決策", xp: 75, legacy: 20, reward: "75 XP · 20 生涯聲望", test: ({ match }) => Number(match.decisions || 0) >= 2 },
-  { label: "攻守建功", detail: "敲出安打或完成守備機會", xp: 85, legacy: 24, reward: "85 XP · 24 生涯聲望", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 1 },
+  { label: "證明自己", detail: "拿下本場勝利", xp: 90, coins: 100, legacy: 25, reward: "90 XP · 100 生涯幣 · 25 聲望", test: ({ result }) => result === "win" || result === "walkoff" },
+  { label: "教練的考驗", detail: "單場評分達到 78", xp: 80, coins: 85, legacy: 22, reward: "80 XP · 85 生涯幣 · 22 聲望", test: ({ grade }) => grade >= 78 },
+  { label: "站穩先發", detail: "完成 2 次有效決策", xp: 75, coins: 75, legacy: 20, reward: "75 XP · 75 生涯幣 · 20 聲望", test: ({ match }) => Number(match.decisions || 0) >= 2 },
+  { label: "攻守建功", detail: "敲出安打或完成守備機會", xp: 85, coins: 90, legacy: 24, reward: "85 XP · 90 生涯幣 · 24 聲望", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 1 },
 ];
 
 const CAREER_RANKS = [
@@ -916,8 +928,8 @@ function advanceCareerGoal(profile, kind, value = 1) {
   const completed = goal.label;
   profile.goalIndex = (Number(profile.goalIndex || 0) + 1) % CAREER_GOALS.length;
   profile.goalProgress = 0;
-  profile.trainingPoints = Math.min(12, Number(profile.trainingPoints || 0) + 1);
-  return `完成目標「${completed}」，獲得 1 訓練點`;
+  profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + 25);
+  return `完成目標「${completed}」，獲得 25 生涯幣`;
 }
 
 function xpToNextLevel(level) {
@@ -930,7 +942,7 @@ function awardCareerXp(profile, amount) {
   while (profile.xp >= xpToNextLevel(profile.level)) {
     profile.xp -= xpToNextLevel(profile.level);
     profile.level += 1;
-    profile.trainingPoints += 2;
+    profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + 70);
     levels += 1;
   }
   if (levels > 0 && profile.level >= 3 && !profile.unlockedPerks.includes("專注時刻")) profile.unlockedPerks.push("專注時刻");
@@ -942,7 +954,8 @@ function serializeCareerProfile(profile) {
   return {
     level: clamp(Number(profile?.level || 1), 1, 99),
     xp: Math.max(0, Number(profile?.xp || 0)),
-    trainingPoints: clamp(Number(profile?.trainingPoints || 0), 0, 12),
+    trainingPoints: 0,
+    careerCoins: Math.max(0, Number(profile?.careerCoins || 0)),
     fatigue: clamp(Number(profile?.fatigue || 0), 0, 100),
     morale: clamp(Number(profile?.morale || 72), 0, 99),
     developmentPath: DEVELOPMENT_PATHS[profile?.developmentPath] ? profile.developmentPath : "balanced",
@@ -987,7 +1000,8 @@ function normalizeNetworkPlayerSnapshot(raw, teamId = state?.teamId || selectedT
     ...baseProfile,
     level: clamp(Number(incomingProfile.level || 1), 1, 99),
     xp: Math.max(0, Number(incomingProfile.xp || 0)),
-    trainingPoints: clamp(Number(incomingProfile.trainingPoints || 0), 0, 12),
+    trainingPoints: 0,
+    careerCoins: Math.max(0, Number(incomingProfile.careerCoins ?? (Number(incomingProfile.trainingPoints || 0) * 35 || 80))),
     fatigue: clamp(Number(incomingProfile.fatigue || 0), 0, 100),
     morale: clamp(Number(incomingProfile.morale || 72), 0, 99),
     developmentPath: DEVELOPMENT_PATHS[incomingProfile.developmentPath] ? incomingProfile.developmentPath : "balanced",
@@ -1128,8 +1142,9 @@ function resolvePracticeChallenge(choiceIndex) {
   profile.lastGrade = score;
   const previousLevel = profile.level;
   const earnedXp = meta.xp + bonusXp + pathBonus;
+  const earnedCoins = option.correct ? 26 + Math.max(0, Math.floor((score - 85) / 3)) : 10;
   const levels = awardCareerXp(profile, earnedXp);
-  profile.trainingPoints = Math.min(12, profile.trainingPoints + (score >= 86 ? 1 : 0));
+  profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + earnedCoins);
   profile.fatigue = Math.min(100, profile.fatigue + 5);
   profile.morale = Math.min(99, profile.morale + (score >= 80 ? 2 : 0));
   profile.focusMeter = clamp(Number(profile.focusMeter || 0) + (option.correct ? 18 : 5), 0, 100);
@@ -1142,7 +1157,7 @@ function resolvePracticeChallenge(choiceIndex) {
   const pathText = pathBonus ? `；符合${path.label}，額外 +${pathBonus} XP` : "";
   const goalText = goalMessage ? `；${goalMessage}` : "";
   const resultText = option.correct ? "判斷正確" : "判斷失誤";
-  setCareerStatus(`${resultText}：${challenge.lesson} 評分 ${score}，獲得 ${earnedXp} XP${pathText}${levelText}${goalText}。`, option.correct ? "" : "is-error");
+  setCareerStatus(`${resultText}：${challenge.lesson} 評分 ${score}，獲得 ${earnedXp} XP、${earnedCoins} 生涯幣${pathText}${levelText}${goalText}。`, option.correct ? "" : "is-error");
   activePracticeChallenge = null;
   if (previousLevel !== profile.level || score >= 90) flashCard("celebrate");
   render();
@@ -1290,37 +1305,75 @@ function applyOpponentSelection(opponentId) {
   replaceMatchTeams(selectedTeamId, opponentId);
 }
 
-function trainSelectedPlayer(trainingType) {
-  const player = playerDefinitionFor(selectedAthleteId);
-  const meta = TRAINING_META[trainingType];
-  if (!player || !meta) return;
-  const profile = profileFor(player.id);
-  if (profile.trainingPoints < meta.cost) {
-    network.status = `${player.name} 的訓練點不足；完成比賽或升級可獲得更多訓練點。`;
-    renderNetwork();
+function buildTemplateForPlayer(player) {
+  return templateForPosition(player?.position || "CF", player?.builder?.templateId || player?.archetype);
+}
+
+function attributeCapForPlayer(player, key) {
+  const configured = Number(player?.builder?.caps?.[key]);
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  return builderCapFor(player.position, buildTemplateForPlayer(player), key);
+}
+
+function attributeUpgradeGate(nextValue) {
+  if (nextValue > 90) return { level: 15, label: "Lv.15 解鎖" };
+  if (nextValue > 85) return { level: 10, label: "Lv.10 解鎖" };
+  if (nextValue > 80) return { level: 6, label: "Lv.6 解鎖" };
+  if (nextValue > 75) return { level: 3, label: "Lv.3 解鎖" };
+  return { level: 1, label: "可升級" };
+}
+
+function attributeUpgradePrice(player, key, currentValue) {
+  const template = buildTemplateForPlayer(player);
+  let price = currentValue >= 90 ? 190 : currentValue >= 85 ? 135 : currentValue >= 80 ? 90 : currentValue >= 75 ? 60 : currentValue >= 70 ? 42 : 28;
+  if (template.focus.includes(key)) price = Math.ceil(price * 0.9);
+  return price;
+}
+
+function setPlayerUpgradeStatus(message, tone = "") {
+  const status = $("player-upgrade-status");
+  if (status) {
+    status.textContent = message;
+    status.className = `player-upgrade-status ${tone}`.trim();
+  }
+}
+
+function upgradeSelectedAttribute(key) {
+  const player = customPlayerIndex[selectedAthleteId];
+  if (!player?.isCustom || !Object.prototype.hasOwnProperty.call(player.ratings, key) || ["contactL", "contactR", "powerL", "powerR", "popTime"].includes(key)) {
+    setPlayerUpgradeStatus("只有你的自創球員主能力可以用生涯幣升級。", "is-error");
     return;
   }
-  profile.trainingPoints -= meta.cost;
-  Object.entries(meta.gains).forEach(([key, amount]) => {
-    profile.boosts[key] = Math.min(20, Number(profile.boosts[key] || 0) + amount);
-  });
-  if (trainingType === "recovery") {
-    profile.fatigue = Math.max(0, profile.fatigue - 20);
-    profile.morale = Math.min(99, profile.morale + 5);
-  } else {
-    profile.fatigue = Math.min(100, profile.fatigue + 6);
-    profile.morale = Math.max(20, profile.morale - 1);
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    setPlayerUpgradeStatus("比賽進行中不能調整能力；請在賽前或賽後升級。", "is-error");
+    return;
   }
-  const previousLevel = profile.level;
-  const levels = awardCareerXp(profile, meta.xp);
+  const profile = profileFor(player.id);
+  const current = Number(player.ratings[key] || 0) + Number(profile.boosts?.[key] || 0);
+  const cap = attributeCapForPlayer(player, key);
+  const next = current + 1;
+  const gate = attributeUpgradeGate(next);
+  const price = attributeUpgradePrice(player, key, current);
+  if (next > cap) {
+    setPlayerUpgradeStatus(`${BUILDER_LABEL_BY_KEY[key] || key} 已達此模板的 ${cap} 上限。`, "is-error");
+    return;
+  }
+  if (profile.level < gate.level) {
+    setPlayerUpgradeStatus(`${BUILDER_LABEL_BY_KEY[key] || key} 升到 ${next} 需要 ${gate.label}。`, "is-error");
+    return;
+  }
+  if (profile.careerCoins < price) {
+    setPlayerUpgradeStatus(`生涯幣不足：${BUILDER_LABEL_BY_KEY[key] || key} ${current} → ${next} 需要 ${price} 生涯幣。`, "is-error");
+    return;
+  }
+  profile.careerCoins -= price;
+  profile.boosts[key] = Math.min(MAX_NETWORK_BOOST, Number(profile.boosts[key] || 0) + 1);
+  profile.morale = Math.min(99, Number(profile.morale || 72) + 1);
   persistCustomPlayers();
-  if (network.role === "guest" && network.connected && player.isCustom) {
-    const localCustom = customPlayerIndex[player.id];
-    if (localCustom) sendToHost({ type: "custom", protocol: PROTOCOL_VERSION, position: localCustom.position, customPlayer: networkPlayerSnapshotFor(localCustom), name: localCustom.name });
-  }
-  network.status = `${player.name} 完成${meta.title}：${meta.detail}${levels ? `，升到 Lv.${profile.level}！` : "。"}`;
-  if (previousLevel !== profile.level) flashCard("celebrate");
+  if (network.role === "guest" && network.connected) sendToHost({ type: "custom", protocol: PROTOCOL_VERSION, position: player.position, customPlayer: networkPlayerSnapshotFor(player), name: player.name });
+  const levelHint = next >= 75 ? ` · 下一段會更昂貴` : "";
   render();
+  setPlayerUpgradeStatus(`${BUILDER_LABEL_BY_KEY[key] || key} ${current} → ${next}，花費 ${price} 生涯幣${levelHint}。`, "is-success");
 }
 
 function buildCustomPlayer({ name, number, teamId, position, bats, throws, archetype, buildRatings }) {
@@ -1338,7 +1391,7 @@ function buildCustomPlayer({ name, number, teamId, position, bats, throws, arche
     if (Number.isFinite(Number(sourceRatings[key]))) ratings[key] = Math.max(20, Math.min(99, Math.round(Number(sourceRatings[key]))));
   });
   const token = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const potential = position === "P" ? 96 : template.id === "balanced" ? 92 : 90;
+  const potential = Number(template.potential || (position === "P" ? 92 : 90));
   return normalizeCustomPlayer({
     id: `custom-${token}`,
     teamId,
@@ -1347,7 +1400,7 @@ function buildCustomPlayer({ name, number, teamId, position, bats, throws, arche
     number: String(number || "99").replace(/\D/g, "").slice(0, 2).padStart(2, "0") || "99",
     role: template.role,
     archetype: template.label,
-    builder: { version: 1, templateId: template.id, pointBudget: BUILD_POINT_BUDGET },
+    builder: { version: 2, templateId: template.id, pointBudget: BUILD_POINT_BUDGET, caps: Object.fromEntries(Object.keys(blueprint.ratings).filter((key) => key !== "popTime").map((key) => [key, builderCapFor(position, template, key)])) },
     pitchMix: position === "P" ? ["四縫線速球", "滑球", "變速球", "曲球"] : [],
     bats,
     throws,
@@ -1652,6 +1705,7 @@ function applyMatchToCareerProfile(profile, position, match, result) {
   }
   const matchXp = (match.decisions || 0) * 4 + (match.hits || 0) * 8 + (match.putouts || 0) * 3 + 20;
   let totalMatchXp = matchXp;
+  let totalMatchCoins = 32 + (match.decisions || 0) * 3 + (match.hits || 0) * 10 + (match.putouts || 0) * 2;
   awardCareerXp(profile, matchXp);
   const matchGrade = clamp(Math.round(60 + (match.hits || 0) * 12 + (match.runs || 0) * 8 + (match.putouts || 0) * 2 + (match.decisions || 0) * 1.5 - (match.timeouts || 0) * 8), 35, 99);
   const focusWasReady = Number(profile.focusMeter || 0) >= 100;
@@ -1664,9 +1718,9 @@ function applyMatchToCareerProfile(profile, position, match, result) {
       const keyGameXp = keyGame.xp + (focusWasReady ? 20 : 0);
       awardCareerXp(profile, keyGameXp);
       totalMatchXp += keyGameXp;
+      totalMatchCoins += keyGame.coins;
       profile.legacyPoints = Number(profile.legacyPoints || 0) + keyGame.legacy + Math.max(0, Math.round((matchGrade - 70) / 3));
       profile.keyGamesCompleted = Number(profile.keyGamesCompleted || 0) + 1;
-      profile.trainingPoints = Math.min(12, Number(profile.trainingPoints || 0) + 1);
     } else {
       profile.legacyPoints = Number(profile.legacyPoints || 0) + 5;
     }
@@ -1675,8 +1729,9 @@ function applyMatchToCareerProfile(profile, position, match, result) {
   profile.focusMeter = focusWasReady
     ? 35
     : clamp(Number(profile.focusMeter || 0) + Math.max(6, Math.round((matchGrade - 55) * 0.8)), 0, 100);
+  profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + totalMatchCoins);
   profile.lastGrade = matchGrade;
-  profile.recentMatches = [{ result, grade: matchGrade, xp: totalMatchXp, keyGame: keyGameResult, date: careerDayKey() }, ...(profile.recentMatches || [])].slice(0, 5);
+  profile.recentMatches = [{ result, grade: matchGrade, xp: totalMatchXp, coins: totalMatchCoins, keyGame: keyGameResult, date: careerDayKey() }, ...(profile.recentMatches || [])].slice(0, 5);
   profile.record.games += 1;
   if (result === "win" || result === "walkoff") profile.record.wins += 1;
   else if (result === "loss") profile.record.losses += 1;
@@ -1684,7 +1739,7 @@ function applyMatchToCareerProfile(profile, position, match, result) {
   const matchGoal = activeCareerGoal(profile);
   const matchEventKind = matchGoal.kind === "xp" ? "xp" : "match";
   advanceCareerGoal(profile, matchEventKind, matchGoal.kind === "xp" ? totalMatchXp : 1);
-  profile.trainingPoints = Math.min(12, profile.trainingPoints + 1);
+  profile.trainingPoints = 0;
   profile.fatigue = Math.min(100, profile.fatigue + 8);
   profile.morale = Math.max(20, Math.min(99, profile.morale + (result === "win" || result === "walkoff" ? 4 : -2)));
 }
@@ -2126,19 +2181,38 @@ function renderDevelopment() {
   const officialPerformance = player.performance ? ` · 2026 AVG ${Number(player.performance.avg || 0).toFixed(3)} / OPS ${Number(player.performance.ops || 0).toFixed(3)}` : "";
   $("player-detail-meta").textContent = `#${player.number} · ${player.bats}打／${player.throws}投 · ${player.age}歲 · ${player.height}cm / ${player.weight}kg · ${player.archetype}${officialPerformance}`;
   $("player-overall").textContent = player.overall;
-  $("player-progress").textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · 訓練點 ${profile.trainingPoints} · 潛力 ${player.potential}`;
+  $("player-progress").textContent = player.isCustom
+    ? `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · 生涯幣 ${profile.careerCoins} · 潛力 ${player.potential}`
+    : `官方球員 · 2026 能力快照 · 潛力 ${player.potential}`;
   $("player-morale").textContent = `士氣 ${profile.morale} · 疲勞 ${profile.fatigue}`;
+  const coinBadge = $("player-coin-badge");
+  if (coinBadge) coinBadge.textContent = player.isCustom ? `生涯幣 ${profile.careerCoins}` : "官方球員";
   const ratingGroups = [
-    ["打擊", [["擊球能力", ratings.contact], ["對左投擊球", ratings.contactL], ["對右投擊球", ratings.contactR], ["長打力量", ratings.power], ["對左投長打", ratings.powerL], ["對右投長打", ratings.powerR], ["擊球視野", ratings.vision], ["選球能力", ratings.discipline], ["關鍵打擊", ratings.clutch], ["短打能力", ratings.bunt]]],
-    ["跑壘", [["跑壘速度", ratings.speed], ["盜壘能力", ratings.stealing]]],
-    ["守備", [["守備範圍", ratings.fielding], ["反應速度", ratings.reaction], ["臂力", ratings.armStrength], ["傳球準確度", ratings.armAccuracy], ["擋球能力", ratings.blocking], ["捕手傳球時間", Number(ratings.popTime || 0).toFixed(2)]]],
-    ["投球", [["球速", ratings.velocity], ["投球控球", ratings.control], ["變化球", ratings.break], ["投手體力", ratings.stamina]]],
+    ["打擊", [["contact", "擊球能力"], ["contactL", "對左投擊球"], ["contactR", "對右投擊球"], ["power", "長打力量"], ["powerL", "對左投長打"], ["powerR", "對右投長打"], ["vision", "擊球視野"], ["discipline", "選球能力"], ["clutch", "關鍵打擊"], ["bunt", "短打能力"]]],
+    ["跑壘", [["speed", "跑壘速度"], ["stealing", "盜壘能力"]]],
+    ["守備", [["fielding", "守備範圍"], ["reaction", "反應速度"], ["armStrength", "臂力"], ["armAccuracy", "傳球準確度"], ["blocking", "擋球能力"], ["popTime", "捕手傳球時間"]]],
+    ["投球", [["velocity", "球速"], ["control", "投球控球"], ["break", "變化球"], ["stamina", "投手體力"]]],
   ];
-  $("player-attributes").innerHTML = ratingGroups.map(([title, rows]) => `<div class="attribute-group"><h4>${title}</h4>${rows.map(([label, value]) => `<div class="attribute-row"><span>${label}</span><i><b style="width:${label === "捕手傳球時間" ? Math.max(20, 100 - Number(value) * 28) : value}%"></b></i><strong>${value}</strong></div>`).join("")}</div>`).join("");
-  Object.entries(TRAINING_META).forEach(([key, meta]) => {
-    const button = document.querySelector(`[data-training="${key}"]`);
-    if (button) button.disabled = profile.trainingPoints < meta.cost;
-  });
+  const derivedAttributes = new Set(["contactL", "contactR", "powerL", "powerR", "popTime"]);
+  const isEditableNow = ["pre", "gameover"].includes(state.phase);
+  $("player-attributes").innerHTML = ratingGroups.map(([title, rows]) => `<div class="attribute-group"><h4>${title}</h4>${rows.map(([key, label]) => {
+    const value = Number(ratings[key] || 0);
+    const isDerived = derivedAttributes.has(key);
+    const canUpgrade = player.isCustom && !isDerived;
+    const cap = canUpgrade ? attributeCapForPlayer(player, key) : null;
+    const next = value + 1;
+    const gate = canUpgrade ? attributeUpgradeGate(next) : null;
+    const price = canUpgrade ? attributeUpgradePrice(player, key, value) : 0;
+    const lockedByLevel = canUpgrade && profile.level < gate.level;
+    const lockedByCoins = canUpgrade && profile.careerCoins < price;
+    const lockedByCap = canUpgrade && next > cap;
+    const disabled = !canUpgrade || !isEditableNow || lockedByLevel || lockedByCoins || lockedByCap;
+    const buttonLabel = !player.isCustom ? "官方" : isDerived ? "衍生" : !isEditableNow ? "賽後再升" : lockedByCap ? "封頂" : lockedByLevel ? `Lv.${gate.level}` : lockedByCoins ? `${price} 幣` : `+1 · ${price} 幣`;
+    const displayValue = key === "popTime" ? value.toFixed(2) : value;
+    const barValue = key === "popTime" ? Math.max(20, 100 - value * 28) : value;
+    return `<div class="attribute-row ${canUpgrade ? "is-upgradeable" : ""}"><span>${label}</span><i><b style="width:${barValue}%"></b></i><strong>${displayValue}${cap ? `<small>/${cap}</small>` : ""}</strong>${canUpgrade || player.isCustom ? `<button class="attribute-upgrade" data-attribute-upgrade="${key}" type="button" ${disabled ? "disabled" : ""}>${buttonLabel}</button>` : ""}</div>`;
+  }).join("")}</div>`).join("");
+  setPlayerUpgradeStatus(player.isCustom ? "模板鎖定每項上限；能力越高，生涯幣成本與等級要求越高。" : "官方 2026 球員是固定能力快照，請選擇自創球員進行生涯升級。");
   const batting = player.stats.batting;
   const pitching = player.stats.pitching;
   const fielding = player.stats.fielding;
@@ -3636,7 +3710,7 @@ function renderPlayerMatchResult() {
   $("player-result-grade").textContent = profile?.lastGrade ? `${profile.lastGrade}` : "—";
   $("player-result-grid").innerHTML = cells.map(([label, value]) => `<div class="player-result-stat"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
   const record = profile?.record || { games: 0, wins: 0, losses: 0, ties: 0 };
-  $("player-result-copy").textContent = `${resultLabel} · ${recent?.xp ? `獲得 ${recent.xp} XP` : "本場沒有額外 XP"} · 目前 Lv.${profile?.level || 1}、訓練點 ${profile?.trainingPoints || 0}、士氣 ${profile?.morale || 72} · 生涯 ${record.games} 場 ${record.wins} 勝。`;
+  $("player-result-copy").textContent = `${resultLabel} · ${recent?.xp ? `獲得 ${recent.xp} XP` : "本場沒有額外 XP"}${recent?.coins ? `、${recent.coins} 生涯幣` : ""} · 目前 Lv.${profile?.level || 1}、生涯幣 ${profile?.careerCoins || 0}、士氣 ${profile?.morale || 72} · 生涯 ${record.games} 場 ${record.wins} 勝。`;
 }
 
 function renderResultSummary() {
@@ -4401,10 +4475,10 @@ function bindEvents() {
   });
   $("start-career-match")?.addEventListener("click", startPracticeGame);
   $("start-next-scheduled-game")?.addEventListener("click", startScheduledGame);
-  $("training-actions")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-training]");
+  $("player-attributes")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-attribute-upgrade]");
     if (!button || button.disabled) return;
-    trainSelectedPlayer(button.dataset.training);
+    upgradeSelectedAttribute(button.dataset.attributeUpgrade);
   });
   document.querySelectorAll("a[href^='#']").forEach((link) => link.addEventListener("click", (event) => {
     const targetId = link.getAttribute("href")?.slice(1);

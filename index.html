@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=mc-career-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=vc-progression-2026b" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=mc-career-2026a" defer></script>
+    <script src="./game.js?v=vc-progression-2026b" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -364,7 +364,7 @@
               </div>
               <div class="player-overall-wrap"><span>OVR</span><strong id="player-overall">78</strong></div>
             </div>
-            <div class="player-progress-row"><span id="player-progress">Lv.1 · XP 0/100 · 訓練點 6 · 潛力 88</span><span id="player-morale">士氣 72 · 疲勞 0</span></div>
+            <div class="player-progress-row"><span id="player-progress">Lv.1 · XP 0/100 · 生涯幣 80 · 潛力 88</span><span id="player-morale">士氣 72 · 疲勞 0</span></div>
             <div class="player-match-selection" aria-label="本場先發安排">
               <div><span>本場先發</span><strong id="player-match-selection-status">選定後會套用到本場的打線與能力值。</strong></div>
               <button class="career-match-button" id="set-match-player" type="button">帶入本場先發 <span>↗</span></button>
@@ -372,17 +372,12 @@
             <div class="attribute-groups" id="player-attributes" aria-label="球員能力值"></div>
             <div class="training-block">
               <div class="section-heading">
-                <div><p class="eyebrow">DEVELOPMENT</p><h4>訓練計畫</h4></div>
-                <span class="mini-label">免費養成</span>
+                <div><p class="eyebrow">CAREER COINS</p><h4>能力升級規則</h4></div>
+                <span class="mini-label" id="player-coin-badge">生涯幣 0</span>
               </div>
-              <div class="training-actions" id="training-actions">
-                <button class="training-button" data-training="hitting" type="button"><b>打擊訓練</b><small>擊球能力 · 擊球視野</small></button>
-                <button class="training-button" data-training="power" type="button"><b>力量訓練</b><small>長打力量 · 關鍵打擊</small></button>
-                <button class="training-button" data-training="defense" type="button"><b>守備訓練</b><small>守備範圍 · 反應速度</small></button>
-                <button class="training-button" data-training="speed" type="button"><b>跑壘訓練</b><small>跑壘速度 · 盜壘能力</small></button>
-                <button class="training-button" data-training="pitching" type="button"><b>投球訓練</b><small>投球控球 · 變化球</small></button>
-                <button class="training-button" data-training="recovery" type="button"><b>恢復訓練</b><small>疲勞 -20 · 士氣 +5</small></button>
-              </div>
+              <p class="player-upgrade-copy">在上方能力列用生涯幣逐點升級。模板決定上限；76、81、86、91 以上分別需要 Lv.3、Lv.6、Lv.10、Lv.15，能力越高花費越多。</p>
+              <div class="player-upgrade-rules"><span>實戰訓練：10–30 幣</span><span>一般完賽：至少 32 幣</span><span>關鍵賽事：額外 75–100 幣</span></div>
+              <p class="player-upgrade-status" id="player-upgrade-status">選擇你的自創球員後，可在每個主能力旁逐點升級。</p>
             </div>
             <div class="player-statline" id="player-statline" aria-label="球員完整數據"></div>
           </section>
