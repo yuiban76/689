@@ -1885,6 +1885,7 @@ const VIEW_TARGETS = {
   multiplayer: "network-card",
   career: "career-feature",
   season: "season-feature",
+  roster: "roster-feature",
 };
 let activeView = "match";
 
@@ -2103,6 +2104,8 @@ function setActiveView(viewId = "match", { targetId = "", scroll = true } = {}) 
     ? ["player-builder-feature", "career-feature"]
     : activeView === "season"
       ? ["season-feature"]
+      : activeView === "roster"
+        ? ["roster-feature"]
       : [];
   document.querySelectorAll(".feature-disclosure").forEach((detail) => {
     if (!visibleDetails.includes(detail.id)) detail.open = false;

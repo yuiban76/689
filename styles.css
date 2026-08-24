@@ -614,21 +614,28 @@ body[data-active-view="multiplayer"] .development-panel,
 body[data-active-view="career"] .network-card,
 body[data-active-view="career"] .main-grid,
 body[data-active-view="season"] .network-card,
-body[data-active-view="season"] .main-grid { display: none; }
+body[data-active-view="season"] .main-grid,
+body[data-active-view="roster"] .network-card,
+body[data-active-view="roster"] .main-grid { display: none; }
 
 body[data-active-view="career"] #season-feature,
 body[data-active-view="career"] #roster-feature,
 body[data-active-view="season"] #player-builder-feature,
 body[data-active-view="season"] #career-feature,
-body[data-active-view="season"] #roster-feature { display: none; }
+body[data-active-view="season"] #roster-feature,
+body[data-active-view="roster"] #player-builder-feature,
+body[data-active-view="roster"] #career-feature,
+body[data-active-view="roster"] #season-feature { display: none; }
 
 body[data-active-view="career"] .development-panel,
-body[data-active-view="season"] .development-panel { display: block; }
+body[data-active-view="season"] .development-panel,
+body[data-active-view="roster"] .development-panel { display: block; }
 
 body[data-active-view="multiplayer"] .network-card { margin-top: 0; }
 body[data-active-view="career"] .development-heading .match-team-controls { display: none; }
 body[data-active-view="career"] .player-hub,
-body[data-active-view="season"] .player-hub { margin-bottom: 12px; }
+body[data-active-view="season"] .player-hub,
+body[data-active-view="roster"] .player-hub { margin-bottom: 12px; }
 
 .room-status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .career-feedback-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
