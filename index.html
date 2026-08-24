@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=ui-roster-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=ui-lineup-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=ui-roster-2026a" defer></script>
+    <script src="./game.js?v=ui-lineup-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -332,6 +332,10 @@
               <div class="player-overall-wrap"><span>OVR</span><strong id="player-overall">78</strong></div>
             </div>
             <div class="player-progress-row"><span id="player-progress">Lv.1 · XP 0/100 · 訓練點 6 · 潛力 88</span><span id="player-morale">士氣 72 · 疲勞 0</span></div>
+            <div class="player-match-selection" aria-label="本場先發安排">
+              <div><span>本場先發</span><strong id="player-match-selection-status">選定後會套用到本場的打線與能力值。</strong></div>
+              <button class="career-match-button" id="set-match-player" type="button">帶入本場先發 <span>↗</span></button>
+            </div>
             <div class="attribute-groups" id="player-attributes" aria-label="球員能力值"></div>
             <div class="training-block">
               <div class="section-heading">
@@ -466,7 +470,7 @@
           </section>
 
           <section class="action-zone" aria-labelledby="action-title">
-          <div class="welcome-panel" id="welcome-panel">
+            <div class="welcome-panel" id="welcome-panel">
               <div>
                 <p class="eyebrow">YOUR POSITION, YOUR PLAY</p>
                 <h3 id="action-title">從你的守備位置開始</h3>
@@ -476,6 +480,14 @@
                 <a class="secondary-button" data-view="multiplayer" href="#network-card">調整位置</a>
                 <button class="primary-button" id="start-game" type="button">開始比賽 <span>↗</span></button>
               </div>
+            </div>
+            <div class="pregame-lineup" id="pregame-lineup" aria-label="本場先發陣容">
+              <div class="pregame-lineup-heading">
+                <div><p class="eyebrow">STARTING NINE</p><h3>本場先發陣容</h3></div>
+                <span class="mini-label" id="pregame-lineup-status">1 / 9 真人已鎖定 · 8 個位置由 NPC 補位</span>
+              </div>
+              <div class="pregame-lineup-grid" id="pregame-lineup-grid"></div>
+              <p class="pregame-lineup-note" id="pregame-lineup-note">先到多人頁選擇位置；沒有真人控制的位置會由免費 NPC 補位。</p>
             </div>
 
             <div class="batting-panel" id="batting-panel" hidden>

@@ -731,6 +731,23 @@ function activeCustomPlayerForPosition(teamId, position) {
   return matches[matches.length - 1] || null;
 }
 
+function defaultLineupIdsForTeam(teamId) {
+  const roster = TEAM_BY_ID[teamId]?.roster || [];
+  return Object.fromEntries(POSITION_DEFS.map(({ code }) => {
+    const player = activeCustomPlayerForPosition(teamId, code) || roster.find((candidate) => candidate.position === code);
+    return [code, player?.id || ""];
+  }));
+}
+
+function normalizeLineupIds(teamId, incoming = {}) {
+  const defaults = defaultLineupIdsForTeam(teamId);
+  return Object.fromEntries(POSITION_DEFS.map(({ code }) => {
+    const candidate = playerDefinitionFor(incoming?.[code]);
+    const valid = candidate?.teamId === teamId && candidate.position === code;
+    return [code, valid ? candidate.id : defaults[code]];
+  }));
+}
+
 function rosterForTeam(teamId = state?.teamId || selectedTeamId) {
   const roster = TEAM_BY_ID[teamId]?.roster || [];
   return roster.map((basePlayer) => activeCustomPlayerForPosition(teamId, basePlayer.position) || basePlayer);
@@ -739,7 +756,14 @@ function rosterForTeam(teamId = state?.teamId || selectedTeamId) {
 function activeLineup() {
   const teamId = state?.teamId || selectedTeamId;
   const roster = rosterForTeam(teamId);
-  return (roster.length ? roster : []).map((player) => matchPlayerForPosition(player.position, teamId) || developedPlayer(player.id));
+  return (roster.length ? roster : []).map((player) => {
+    const networkPlayer = matchPlayerForPosition(player.position, teamId);
+    if (networkPlayer) return networkPlayer;
+    const selectedId = state?.teamId === teamId ? state.lineupIds?.[player.position] : "";
+    const selected = playerDefinitionFor(selectedId);
+    if (selected?.teamId === teamId && selected.position === player.position) return developedPlayer(selected.id);
+    return developedPlayer(player.id);
+  });
 }
 
 function playerForPosition(position, teamId = state?.teamId || selectedTeamId) {
@@ -934,6 +958,9 @@ function matchPlayerForPosition(position, teamId = state?.teamId || selectedTeam
   if (teamId === state?.teamId) {
     const networkPlayer = developedNetworkPlayer(state?.slots?.[position]?.playerSnapshot);
     if (networkPlayer) return networkPlayer;
+    const selectedId = state?.lineupIds?.[position];
+    const selected = playerDefinitionFor(selectedId);
+    if (selected?.teamId === teamId && selected.position === position) return developedPlayer(selected.id);
   }
   return playerForPosition(position, teamId);
 }
@@ -1231,6 +1258,7 @@ function syncMatchAthletes() {
     const customPlayer = customPlayerForNetworkPosition(code, state.teamId);
     const player = customPlayer || playerForPosition(code, state.teamId);
     if (!slot || !player) return;
+    if (state.lineupIds) state.lineupIds[code] = player.id;
     slot.athleteId = player.id;
     slot.playerSnapshot = slot.controller === "human" && slot.playerId === network.localPlayerId ? networkPlayerSnapshotFor(customPlayer) : null;
     if (slot.controller === "npc") slot.name = player.name;
@@ -1369,6 +1397,7 @@ function useCustomPlayer(playerId) {
     return;
   }
   if (state.phase === "pre" || state.phase === "gameover") {
+    if (state.teamId === player.teamId && state.lineupIds) state.lineupIds[player.position] = player.id;
     if (state.teamId === player.teamId) claimLocalPosition(player.position, false);
     syncMatchAthletes();
     commitState();
@@ -1379,6 +1408,55 @@ function useCustomPlayer(playerId) {
     setCustomPlayerStatus(`${player.name} 已選取，下一場比賽開始時會套用到 ${teamFor(player.teamId).name}。`, "is-success");
     render();
   }
+}
+
+function setSelectedPlayerForMatch() {
+  const player = developedPlayer(selectedAthleteId);
+  if (!player) return;
+  if (network.role === "guest") {
+    if (player.isCustom) useCustomPlayer(player.id);
+    else setCustomPlayerStatus("多人房間的官方先發由房主安排；你可以選擇自己的自創角色進入位置。", "is-error");
+    return;
+  }
+  if (!isAuthority()) return;
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    setCustomPlayerStatus("比賽進行中；下一場開始前才能調整先發。", "is-error");
+    return;
+  }
+  if (player.teamId !== state.teamId) replaceMatchTeams(player.teamId, chooseOpponentFor(player.teamId), false);
+  const slot = state.slots[player.position];
+  if (slot?.controller === "human" && slot.playerId !== network.localPlayerId) {
+    setCustomPlayerStatus(`${positionName(player.position)} 目前由 ${slot.name} 控制；請先由該玩家交出位置。`, "is-error");
+    return;
+  }
+  if (player.isCustom) {
+    useCustomPlayer(player.id);
+    setActiveView("match", { scroll: false });
+    return;
+  }
+  customPlayers.forEach((candidate) => {
+    if (candidate.teamId === player.teamId && candidate.position === player.position) candidate.active = false;
+  });
+  refreshCustomPlayerIndex();
+  selectedCustomPlayerId = "";
+  selectedAthleteId = player.id;
+  developmentTeamId = player.teamId;
+  network.displayName = player.name;
+  network.assignedPosition = player.position;
+  const nameInput = $("player-name-input");
+  if (nameInput) nameInput.value = player.name;
+  state.lineupIds[player.position] = player.id;
+  claimLocalPosition(player.position, false);
+  const localSlot = slotForPlayer(network.localPlayerId);
+  if (localSlot?.position === player.position) {
+    localSlot.athleteId = player.id;
+    localSlot.playerSnapshot = null;
+    localSlot.name = player.name;
+  }
+  persistCustomPlayers();
+  commitState();
+  setCustomPlayerStatus(`${player.name} 已列入 ${teamFor(player.teamId).name} 先發，能力值會套用到本場比賽。`, "is-success");
+  setActiveView("match", { scroll: false });
 }
 
 function createCustomPlayerFromForm(event) {
@@ -1767,6 +1845,26 @@ function renderDevelopment() {
   if (!player) return;
   selectedAthleteId = player.id;
   const profile = profileFor(player.id);
+  const matchButton = $("set-match-player");
+  const matchStatus = $("player-match-selection-status");
+  const selectedLineupId = state.lineupIds?.[player.position];
+  const playerSlot = state.slots?.[player.position];
+  const isStarting = selectedLineupId === player.id || playerSlot?.athleteId === player.id;
+  const isLocalController = playerSlot?.controller === "human" && playerSlot.playerId === network.localPlayerId;
+  const canSetMatchPlayer = ["pre", "gameover"].includes(state.phase) && (network.role !== "guest" || player.isCustom);
+  if (matchButton) {
+    matchButton.disabled = !canSetMatchPlayer || playerSlot?.controller === "human" && playerSlot.playerId !== network.localPlayerId;
+    matchButton.textContent = isLocalController ? "目前由你控制" : isStarting ? "接手這個位置" : "帶入本場先發";
+  }
+  if (matchStatus) {
+    matchStatus.textContent = state.phase !== "pre" && state.phase !== "gameover"
+      ? "比賽進行中，下一場才能調整先發。"
+      : playerSlot?.controller === "human" && playerSlot.playerId !== network.localPlayerId
+        ? `${player.position} 目前由 ${playerSlot.name} 控制。`
+        : player.teamId !== state.teamId
+          ? `按下後會切換主隊至 ${teamFor(player.teamId).name}。`
+          : isStarting ? `目前先發：${player.name} · ${positionName(player.position)}` : "選定後會套用到本場的打線與能力值。";
+  }
   const ratings = player.ratings;
   $("player-detail-name").textContent = player.name;
   $("player-detail-position").textContent = `${player.position} · ${player.role}`;
@@ -2003,6 +2101,7 @@ function createState(teamId = selectedTeamId, opponentId = selectedOpponentId, m
     log: [],
     slots: createSlots(teamId),
     playerStats: createPlayerStats(),
+    lineupIds: defaultLineupIdsForTeam(teamId),
     result: "",
     leagueRecorded: false,
     revision: 0,
@@ -2046,6 +2145,7 @@ function normalizeState(snapshot) {
     bases: { ...base.bases, ...(snapshot.bases || {}) },
     innings: Array.isArray(snapshot.innings) ? snapshot.innings : [],
     log: Array.isArray(snapshot.log) ? snapshot.log : [],
+    lineupIds: normalizeLineupIds(normalizedTeamId, snapshot.lineupIds),
     playerStats: Object.fromEntries(POSITION_DEFS.map(({ code }) => [code, {
       ...base.playerStats[code],
       ...(snapshot.playerStats?.[code] || {}),
@@ -3256,6 +3356,31 @@ function renderResultSummary() {
     </div>`;
 }
 
+function renderPregameLineup() {
+  const panel = $("pregame-lineup");
+  const grid = $("pregame-lineup-grid");
+  if (!panel || !grid) return;
+  const isPreGame = state.phase === "pre";
+  panel.hidden = !isPreGame;
+  if (!isPreGame) return;
+  const players = activeLineup();
+  const humanCount = humanPlayerCount();
+  const localSlot = slotForPlayer(network.localPlayerId);
+  const status = $("pregame-lineup-status");
+  const note = $("pregame-lineup-note");
+  if (status) status.textContent = `${humanCount} / ${MAX_PLAYERS} 真人已鎖定 · ${MAX_PLAYERS - humanCount} 個位置由 NPC 補位`;
+  if (note) note.textContent = localSlot
+    ? `你的角色：${localSlot.name} · ${positionName(localSlot.position)}；其餘位置會使用目前先發球員。`
+    : "先到多人頁選擇位置；沒有真人控制的位置會由免費 NPC 補位。";
+  grid.innerHTML = players.map((player) => {
+    const slot = state.slots[player.position];
+    const isHuman = slot?.controller === "human";
+    const owner = isHuman ? (slot.playerId === network.localPlayerId ? "你的角色" : `${slot.name} 控制`) : "NPC 補位";
+    const overall = player.overall ?? overallForPlayer(player);
+    return `<div class="pregame-lineup-player ${isHuman ? "is-human" : ""}"><span class="pregame-lineup-position">${player.position}</span><div><b>${escapeHtml(player.name)}</b><small>OVR ${overall} · ${positionName(player.position)}</small></div><em>${escapeHtml(owner)}</em></div>`;
+  }).join("");
+}
+
 function render() {
   const batter = currentBatter();
   const batterSlot = state.slots[batter.position];
@@ -3321,6 +3446,7 @@ function render() {
   renderLog();
   renderBatter();
   renderActions();
+  renderPregameLineup();
   renderNetwork();
   renderLobby();
   renderDevelopment();
@@ -3332,9 +3458,11 @@ function resetMatchState(matchMode = "league", scheduleContext = null) {
   window.clearTimeout(network.actionTimer);
   network.actionTimer = null;
   const previousSlots = clone(state.slots);
+  const previousLineupIds = clone(state.lineupIds || {});
   const previousRevision = state.revision;
   state = createState(state.teamId, state.opponentId, matchMode, scheduleContext);
   state.revision = previousRevision;
+  state.lineupIds = normalizeLineupIds(state.teamId, previousLineupIds);
   POSITION_DEFS.forEach(({ code }) => {
     const previous = previousSlots[code];
     if (!previous) return;
@@ -3891,6 +4019,7 @@ function bindEvents() {
     selectedAthleteId = button.dataset.athleteId;
     renderDevelopment();
   });
+  $("set-match-player")?.addEventListener("click", setSelectedPlayerForMatch);
   $("custom-player-form")?.addEventListener("submit", createCustomPlayerFromForm);
   $("save-player-now")?.addEventListener("click", savePlayerNow);
   $("export-player-save")?.addEventListener("click", exportPlayerSave);
