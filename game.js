@@ -5,7 +5,8 @@ const actionButtons = [...document.querySelectorAll("[data-action]")];
 const PROTOCOL_VERSION = 3;
 const MAX_PLAYERS = 9;
 const MAX_LOG = 14;
-const ACTION_TIMEOUT_MS = { defense: 7000, fielding: 5000, home: 10000 };
+const ACTION_TIMEOUT_MS = { defense: 15000, fielding: 7000, home: 15000 };
+const MATCH_TIMING_TIMEOUT_MS = 5000;
 const DIFFICULTY_CONFIG = {
   label: "競技",
   swingWindow: 0.9,
@@ -548,6 +549,9 @@ let activeCareerTab = "overview";
 let activePracticeChallenge = null;
 let practiceAnimationFrame = 0;
 let practiceRuntimeTimer = 0;
+let matchTimingChallenge = null;
+let matchTimingAnimationFrame = 0;
+let matchTimingTimer = 0;
 let scheduleStatus = "完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。";
 let builderDraft = null;
 
@@ -3571,7 +3575,7 @@ function hostHandleAction(record, message) {
     sendConnection(record.connection, { type: "status", message: "這一步已經更新，已重新同步最新狀態。" });
     return;
   }
-  const accepted = performActionForPlayer(record.playerId, message.action);
+  const accepted = performActionForPlayer(record.playerId, message.action, false, "", message.timingPosition);
   if (!accepted) {
     sendSnapshotTo(record.connection);
     sendConnection(record.connection, { type: "status", message: "這個位置目前不能執行此操作。", awaiting: false });
@@ -3984,6 +3988,133 @@ function activeEventSlot() {
   return state.slots[activeEventPosition()];
 }
 
+function matchTimingEventKey() {
+  return [state.eventToken, state.phase, state.defenseMode, state.defenseOwner, state.inning, state.batterIndex, state.balls, state.strikes].join("|");
+}
+
+function actionUsesMatchTiming(action) {
+  if (state.phase === "home") return ["power", "contact", "bunt"].includes(action);
+  return state.phase === "defense" && state.defenseMode === "strategy" && Object.prototype.hasOwnProperty.call(DEFENSE_ACTION_META, action);
+}
+
+function timingSeedFor(action) {
+  const source = `${matchTimingEventKey()}|${action}|${state.teamId}|${state.opponentId}`;
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function matchTimingConfig(action) {
+  const pitching = state.phase === "defense";
+  const athlete = pitching ? matchPlayerForPosition("P", state.teamId) || playerForPosition("P", state.teamId) : currentBatter();
+  const ratings = athlete?.ratings || athlete || {};
+  const skill = pitching
+    ? Number(ratings.control || 60)
+    : action === "bunt"
+      ? Number(ratings.bunt || 55)
+      : Number(ratings.contact || 60) * .68 + Number(ratings.vision || 60) * .32;
+  const actionWidth = action === "contact" ? 3 : action === "bunt" ? 2 : 0;
+  const targetWidth = clamp(Math.round(13 + Math.max(0, skill - 35) * .12 + actionWidth), 13, 25);
+  const seed = timingSeedFor(action);
+  const targetCenter = 24 + (seed % 5200) / 100;
+  return {
+    action,
+    kind: pitching ? "pitching" : "hitting",
+    skill,
+    targetWidth,
+    targetCenter,
+    cycleMs: pitching ? 1550 : action === "power" ? 1400 : 1650,
+  };
+}
+
+function timingScoreFromConfig(config, markerPosition) {
+  const position = clamp(Number(markerPosition || 0), 0, 100);
+  const distance = Math.abs(position - config.targetCenter);
+  const inside = distance <= config.targetWidth / 2;
+  return inside
+    ? clamp(Math.round(100 - distance * 1.35), 82, 99)
+    : clamp(Math.round(79 - Math.max(0, distance - config.targetWidth / 2) * 1.45), 25, 79);
+}
+
+function matchTimingScoreFor(action, markerPosition) {
+  return timingScoreFromConfig(matchTimingConfig(action), markerPosition);
+}
+
+function timingGrade(score) {
+  if (score >= 94) return "完美";
+  if (score >= 82) return "良好";
+  if (score >= 60) return "稍早／稍晚";
+  return "失去節奏";
+}
+
+function npcMatchTimingScore(action) {
+  const config = matchTimingConfig(action);
+  return clamp(Math.round(42 + config.skill * .45 + nextRandom() * 18), 45, 98);
+}
+
+function clearMatchTiming() {
+  if (matchTimingAnimationFrame) window.cancelAnimationFrame(matchTimingAnimationFrame);
+  if (matchTimingTimer) window.clearTimeout(matchTimingTimer);
+  matchTimingAnimationFrame = 0;
+  matchTimingTimer = 0;
+  matchTimingChallenge = null;
+}
+
+function beginMatchTiming(action) {
+  if (!localControlsActiveEvent() || !canAction(action) || !actionUsesMatchTiming(action)) return false;
+  clearMatchTiming();
+  matchTimingChallenge = {
+    action,
+    eventKey: matchTimingEventKey(),
+    config: matchTimingConfig(action),
+    markerPosition: 0,
+    startedAt: performance.now(),
+  };
+  render();
+  const challenge = matchTimingChallenge;
+  const animate = (timestamp) => {
+    if (matchTimingChallenge !== challenge || challenge.eventKey !== matchTimingEventKey()) return;
+    const cycle = ((timestamp - challenge.startedAt) % challenge.config.cycleMs) / challenge.config.cycleMs;
+    challenge.markerPosition = cycle <= .5 ? cycle * 200 : (1 - cycle) * 200;
+    const marker = $("match-timing-marker");
+    const score = $("match-timing-score");
+    if (marker) marker.style.left = `${challenge.markerPosition}%`;
+    if (score) score.textContent = `${timingScoreFromConfig(challenge.config, challenge.markerPosition)} 分`;
+    matchTimingAnimationFrame = window.requestAnimationFrame(animate);
+  };
+  matchTimingAnimationFrame = window.requestAnimationFrame(animate);
+  matchTimingTimer = window.setTimeout(() => finishMatchTiming(true), MATCH_TIMING_TIMEOUT_MS);
+  return true;
+}
+
+function finishMatchTiming(timedOut = false) {
+  const challenge = matchTimingChallenge;
+  if (!challenge || challenge.eventKey !== matchTimingEventKey()) {
+    clearMatchTiming();
+    render();
+    return;
+  }
+  const timingPosition = timedOut
+    ? challenge.config.targetCenter < 50 ? 100 : 0
+    : challenge.markerPosition;
+  const action = challenge.action;
+  clearMatchTiming();
+  if (network.role === "guest") {
+    network.awaiting = true;
+    const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, action, timingPosition });
+    if (!sent) {
+      network.awaiting = false;
+      network.status = "時機操作傳送失敗，請確認連線後再試。";
+    } else network.status = "時機操作已送出，等待房主驗證結果。";
+    render();
+    return;
+  }
+  performActionForPlayer(network.localPlayerId, action, false, timedOut ? "timing-timeout" : "", timingPosition);
+}
+
 function localControlsActiveEvent() {
   const eventSlot = activeEventSlot();
   return (state.phase === "home" || state.phase === "defense")
@@ -4054,6 +4185,37 @@ function renderCountLights() {
   });
 }
 
+function renderMatchTiming() {
+  const panel = $("match-timing-panel");
+  const actionsGrid = $("match-actions-grid");
+  if (!panel || !actionsGrid) return false;
+  const active = Boolean(matchTimingChallenge && matchTimingChallenge.eventKey === matchTimingEventKey() && localControlsActiveEvent());
+  if (!active && matchTimingChallenge) clearMatchTiming();
+  panel.hidden = !active;
+  actionsGrid.hidden = active;
+  if (!active) return false;
+  const challenge = matchTimingChallenge;
+  const config = challenge.config;
+  const kind = $("match-timing-kind");
+  const title = $("match-timing-title");
+  const target = $("match-timing-target");
+  const marker = $("match-timing-marker");
+  const buttonLabel = $("match-timing-button-label");
+  const hint = $("match-timing-hint");
+  if (kind) kind.textContent = config.kind === "pitching" ? "PITCH RELEASE · 投球放球點" : "BAT TIMING · 擊球時機";
+  if (title) title.textContent = config.kind === "pitching" ? "指針進入控球區時放球" : config.action === "bunt" ? "在綠色區內把球點下去" : "看準綠色甜蜜區揮棒";
+  if (target) {
+    target.style.left = `${config.targetCenter - config.targetWidth / 2}%`;
+    target.style.width = `${config.targetWidth}%`;
+  }
+  if (marker) marker.style.left = `${challenge.markerPosition}%`;
+  if (buttonLabel) buttonLabel.textContent = config.kind === "pitching" ? "放球" : config.action === "bunt" ? "觸擊" : "揮棒";
+  if (hint) hint.textContent = config.kind === "pitching"
+    ? "放球越接近中央，這個半局的失分風險越低。"
+    : "時機會直接影響安打、長打、界外與揮空機率。";
+  return true;
+}
+
 function renderActions() {
   const batter = currentBatter();
   const defense = state.phase === "defense";
@@ -4061,15 +4223,16 @@ function renderActions() {
   const position = activeEventPosition();
   const slot = activeEventSlot();
   const localTurn = localControlsActiveEvent();
+  const timingActive = renderMatchTiming();
   const ownerText = slot?.controller === "npc" ? "NPC 正在閱讀球況" : slot?.playerId === network.localPlayerId ? "輪到你決定" : `等待 ${slot?.name || "隊友"}`;
   $("action-title-batting").textContent = defense ? `${positionName(position)} ${state.defenseMode === "fielding" ? "守備事件" : "守備決策"} · ${ownerText}` : state.phase === "home" ? `${batter.position} ${batter.name} · ${ownerText}` : "選擇一個策略";
-  $("pitch-count-note").textContent = network.awaiting ? "決策已送出，等待同步" : defense ? state.defenseMode === "fielding" ? `客隊攻勢：${state.pendingAwayRuns} 分危機` : "選擇客隊進攻前的守備策略" : state.phase === "home" ? `${state.balls} 壞球 · ${state.strikes} 好球` : "選擇一個策略";
+  $("pitch-count-note").textContent = timingActive ? defense ? "完成放球時機" : "完成擊球時機" : network.awaiting ? "決策已送出，等待同步" : defense ? state.defenseMode === "fielding" ? `客隊攻勢：${state.pendingAwayRuns} 分危機` : "選擇客隊進攻前的守備策略" : state.phase === "home" ? `${state.balls} 壞球 · ${state.strikes} 好球` : "選擇一個策略";
   renderCountLights();
   const actionKeys = Object.keys(actionMeta);
   actionButtons.forEach((button) => {
     const action = actionKeys[actionButtons.indexOf(button)];
     button.dataset.action = action;
-    const allowed = localTurn && canAction(action);
+    const allowed = localTurn && !timingActive && canAction(action);
     button.disabled = !allowed;
     const meta = actionMeta[action];
     if (meta) {
@@ -4080,7 +4243,9 @@ function renderActions() {
     }
   });
   renderDecisionTimer();
-  $("action-hint").textContent = network.awaiting
+  $("action-hint").textContent = timingActive
+    ? "按下畫面按鈕或空白鍵；越接近綠色區中央，實戰效果越好。"
+    : network.awaiting
     ? "決策已送出，房主正在驗證並同步結果。"
     : defense && slot?.controller === "npc"
       ? state.defenseMode === "fielding" ? `${positionName(position)} 目前由 NPC 補位；真人加入或接手後即可處理來球。` : "投手或捕手目前由 NPC 補位；真人加入或接手後即可操作守備策略。"
@@ -4267,6 +4432,7 @@ function render() {
 function resetMatchState(matchMode = "league", scheduleContext = null) {
   window.clearTimeout(network.actionTimer);
   network.actionTimer = null;
+  clearMatchTiming();
   const previousSlots = clone(state.slots);
   const previousLineupIds = clone(state.lineupIds || {});
   const previousRevision = state.revision;
@@ -4319,12 +4485,12 @@ function beginDefenseHalf() {
   state.defenseMode = "strategy";
   state.defenseAction = "";
   state.pendingAwayRuns = 0;
-  state.defenseOwner = state.slots.C.controller === "human" ? "C" : state.slots.P.controller === "human" ? "P" : "P";
+  state.defenseOwner = state.slots.P.controller === "human" ? "P" : state.slots.C.controller === "human" ? "C" : "P";
   addLog(`${state.inning} 局上，${teamFor(state.teamId).name} 的${positionName(state.defenseOwner)}準備面對客隊打線。`, "big");
   armActionDeadline();
 }
 
-function simulateAwayHalf(defenseAction = "defense-control") {
+function simulateAwayHalf(defenseAction = "defense-control", timingScore = 65) {
   state.phase = "cpu";
   state.half = "top";
   resetBases();
@@ -4343,9 +4509,10 @@ function simulateAwayHalf(defenseAction = "defense-control") {
   const offensiveStrength = clamp(1 + (Number(opponentStats.sluggingPct || 0.33) - 0.33) * 2 + (Number(opponentStats.onBasePct || 0.32) - 0.32) * 1.2, 0.9, 1.13);
   const [baseThreeRun, baseTwoRun, baseOneRun] = profiles[defenseAction] || profiles["defense-control"];
   const planFactor = teamPlanMultiplier(defenseAction);
-  const threeRun = clamp(baseThreeRun * offensiveStrength / planFactor, 0.03, 0.22);
-  const twoRun = clamp(baseTwoRun * offensiveStrength / planFactor, threeRun + 0.04, 0.5);
-  const oneRun = clamp(baseOneRun * offensiveStrength / planFactor, twoRun + 0.08, 0.82);
+  const timingRisk = clamp(1.25 - Number(timingScore || 65) / 230, .82, 1.15);
+  const threeRun = clamp(baseThreeRun * offensiveStrength * timingRisk / planFactor, 0.03, 0.24);
+  const twoRun = clamp(baseTwoRun * offensiveStrength * timingRisk / planFactor, threeRun + 0.04, 0.54);
+  const oneRun = clamp(baseOneRun * offensiveStrength * timingRisk / planFactor, twoRun + 0.08, 0.86);
   const roll = nextRandom();
   const runs = roll < threeRun ? 3 : roll < twoRun ? 2 : roll < oneRun ? 1 : 0;
   if (runs === 0) {
@@ -4533,9 +4700,10 @@ function careerFocusMultiplier(player) {
   return Number(profileFor(player.id)?.focusMeter || 0) >= 100 ? 1.1 : 1;
 }
 
-function resolveSwing(action) {
+function resolveSwing(action, timingScore = 65) {
   const batter = currentBatter();
-  const roll = nextRandom();
+  const rawRoll = nextRandom();
+  const roll = clamp(rawRoll - (Number(timingScore || 65) - 65) / 420, 0, .999);
   const ratings = batter.ratings || batter;
   const countFactor = state.strikes === 2 ? 0.92 : state.balls >= 2 ? 1.04 : 1;
   const swingWindow = DIFFICULTY_CONFIG.swingWindow * opponentPitchingFactor() * countFactor * teamPlanMultiplier(action) * careerFocusMultiplier(batter);
@@ -4587,11 +4755,12 @@ function resolvePatient() {
   }
 }
 
-function resolveBunt() {
+function resolveBunt(timingScore = 65) {
   const batter = currentBatter();
   const roll = nextRandom();
-  if (roll < DIFFICULTY_CONFIG.buntHitChance * teamPlanMultiplier("bunt")) { applyHit("single"); return; }
-  if (roll < 0.7) {
+  const timingFactor = clamp(.55 + Number(timingScore || 65) / 120, .75, 1.35);
+  if (roll < DIFFICULTY_CONFIG.buntHitChance * teamPlanMultiplier("bunt") * timingFactor) { applyHit("single"); return; }
+  if (roll < clamp(.55 + Number(timingScore || 65) / 400, .6, .8)) {
     const scored = state.bases.third ? 1 : 0;
     if (state.bases.third) scoreRun(state.bases.third);
     state.bases.third = state.bases.second;
@@ -4682,7 +4851,7 @@ function scheduleNpcTurn() {
   }, 520);
 }
 
-function performActionForPlayer(playerId, action, npc = false, reason = "") {
+function performActionForPlayer(playerId, action, npc = false, reason = "", timingPosition = null) {
   if (!isAuthority() || (state.phase !== "home" && state.phase !== "defense") || state.actionLock || !canAction(action)) return false;
   const slot = activeEventSlot();
   if (!npc && (slot.controller !== "human" || slot.playerId !== playerId)) return false;
@@ -4691,6 +4860,11 @@ function performActionForPlayer(playerId, action, npc = false, reason = "") {
     addLog(`${positionName(slot.position)} 玩家逾時，NPC 接手採用${fallbackName}。`, "danger");
     return performActionForPlayer(null, chooseTimeoutAction(), true, "timeout");
   }
+  const usesTiming = actionUsesMatchTiming(action);
+  if (usesTiming && !npc && (timingPosition == null || !Number.isFinite(Number(timingPosition)))) return false;
+  const timingScore = usesTiming
+    ? npc ? npcMatchTimingScore(action) : matchTimingScoreFor(action, Number(timingPosition))
+    : 65;
   state.actionLock = true;
   state.decisions += 1;
   if (slot.controller === "human" && !npc && state.playerStats[slot.position]) state.playerStats[slot.position].decisions += 1;
@@ -4698,14 +4872,18 @@ function performActionForPlayer(playerId, action, npc = false, reason = "") {
     state.timeouts += 1;
     if (state.playerStats[slot.position]) state.playerStats[slot.position].timeouts += 1;
   }
+  if (usesTiming && !npc) {
+    const timingKind = state.phase === "defense" ? "投球放球點" : action === "bunt" ? "短打時機" : "擊球時機";
+    addLog(`${slot.name || positionName(slot.position)} ${timingKind} ${timingScore} 分 · ${timingGrade(timingScore)}。`, timingScore >= 82 ? "big" : timingScore < 55 ? "danger" : "");
+  }
   if (state.phase === "defense") {
     state.defenseAction = action;
     if (state.defenseMode === "fielding") resolveFieldingAction(action);
-    else simulateAwayHalf(action);
+    else simulateAwayHalf(action, timingScore);
     if (state.phase === "cpu") beginHomeHalf();
-  } else if (action === "power" || action === "contact") resolveSwing(action);
+  } else if (action === "power" || action === "contact") resolveSwing(action, timingScore);
   else if (action === "patient") resolvePatient();
-  else if (action === "bunt") resolveBunt();
+  else if (action === "bunt") resolveBunt(timingScore);
   else if (action === "steal") resolveSteal();
   consumeTeamPlan(action);
   state.actionLock = false;
@@ -4717,6 +4895,10 @@ function performActionForPlayer(playerId, action, npc = false, reason = "") {
 
 function handleAction(action) {
   if (!localControlsActiveEvent() || !canAction(action)) return;
+  if (actionUsesMatchTiming(action)) {
+    beginMatchTiming(action);
+    return;
+  }
   if (network.role === "guest") {
     network.awaiting = true;
     const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, action });
@@ -4925,8 +5107,14 @@ function bindEvents() {
     }
   }));
   actionButtons.forEach((button) => button.addEventListener("click", () => handleAction(button.dataset.action)));
+  $("match-timing-button")?.addEventListener("click", () => finishMatchTiming(false));
   document.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (matchTimingChallenge && (event.key === " " || event.key === "Enter")) {
+      event.preventDefault();
+      finishMatchTiming(false);
+      return;
+    }
     const keyMap = state.phase === "defense"
       ? Object.fromEntries(Object.entries(activeActionMeta()).map(([action, meta]) => [meta.key, action]))
       : { "1": "power", "2": "contact", "3": "patient", "4": "bunt", "5": "steal" };

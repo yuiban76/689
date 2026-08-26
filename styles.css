@@ -995,6 +995,22 @@ kbd { min-width: 24px; padding: 4px 6px; font-size: 12px; }
 .practice-execution-hint { color: var(--muted); font-size: 13px !important; text-align: center; }
 .practice-choices.is-locked button { pointer-events: none; opacity: .42; }
 
+/* In-game batting and pitching timing */
+.match-timing-panel { display: grid; gap: 13px; padding: 16px; border: 1px solid rgba(216,242,109,.32); border-radius: 12px; background: linear-gradient(120deg, rgba(216,242,109,.09), rgba(139,229,209,.045)); }
+.match-timing-panel[hidden], .actions-grid[hidden] { display: none; }
+.match-timing-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.match-timing-heading > div { display: grid; gap: 3px; }
+.match-timing-heading span { color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+.match-timing-heading b { color: var(--text); font-size: 17px; }
+.match-timing-heading strong { min-width: 72px; color: var(--lime); font-size: 19px; text-align: right; }
+.match-timing-track { position: relative; height: 38px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 20px; background: linear-gradient(90deg, rgba(239,114,101,.14), rgba(255,157,89,.08), rgba(239,114,101,.14)); }
+.match-timing-track i { position: absolute; top: 4px; bottom: 4px; border: 1px solid rgba(216,242,109,.8); border-radius: 16px; background: rgba(216,242,109,.28); box-shadow: 0 0 18px rgba(216,242,109,.14); }
+.match-timing-track b { position: absolute; top: 0; bottom: 0; width: 6px; border-radius: 6px; background: #fff; box-shadow: 0 0 13px rgba(255,255,255,.85); transform: translateX(-50%); }
+.match-timing-button { display: flex; min-height: 52px; align-items: center; justify-content: center; gap: 12px; border: 0; border-radius: 10px; color: #0b110f; background: var(--lime); cursor: pointer; font-size: 16px !important; font-weight: 900; }
+.match-timing-button:hover { background: #e5ff8b; transform: translateY(-1px); }
+.match-timing-button kbd { color: #0b110f; border-color: rgba(11,17,15,.22); background: rgba(11,17,15,.09); }
+.match-timing-panel > small { color: var(--muted); font-size: 13px !important; text-align: center; }
+
 /* Postseason bracket and series schedule */
 .postseason-panel { display: grid; gap: 11px; margin-top: 7px; padding: 16px; border: 1px solid rgba(255, 157, 89, .22); border-radius: 13px; background: linear-gradient(125deg, rgba(255,157,89,.075), rgba(216,242,109,.035)); }
 .postseason-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -1016,6 +1032,10 @@ kbd { min-width: 24px; padding: 4px 6px; font-size: 12px; }
 .postseason-status { margin: 0; color: var(--muted); font-size: 13px !important; line-height: 1.55; }
 
 @media (max-width: 760px) {
+  .match-timing-panel { padding: 13px; }
+  .match-timing-heading { align-items: flex-end; }
+  .match-timing-heading b { font-size: 15px; }
+  .match-timing-heading strong { min-width: 60px; font-size: 17px; }
   .practice-direction-pad { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .postseason-bracket { grid-template-columns: 1fr; }
   .postseason-advance { transform: rotate(90deg); }

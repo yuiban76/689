@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=training-postseason-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=match-timing-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=training-postseason-2026a" defer></script>
+    <script src="./game.js?v=match-timing-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -545,7 +545,18 @@
                   <span class="decision-timer" id="decision-timer" aria-live="polite">—</span>
                 </div>
               </div>
-              <div class="actions-grid">
+              <section class="match-timing-panel" id="match-timing-panel" aria-labelledby="match-timing-title" hidden>
+                <div class="match-timing-heading">
+                  <div><span id="match-timing-kind">實戰時機</span><b id="match-timing-title">掌握最佳操作點</b></div>
+                  <strong id="match-timing-score">等待操作</strong>
+                </div>
+                <div class="match-timing-track" id="match-timing-track" aria-label="實戰時機條">
+                  <i id="match-timing-target"></i><b id="match-timing-marker"></b>
+                </div>
+                <button class="match-timing-button" id="match-timing-button" type="button"><span id="match-timing-button-label">掌握時機</span><kbd>SPACE</kbd></button>
+                <small id="match-timing-hint">指針越靠近綠色區中央，操作效果越好。</small>
+              </section>
+              <div class="actions-grid" id="match-actions-grid">
                 <button class="action-button action-power" data-action="power" type="button">
                   <span class="action-icon">↗</span>
                   <span><b>全力揮擊</b><small>長打機會高，三振風險也高</small></span>
