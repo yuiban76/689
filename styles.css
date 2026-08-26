@@ -756,3 +756,222 @@ body[data-active-view="roster"] .player-hub { margin-bottom: 12px; }
   .career-history-row { grid-template-columns: 1fr auto; }
   .career-history-row span { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Readability pass: comfortable at 100% browser zoom. */
+:root {
+  --muted: #c0cbc1;
+  --quiet: #96a59a;
+}
+
+body { font-size: 16px; line-height: 1.5; }
+p { font-size: 14px !important; }
+small { font-size: 12px !important; line-height: 1.45 !important; }
+label { font-size: 13px !important; }
+button, input, select { font-size: 14px !important; }
+kbd { min-width: 24px; padding: 4px 6px; font-size: 12px; }
+
+.eyebrow,
+.section-nav-index,
+.section-nav-note,
+.live-indicator,
+.network-badge,
+.team-tag,
+.score-divider,
+.status-pill,
+.mini-label,
+.count-badge,
+.field-label,
+.outs-track-label,
+.pitch-count-note,
+.count-light-group b,
+.room-status-strip span,
+.feature-disclosure-index,
+.feature-disclosure-state,
+.roster-number,
+.player-overall-wrap span,
+.builder-overall-wrap span,
+.hub-overall span,
+.hub-kicker,
+.hub-next-label,
+.career-avatar-mark,
+.career-feedback-card > span,
+.player-match-selection > div > span,
+.pregame-lineup-position,
+.career-spotlight-card > span,
+.career-key-game-objective > span,
+.practice-challenge > span,
+.career-badge > span,
+.career-badge > em { font-size: 12px !important; line-height: 1.4; }
+
+.section-nav-link b,
+.network-card p:not(.eyebrow),
+.network-button,
+.room-code-panel,
+.copy-button,
+.stadium-weather,
+.team-record,
+.line-score,
+.field-note,
+.batter-meta,
+.meter-row,
+.meter-row b,
+.welcome-panel p:not(.eyebrow),
+.gameover-panel p:not(.eyebrow),
+.secondary-button,
+.action-button small,
+.action-hint,
+.decision-commentary .situation-copy,
+.momentum-card p,
+.stat-grid span,
+.rules-card li p,
+.footer-note,
+.player-identity input,
+.lobby-role-copy > span,
+.lobby-readiness-row,
+.position-owner,
+.position-rating,
+.lobby-footer,
+.decision-timer,
+.result-summary-heading p,
+.result-summary-heading span,
+.player-result-stat span,
+.player-result-copy,
+.result-player-top strong,
+.result-player-top b,
+.result-player-name,
+.result-player-meta,
+.team-signal-heading span,
+.signal-button,
+.development-heading > div:first-child > p:last-child,
+.development-team-label,
+.team-data-note,
+.team-tab span,
+.roster-player-main b,
+.roster-player-main small,
+.player-detail-header p:last-child,
+.player-progress-row,
+.attribute-group h4,
+.training-block h4,
+.statline-section h4,
+.player-upgrade-copy,
+.player-upgrade-rules span,
+.player-upgrade-status,
+.statline-grid span,
+.statline-grid b,
+.pitch-mix,
+.standing-head,
+.standing-row,
+.standings-note,
+.custom-player-copy,
+.custom-player-row-main b,
+.custom-player-row-main small,
+.custom-player-empty,
+.custom-player-status,
+.player-save-copy b,
+.player-save-copy small,
+.save-auto-badge,
+.career-mode-heading p:not(.eyebrow),
+.career-mode-summary,
+.career-player-identity strong,
+.career-player-identity small,
+.practice-button b,
+.career-mode-status,
+.season-schedule-heading p:not(.eyebrow),
+.season-schedule-summary,
+.season-schedule-date b,
+.season-schedule-match b,
+.season-schedule-row > strong,
+.season-schedule-empty,
+.season-schedule-status,
+.builder-heading p:not(.eyebrow),
+.builder-build-summary,
+.builder-cap-note,
+.builder-group-heading h4,
+.builder-group-heading span,
+.builder-attribute-row,
+.builder-attribute-name b,
+.builder-attribute-name small,
+.builder-attribute-row > strong,
+.builder-cap,
+.hub-player-copy p,
+.hub-progress-row,
+.hub-next-card p,
+.hub-next-action b,
+.room-status-strip strong,
+.feature-disclosure-copy small,
+.development-path b,
+.development-path small,
+.career-goal-row > div:first-child span,
+.career-goal-row > div:first-child strong,
+.career-goal-row > span,
+.career-feedback-card > small,
+.player-match-selection > div > strong,
+.pregame-lineup-player b,
+.pregame-lineup-player small,
+.pregame-lineup-player em,
+.pregame-lineup-note,
+.career-tab,
+.career-spotlight-card > small,
+.career-key-game-copy > p:last-child,
+.career-key-game-objective > small,
+.career-history-row b,
+.career-history-row span,
+.career-history-row small,
+.career-history-empty,
+.career-badge > b,
+.career-badge > small,
+.career-badge-note { font-size: 13px !important; line-height: 1.5; }
+
+.situation-copy,
+.play-event,
+.action-button b,
+.info-card h3,
+.feature-disclosure-copy b,
+.roster-player > strong,
+.career-feedback-card > strong,
+.practice-challenge > strong,
+.career-key-game-objective > strong { font-size: 15px !important; }
+
+.attribute-row {
+  grid-template-columns: minmax(96px, auto) minmax(45px, 1fr) auto auto;
+  gap: 8px;
+  min-height: 34px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.attribute-row strong { min-width: 46px; font-size: 14px; }
+.attribute-row strong small { font-size: 11px !important; }
+.attribute-upgrade { min-width: 72px; min-height: 30px; padding: 6px 8px; font-size: 12px !important; }
+.statline-grid span { min-height: 31px; padding: 7px; }
+
+.builder-template-choice { min-height: 92px; padding: 11px; }
+.builder-template-choice b { font-size: 14px; }
+.builder-template-choice small { font-size: 12px !important; }
+.builder-template-choice span { font-size: 12px; line-height: 1.45; }
+.builder-attribute-row {
+  grid-template-columns: minmax(112px, 1fr) 32px 32px 32px 40px;
+  gap: 7px;
+  min-height: 40px;
+  margin-top: 7px;
+}
+.builder-adjust { width: 32px; height: 32px; font-size: 18px !important; }
+.builder-attribute-row > i { height: 6px; }
+
+.roster-player { min-height: 54px; padding: 10px; }
+.team-tab { min-height: 54px; padding: 9px 6px; }
+.position-slot { min-height: 102px; padding: 12px 10px; }
+.position-name { font-size: 14px; }
+.position-owner, .position-rating { white-space: normal; }
+.practice-button { min-height: 68px; padding: 11px 12px; }
+.career-tab { min-height: 46px; }
+.practice-choices button { min-height: 50px; padding: 11px 12px; font-size: 14px !important; }
+.player-save-button, .custom-player-use, .career-match-button { min-height: 40px; padding: 9px 12px; }
+
+@media (max-width: 760px) {
+  .app-shell { width: min(100% - 16px, 640px); }
+  .section-nav-link { min-width: 128px; padding: 10px 12px; }
+  .attribute-row { grid-template-columns: minmax(94px, auto) minmax(36px, 1fr) auto auto; }
+  .builder-template-grid, .builder-attributes { grid-template-columns: 1fr; }
+  .builder-attribute-row { grid-template-columns: minmax(110px, 1fr) 34px 34px 34px 42px; }
+  .pregame-lineup-grid { grid-template-columns: 1fr; }
+}
