@@ -975,3 +975,50 @@ kbd { min-width: 24px; padding: 4px 6px; font-size: 12px; }
   .builder-attribute-row { grid-template-columns: minmax(110px, 1fr) 34px 34px 34px 42px; }
   .pregame-lineup-grid { grid-template-columns: 1fr; }
 }
+
+/* Interactive practice drills */
+.practice-execution { display: grid; justify-items: stretch; gap: 12px; padding: 14px; border: 1px solid rgba(139, 229, 209, .22); border-radius: 11px; background: rgba(3, 10, 6, .46); }
+.practice-execution[hidden], .practice-timing-track[hidden], .practice-direction-pad[hidden] { display: none; }
+.practice-signal { display: grid; min-height: 60px; place-items: center; border-radius: 9px; color: var(--text); background: rgba(255, 255, 255, .045); font-size: 22px; font-weight: 900; text-align: center; }
+.practice-signal.is-waiting { color: var(--orange); background: rgba(255, 157, 89, .1); }
+.practice-signal.is-go { color: #0b110f; background: var(--lime); box-shadow: 0 0 24px rgba(216, 242, 109, .22); }
+.practice-timing-track { position: relative; height: 34px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); border-radius: 18px; background: linear-gradient(90deg, rgba(239,114,101,.12), rgba(255,157,89,.08), rgba(239,114,101,.12)); }
+.practice-timing-track i { position: absolute; top: 3px; bottom: 3px; border: 1px solid rgba(216, 242, 109, .7); border-radius: 14px; background: rgba(216, 242, 109, .24); }
+.practice-timing-track b { position: absolute; top: 0; bottom: 0; width: 5px; border-radius: 5px; background: var(--text); box-shadow: 0 0 12px rgba(255,255,255,.75); transform: translateX(-50%); }
+.practice-direction-pad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.practice-direction-pad button { display: grid; min-height: 62px; place-items: center; gap: 2px; border: 1px solid rgba(139,229,209,.2); border-radius: 9px; color: var(--teal); background: rgba(139,229,209,.045); cursor: pointer; font-size: 23px !important; font-weight: 900; }
+.practice-direction-pad button:hover { border-color: var(--lime); color: var(--lime); background: rgba(216,242,109,.1); }
+.practice-direction-pad button small { color: var(--muted); font-size: 12px !important; }
+.practice-execute-button { min-height: 52px; border: 0; border-radius: 10px; color: #0b110f; background: var(--lime); cursor: pointer; font-size: 16px !important; font-weight: 900; }
+.practice-execute-button:hover:not(:disabled) { background: #e5ff8b; transform: translateY(-1px); }
+.practice-execute-button:disabled { cursor: not-allowed; opacity: .42; }
+.practice-execution-hint { color: var(--muted); font-size: 13px !important; text-align: center; }
+.practice-choices.is-locked button { pointer-events: none; opacity: .42; }
+
+/* Postseason bracket and series schedule */
+.postseason-panel { display: grid; gap: 11px; margin-top: 7px; padding: 16px; border: 1px solid rgba(255, 157, 89, .22); border-radius: 13px; background: linear-gradient(125deg, rgba(255,157,89,.075), rgba(216,242,109,.035)); }
+.postseason-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.postseason-heading h4 { margin: 2px 0 0; color: var(--text); font-size: 18px; }
+.postseason-bracket { display: grid; grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); align-items: stretch; gap: 8px; }
+.postseason-series-card { display: grid; gap: 8px; padding: 13px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(3,10,6,.35); }
+.postseason-series-card.is-active { border-color: rgba(216,242,109,.4); background: rgba(216,242,109,.07); }
+.postseason-series-card > span { color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+.postseason-team-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 14px; }
+.postseason-team-line b { color: var(--text); }
+.postseason-team-line strong { color: var(--lime); font-size: 18px; }
+.postseason-advance { display: grid; place-items: center; color: var(--orange); font-size: 24px; }
+.postseason-schedule-list { display: grid; gap: 5px; }
+.postseason-game-row { display: grid; grid-template-columns: 80px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid rgba(255,255,255,.06); border-radius: 8px; color: var(--muted); background: rgba(255,255,255,.018); font-size: 13px; }
+.postseason-game-row.is-next { border-color: rgba(216,242,109,.4); background: rgba(216,242,109,.07); }
+.postseason-game-row b { color: var(--text); }
+.postseason-game-row span:nth-child(2) small { display: block; margin-top: 2px; color: var(--muted); }
+.postseason-game-row strong { color: var(--teal); white-space: nowrap; }
+.postseason-status { margin: 0; color: var(--muted); font-size: 13px !important; line-height: 1.55; }
+
+@media (max-width: 760px) {
+  .practice-direction-pad { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .postseason-bracket { grid-template-columns: 1fr; }
+  .postseason-advance { transform: rotate(90deg); }
+  .postseason-game-row { grid-template-columns: 68px minmax(0,1fr); }
+  .postseason-game-row strong { grid-column: 2; }
+}

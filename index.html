@@ -9,9 +9,9 @@
     />
     <meta name="theme-color" content="#0c1210" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=readable-ui-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=training-postseason-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=vc-progression-2026b" defer></script>
+    <script src="./game.js?v=training-postseason-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -294,6 +294,18 @@
             <div class="practice-challenge" id="practice-challenge" hidden>
               <span id="practice-challenge-label">訓練情境</span><strong id="practice-challenge-question">選擇訓練後開始</strong>
               <div class="practice-choices" id="practice-choices"></div>
+              <div class="practice-execution" id="practice-execution" hidden>
+                <div class="practice-signal" id="practice-signal">準備</div>
+                <div class="practice-timing-track" id="practice-timing-track" hidden><i id="practice-target-zone"></i><b id="practice-timing-marker"></b></div>
+                <div class="practice-direction-pad" id="practice-direction-pad" hidden>
+                  <button type="button" data-practice-direction="up">↑<small>前進</small></button>
+                  <button type="button" data-practice-direction="left">←<small>左側</small></button>
+                  <button type="button" data-practice-direction="right">→<small>右側</small></button>
+                  <button type="button" data-practice-direction="down">↓<small>後退</small></button>
+                </div>
+                <button class="practice-execute-button" id="practice-execute-button" data-practice-execute type="button">掌握時機</button>
+                <small class="practice-execution-hint" id="practice-execution-hint">等待操作指示</small>
+              </div>
             </div>
             <div class="career-development-panel">
               <div class="career-development-heading">
@@ -332,6 +344,12 @@
           </div>
           <div class="season-schedule-list" id="season-schedule-list" aria-label="2026 賽季賽程列表"></div>
           <p class="season-schedule-status" id="season-schedule-status">完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。</p>
+          <section class="postseason-panel" aria-labelledby="postseason-title">
+            <div class="postseason-heading"><div><p class="eyebrow">POSTSEASON</p><h4 id="postseason-title">2026 季後賽</h4></div><span class="mini-label" id="postseason-state">預估席次</span></div>
+            <div class="postseason-bracket" id="postseason-bracket"></div>
+            <div class="postseason-schedule-list" id="postseason-schedule-list"></div>
+            <p class="postseason-status" id="postseason-status">例行賽結束後，前三名進入季後賽。</p>
+          </section>
         </section>
         </details>
         <details class="feature-disclosure" id="roster-feature">

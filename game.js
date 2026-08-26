@@ -532,6 +532,7 @@ function normalizeScheduleStore(raw) {
   return {
     seasonYear: CPBL_SEASON_YEAR,
     completed: source.seasonYear === CPBL_SEASON_YEAR && source.completed && typeof source.completed === "object" ? source.completed : {},
+    postseason: source.seasonYear === CPBL_SEASON_YEAR && source.postseason && typeof source.postseason === "object" ? source.postseason : null,
   };
 }
 let scheduleStore = normalizeScheduleStore(readStorage(SCHEDULE_STORAGE_KEY, {}));
@@ -545,6 +546,8 @@ let careerStatus = "建立自創球員後，就能展開自己的球員生涯。
 let careerStatusTone = "";
 let activeCareerTab = "overview";
 let activePracticeChallenge = null;
+let practiceAnimationFrame = 0;
+let practiceRuntimeTimer = 0;
 let scheduleStatus = "完整 360 場賽季已建立；每支球隊各 120 場，進度保存在這個瀏覽器。";
 let builderDraft = null;
 
@@ -1110,18 +1113,26 @@ function runPracticeDrill(drillType) {
     const target = Math.floor(Math.random() * (index + 1));
     [options[index], options[target]] = [options[target], options[index]];
   }
-  activePracticeChallenge = { drillType, question: scenario.question, lesson: scenario.lesson, options };
+  clearPracticeRuntime();
+  activePracticeChallenge = { drillType, question: scenario.question, lesson: scenario.lesson, options, stage: "decision", execution: null };
   activeCareerTab = "training";
-  setCareerStatus(`${meta.title}已開始；先讀懂情境，再做出你的決策。`);
+  setCareerStatus(`${meta.title}已開始；先判斷情境，再完成操作挑戰。`);
   render();
 }
 
-function resolvePracticeChallenge(choiceIndex) {
+function clearPracticeRuntime() {
+  if (practiceAnimationFrame) window.cancelAnimationFrame(practiceAnimationFrame);
+  if (practiceRuntimeTimer) window.clearTimeout(practiceRuntimeTimer);
+  practiceAnimationFrame = 0;
+  practiceRuntimeTimer = 0;
+}
+
+function beginPracticeExecution(choiceIndex) {
   const challenge = activePracticeChallenge;
   const player = selectedCareerPlayer();
   const meta = challenge ? PRACTICE_META[challenge.drillType] : null;
   const option = challenge?.options?.[choiceIndex];
-  if (!challenge || !player || !meta || !option) return;
+  if (!challenge || challenge.stage !== "decision" || !player || !meta || !option) return;
   const profile = profileFor(player.id);
   if (!profile || profile.practiceSessions <= 0) {
     activePracticeChallenge = null;
@@ -1130,9 +1141,142 @@ function resolvePracticeChallenge(choiceIndex) {
     return;
   }
   const focusAverage = meta.focus.reduce((sum, key) => sum + Number(player.ratings[key] || 50), 0) / meta.focus.length;
-  const score = option.correct
-    ? clamp(Math.round(82 + focusAverage * 0.12 + Math.random() * 7), 86, 99)
-    : clamp(Math.round(48 + focusAverage * 0.18 + Math.random() * 7), 50, 74);
+  const execution = {
+    kind: challenge.drillType,
+    focusAverage,
+    decisionCorrect: option.correct,
+    markerPosition: 0,
+    signalGo: false,
+    completed: false,
+    targetDirection: ["up", "left", "right", "down"][Math.floor(Math.random() * 4)],
+    targetWidth: clamp(14 + (focusAverage - 50) * .12, 13, 22),
+    targetCenter: 25 + Math.random() * 50,
+    signalDelay: 750 + Math.random() * 950,
+  };
+  challenge.stage = "execution";
+  challenge.selectedOption = option;
+  challenge.execution = execution;
+  setCareerStatus(`${option.correct ? "情境判斷正確" : "情境判斷有風險"}；現在完成操作挑戰，操作表現仍能拉高評分。`, option.correct ? "" : "is-error");
+  render();
+  startPracticeExecutionRuntime();
+}
+
+function startPracticeExecutionRuntime() {
+  clearPracticeRuntime();
+  const challenge = activePracticeChallenge;
+  const execution = challenge?.execution;
+  if (!challenge || challenge.stage !== "execution" || !execution || execution.completed) return;
+  const signal = $("practice-signal");
+  const executeButton = $("practice-execute-button");
+  if (execution.kind === "speed") {
+    if (signal) {
+      signal.textContent = "紅燈 · 不要起跑";
+      signal.className = "practice-signal is-waiting";
+    }
+    if (executeButton) {
+      executeButton.textContent = "起跑";
+      executeButton.disabled = false;
+    }
+    practiceRuntimeTimer = window.setTimeout(() => {
+      if (activePracticeChallenge?.execution !== execution || execution.completed) return;
+      execution.signalGo = true;
+      execution.signalAt = performance.now();
+      if (signal) {
+        signal.textContent = "綠燈！現在起跑";
+        signal.className = "practice-signal is-go";
+      }
+      practiceRuntimeTimer = window.setTimeout(() => finishPracticeExecution(35, "起跑反應太慢"), 1800);
+    }, execution.signalDelay);
+    return;
+  }
+  if (execution.kind === "defense") {
+    execution.startedAt = performance.now();
+    if (signal) {
+      const directionLabel = { up: "前方短打", left: "左側滾地", right: "右側滾地", down: "身後飛球" }[execution.targetDirection];
+      signal.textContent = `${directionLabel}！立刻移動`;
+      signal.className = "practice-signal is-go";
+    }
+    practiceRuntimeTimer = window.setTimeout(() => finishPracticeExecution(30, "守備起步太慢"), 2600);
+    return;
+  }
+  execution.startedAt = performance.now();
+  if (signal) {
+    signal.textContent = execution.kind === "hitting" ? "球進甜蜜點時揮棒" : "指針進入控球區時放球";
+    signal.className = "practice-signal is-go";
+  }
+  if (executeButton) {
+    executeButton.textContent = execution.kind === "hitting" ? "揮棒" : "放球";
+    executeButton.disabled = false;
+  }
+  const animate = (timestamp) => {
+    if (activePracticeChallenge?.execution !== execution || execution.completed) return;
+    const elapsed = timestamp - execution.startedAt;
+    const cycle = (elapsed % 1700) / 1700;
+    execution.markerPosition = cycle <= .5 ? cycle * 200 : (1 - cycle) * 200;
+    const marker = $("practice-timing-marker");
+    if (marker) marker.style.left = `${execution.markerPosition}%`;
+    practiceAnimationFrame = window.requestAnimationFrame(animate);
+  };
+  practiceAnimationFrame = window.requestAnimationFrame(animate);
+  practiceRuntimeTimer = window.setTimeout(() => finishPracticeExecution(32, "錯過操作時間"), 5200);
+}
+
+function handlePracticeExecution(direction = "") {
+  const challenge = activePracticeChallenge;
+  const execution = challenge?.execution;
+  if (!challenge || challenge.stage !== "execution" || !execution || execution.completed) return;
+  if (execution.kind === "speed") {
+    if (!execution.signalGo) {
+      finishPracticeExecution(25, "提前起跑，形成失誤");
+      return;
+    }
+    const reaction = performance.now() - execution.signalAt;
+    const score = clamp(Math.round(102 - Math.max(0, reaction - 160) / 7), 42, 99);
+    finishPracticeExecution(score, `起跑反應 ${Math.round(reaction)}ms`);
+    return;
+  }
+  if (execution.kind === "defense") {
+    const reaction = performance.now() - execution.startedAt;
+    const correct = direction === execution.targetDirection;
+    const score = correct ? clamp(Math.round(103 - Math.max(0, reaction - 300) / 18), 65, 99) : 35;
+    finishPracticeExecution(score, correct ? `守備方向正確，反應 ${Math.round(reaction)}ms` : "第一步方向判斷錯誤");
+    return;
+  }
+  const targetLeft = execution.targetCenter - execution.targetWidth / 2;
+  const targetRight = execution.targetCenter + execution.targetWidth / 2;
+  const distance = Math.abs(execution.markerPosition - execution.targetCenter);
+  const inside = execution.markerPosition >= targetLeft && execution.markerPosition <= targetRight;
+  const score = inside
+    ? clamp(Math.round(100 - distance * 1.2), 82, 99)
+    : clamp(Math.round(78 - Math.max(0, distance - execution.targetWidth / 2) * 1.4), 35, 79);
+  finishPracticeExecution(score, inside ? "操作落在完美區域" : "操作時機偏離目標區");
+}
+
+function finishPracticeExecution(executionScore, executionMessage) {
+  const challenge = activePracticeChallenge;
+  const execution = challenge?.execution;
+  if (!challenge || !execution || execution.completed) return;
+  execution.completed = true;
+  clearPracticeRuntime();
+  finalizePracticeChallenge(executionScore, executionMessage);
+}
+
+function finalizePracticeChallenge(executionScore, executionMessage) {
+  const challenge = activePracticeChallenge;
+  const player = selectedCareerPlayer();
+  const meta = challenge ? PRACTICE_META[challenge.drillType] : null;
+  if (!challenge || !player || !meta) return;
+  const profile = profileFor(player.id);
+  if (!profile || profile.practiceSessions <= 0) {
+    activePracticeChallenge = null;
+    setCareerStatus("今天的訓練次數已用完；明天會自動恢復。", "is-error");
+    render();
+    return;
+  }
+  const decisionCorrect = Boolean(challenge.execution?.decisionCorrect);
+  const focusAverage = Number(challenge.execution?.focusAverage || 50);
+  const decisionScore = decisionCorrect ? 96 : 52;
+  const score = clamp(Math.round(decisionScore * .38 + executionScore * .57 + focusAverage * .05), 35, 99);
   const bonusXp = Math.max(0, Math.round((score - 70) / 8));
   const path = developmentPathFor(profile.developmentPath);
   const pathBonus = path.training === challenge.drillType ? 8 : 0;
@@ -1142,12 +1286,12 @@ function resolvePracticeChallenge(choiceIndex) {
   profile.lastGrade = score;
   const previousLevel = profile.level;
   const earnedXp = meta.xp + bonusXp + pathBonus;
-  const earnedCoins = option.correct ? 26 + Math.max(0, Math.floor((score - 85) / 3)) : 10;
+  const earnedCoins = score >= 85 ? 26 + Math.max(0, Math.floor((score - 85) / 3)) : score >= 70 ? 18 : 10;
   const levels = awardCareerXp(profile, earnedXp);
   profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + earnedCoins);
   profile.fatigue = Math.min(100, profile.fatigue + 5);
   profile.morale = Math.min(99, profile.morale + (score >= 80 ? 2 : 0));
-  profile.focusMeter = clamp(Number(profile.focusMeter || 0) + (option.correct ? 18 : 5), 0, 100);
+  profile.focusMeter = clamp(Number(profile.focusMeter || 0) + Math.max(5, Math.round(score / 5)), 0, 100);
   const practiceGoal = activeCareerGoal(profile);
   const goalValue = practiceGoal.kind === "score" ? score : practiceGoal.kind === "xp" ? earnedXp : 1;
   const practiceEventKind = practiceGoal.kind === "score" ? "score" : practiceGoal.kind === "xp" ? "xp" : "practice";
@@ -1156,8 +1300,8 @@ function resolvePracticeChallenge(choiceIndex) {
   const levelText = levels ? `，升到 Lv.${profile.level}` : "";
   const pathText = pathBonus ? `；符合${path.label}，額外 +${pathBonus} XP` : "";
   const goalText = goalMessage ? `；${goalMessage}` : "";
-  const resultText = option.correct ? "判斷正確" : "判斷失誤";
-  setCareerStatus(`${resultText}：${challenge.lesson} 評分 ${score}，獲得 ${earnedXp} XP、${earnedCoins} 生涯幣${pathText}${levelText}${goalText}。`, option.correct ? "" : "is-error");
+  const resultText = decisionCorrect ? "情境判斷正確" : "情境判斷失誤";
+  setCareerStatus(`${resultText}；${executionMessage}。${challenge.lesson} 綜合評分 ${score}，獲得 ${earnedXp} XP、${earnedCoins} 生涯幣${pathText}${levelText}${goalText}。`, score >= 70 ? "" : "is-error");
   activePracticeChallenge = null;
   if (previousLevel !== profile.level || score >= 90) flashCard("celebrate");
   render();
@@ -1237,7 +1381,10 @@ function startScheduledGame() {
   const playerTeamId = player?.teamId || selectedTeamId;
   const scheduled = nextScheduledGame(playerTeamId);
   if (!scheduled) {
-    scheduleStatus = `${teamFor(playerTeamId).name} 的 2026 賽季已完成。`;
+    const postseason = scheduleStore.postseason;
+    scheduleStatus = postseason?.championTeamId
+      ? `2026 球季已結束，冠軍是 ${teamFor(postseason.championTeamId).name}。`
+      : `${teamFor(playerTeamId).name} 的 2026 賽程已完成。`;
     renderDevelopment();
     return;
   }
@@ -1249,7 +1396,8 @@ function startScheduledGame() {
   developmentTeamId = playerTeamId;
   selectedAthleteId = player?.id || rosterForTeam(playerTeamId)[0]?.id || selectedAthleteId;
   claimLocalPosition(player?.position || network.assignedPosition || "CF", false);
-  scheduleStatus = `${scheduled.date} · ${teamFor(scheduled.awayTeamId).name} @ ${teamFor(scheduled.homeTeamId).name}；開始後會以玩家球隊視角進行。`;
+  const scheduleType = scheduled.isPostseason ? scheduled.title : "例行賽";
+  scheduleStatus = `${scheduleType} · ${scheduled.date} · ${teamFor(scheduled.awayTeamId).name} @ ${teamFor(scheduled.homeTeamId).name}；開始後會以玩家球隊視角進行。`;
   startGame("season", {
     id: scheduled.id,
     gameNo: scheduled.gameNo,
@@ -1257,6 +1405,7 @@ function startScheduledGame() {
     officialHomeTeamId: scheduled.homeTeamId,
     officialAwayTeamId: scheduled.awayTeamId,
     playerIsAway,
+    stage: scheduled.stage || "regular",
   });
 }
 
@@ -1745,7 +1894,12 @@ function applyMatchToCareerProfile(profile, position, match, result) {
 }
 
 function nextScheduledGame(teamId = selectedCareerPlayer()?.teamId || selectedTeamId) {
-  return SEASON_SCHEDULE.find((game) => !scheduleStore.completed[game.id] && (!teamId || game.homeTeamId === teamId || game.awayTeamId === teamId)) || null;
+  const regularGame = SEASON_SCHEDULE.find((game) => !scheduleStore.completed[game.id] && (!teamId || game.homeTeamId === teamId || game.awayTeamId === teamId));
+  if (regularGame) return regularGame;
+  const postseason = ensurePostseason(teamId);
+  if (!postseason) return null;
+  const activeSeries = [postseason.challenge, postseason.taiwan].find((series) => series && !postseasonSeriesWinner(series) && series.teamIds.includes(teamId));
+  return activeSeries?.games.find((game) => !scheduleStore.completed[game.id]) || null;
 }
 
 function playedSeasonGameCount(teamId = "") {
@@ -1756,28 +1910,195 @@ function playedSeasonGameCount(teamId = "") {
   }, 0);
 }
 
+function standingsSnapshot() {
+  return TEAM_DEFS.map((team) => {
+    const saved = teamRecord(team.id);
+    const savedGames = Number(saved.W || 0) + Number(saved.L || 0) + Number(saved.T || 0);
+    const baseline = team.leagueStats || {};
+    const record = savedGames > 0
+      ? saved
+      : { W: Number(baseline.wins || 0), L: Number(baseline.losses || 0), T: Number(baseline.ties || 0), RF: 0, RA: 0 };
+    const games = Number(record.W || 0) + Number(record.L || 0) + Number(record.T || 0);
+    return {
+      teamId: team.id,
+      W: Number(record.W || 0),
+      L: Number(record.L || 0),
+      T: Number(record.T || 0),
+      games,
+      pct: games ? (Number(record.W || 0) + Number(record.T || 0) * 0.5) / games : 0,
+      runDiff: Number(record.RF || 0) - Number(record.RA || 0),
+    };
+  }).sort((a, b) => b.pct - a.pct || b.W - a.W || b.runDiff - a.runDiff || a.teamId.localeCompare(b.teamId));
+}
+
+function addSeasonDays(dateText, days) {
+  const date = new Date(`${dateText}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return formatSeasonDate(date);
+}
+
+function createPostseasonSeries(stage, higherSeedTeamId, lowerSeedTeamId, bestOf, startDate, title) {
+  const homePattern = bestOf === 7
+    ? [higherSeedTeamId, higherSeedTeamId, lowerSeedTeamId, lowerSeedTeamId, lowerSeedTeamId, higherSeedTeamId, higherSeedTeamId]
+    : [higherSeedTeamId, higherSeedTeamId, lowerSeedTeamId, lowerSeedTeamId, higherSeedTeamId];
+  const dayOffsets = bestOf === 7 ? [0, 1, 3, 4, 5, 7, 8] : [0, 1, 3, 4, 6];
+  return {
+    stage,
+    title,
+    bestOf,
+    teamIds: [higherSeedTeamId, lowerSeedTeamId],
+    games: homePattern.map((homeTeamId, index) => {
+      const awayTeamId = homeTeamId === higherSeedTeamId ? lowerSeedTeamId : higherSeedTeamId;
+      return {
+        id: `${CPBL_SEASON_YEAR}-post-${stage}-${index + 1}`,
+        gameNo: index + 1,
+        date: addSeasonDays(startDate, dayOffsets[index]),
+        half: `${title} G${index + 1}`,
+        stage,
+        title,
+        isPostseason: true,
+        bestOf,
+        homeTeamId,
+        awayTeamId,
+        stadium: teamFor(homeTeamId).stadium,
+        status: "scheduled",
+      };
+    }),
+  };
+}
+
+function postseasonSeriesRecord(series) {
+  const wins = Object.fromEntries((series?.teamIds || []).map((teamId) => [teamId, 0]));
+  if (!series) return wins;
+  const targetWins = Math.floor(Number(series.bestOf || 0) / 2) + 1;
+  for (const game of series.games || []) {
+    const winnerTeamId = scheduleStore.completed[game.id]?.winnerTeamId;
+    if (!winnerTeamId || wins[winnerTeamId] === undefined) continue;
+    wins[winnerTeamId] += 1;
+    if (wins[winnerTeamId] >= targetWins) break;
+  }
+  return wins;
+}
+
+function postseasonSeriesWinner(series) {
+  if (!series) return "";
+  const targetWins = Math.floor(Number(series.bestOf || 0) / 2) + 1;
+  const wins = postseasonSeriesRecord(series);
+  return series.teamIds.find((teamId) => Number(wins[teamId] || 0) >= targetWins) || "";
+}
+
+function simulatePostseasonSeries(series) {
+  if (!series || postseasonSeriesWinner(series)) return false;
+  const preferredWinner = series.teamIds[0];
+  const targetWins = Math.floor(series.bestOf / 2) + 1;
+  let preferredWins = 0;
+  let opponentWins = 0;
+  series.games.forEach((game, index) => {
+    if (preferredWins >= targetWins || opponentWins >= targetWins || scheduleStore.completed[game.id]) return;
+    const opponent = series.teamIds.find((teamId) => teamId !== preferredWinner);
+    const winnerTeamId = index % 3 === 2 && opponentWins < targetWins - 1 ? opponent : preferredWinner;
+    if (winnerTeamId === preferredWinner) preferredWins += 1;
+    else opponentWins += 1;
+    const homeWon = winnerTeamId === game.homeTeamId;
+    scheduleStore.completed[game.id] = {
+      gameNo: game.gameNo,
+      date: game.date,
+      homeScore: homeWon ? 4 : 2,
+      awayScore: homeWon ? 2 : 4,
+      result: homeWon ? "win" : "loss",
+      winnerTeamId,
+      isPostseason: true,
+      stage: game.stage,
+      simulated: true,
+      playedAt: new Date().toISOString(),
+    };
+  });
+  return true;
+}
+
+function ensurePostseason(teamId = selectedCareerPlayer()?.teamId || selectedTeamId) {
+  if (playedSeasonGameCount(teamId) < 120) return scheduleStore.postseason;
+  let changed = false;
+  if (!scheduleStore.postseason?.seedTeamIds?.length) {
+    const seedTeamIds = standingsSnapshot().slice(0, 3).map((entry) => entry.teamId);
+    scheduleStore.postseason = {
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      seedTeamIds,
+      challenge: createPostseasonSeries("challenge", seedTeamIds[1], seedTeamIds[2], 5, "2026-11-03", "季後挑戰賽"),
+      taiwan: null,
+      championTeamId: "",
+    };
+    changed = true;
+  }
+  const postseason = scheduleStore.postseason;
+  if (postseason.challenge && !postseason.challenge.teamIds.includes(teamId) && !postseasonSeriesWinner(postseason.challenge)) {
+    changed = simulatePostseasonSeries(postseason.challenge) || changed;
+  }
+  const challengeWinner = postseasonSeriesWinner(postseason.challenge);
+  if (challengeWinner && !postseason.taiwan) {
+    const finalStartDate = addSeasonDays(postseason.challenge.games.at(-1)?.date || "2026-11-09", 4);
+    postseason.taiwan = createPostseasonSeries("taiwan", postseason.seedTeamIds[0], challengeWinner, 7, finalStartDate, "台灣大賽");
+    changed = true;
+  }
+  const championTeamId = postseasonSeriesWinner(postseason.taiwan);
+  if (championTeamId && postseason.championTeamId !== championTeamId) {
+    postseason.championTeamId = championTeamId;
+    changed = true;
+  }
+  if (changed) writeStorage(SCHEDULE_STORAGE_KEY, scheduleStore);
+  return postseason;
+}
+
+function postseasonGames() {
+  const postseason = scheduleStore.postseason;
+  return [postseason?.challenge, postseason?.taiwan].filter(Boolean).flatMap((series) => series.games || []);
+}
+
+function scheduledGameById(gameId) {
+  return SEASON_SCHEDULE.find((game) => game.id === gameId) || postseasonGames().find((game) => game.id === gameId) || null;
+}
+
 function markScheduledGameCompleted(result) {
   if (state.matchMode !== "season" || !state.scheduleGameId || scheduleStore.completed[state.scheduleGameId]) return;
-  const scheduled = SEASON_SCHEDULE.find((game) => game.id === state.scheduleGameId);
+  const scheduled = scheduledGameById(state.scheduleGameId) || (state.scheduleStage && state.scheduleStage !== "regular" ? {
+    id: state.scheduleGameId,
+    gameNo: state.scheduleGameNo,
+    date: state.scheduleDate,
+    stage: state.scheduleStage,
+    isPostseason: true,
+    homeTeamId: state.scheduleOfficialHomeTeamId,
+    awayTeamId: state.scheduleOfficialAwayTeamId,
+  } : null);
   if (!scheduled) return;
   const playerWon = result === "win" || result === "walkoff";
   const playerIsAway = Boolean(state.schedulePlayerIsAway);
   const officialHomeScore = playerIsAway ? state.score.away : state.score.home;
   const officialAwayScore = playerIsAway ? state.score.home : state.score.away;
   const officialHomeResult = playerIsAway ? (playerWon ? "loss" : result === "loss" ? "win" : "tie") : result;
+  const winnerTeamId = officialHomeScore > officialAwayScore
+    ? scheduled.homeTeamId
+    : officialAwayScore > officialHomeScore
+      ? scheduled.awayTeamId
+      : "";
   scheduleStore.completed[state.scheduleGameId] = {
     gameNo: scheduled.gameNo,
     date: scheduled.date,
     homeScore: officialHomeScore,
     awayScore: officialAwayScore,
     result: officialHomeResult,
+    winnerTeamId,
+    isPostseason: Boolean(scheduled.isPostseason),
+    stage: scheduled.stage || "regular",
     playedAt: new Date().toISOString(),
   };
+  if (scheduled.isPostseason) ensurePostseason(state.teamId);
   writeStorage(SCHEDULE_STORAGE_KEY, scheduleStore);
 }
 
 function recordTeamResult(result) {
   if (state.matchMode === "practice" || state.matchMode === "career") return;
+  if (state.matchMode === "season" && (state.scheduleStage && state.scheduleStage !== "regular" || scheduledGameById(state.scheduleGameId)?.isPostseason)) return;
   const homeTeam = teamRecord(state.teamId);
   const awayTeam = teamRecord(state.opponentId);
   homeTeam.RF += state.score.home;
@@ -1970,16 +2291,46 @@ function renderPracticeChallenge() {
   const label = $("practice-challenge-label");
   const question = $("practice-challenge-question");
   const choices = $("practice-choices");
+  const executionPanel = $("practice-execution");
+  const timingTrack = $("practice-timing-track");
+  const targetZone = $("practice-target-zone");
+  const directionPad = $("practice-direction-pad");
+  const executeButton = $("practice-execute-button");
+  const executionHint = $("practice-execution-hint");
   if (!panel || !choices) return;
   panel.hidden = !activePracticeChallenge;
   if (!activePracticeChallenge) {
     choices.innerHTML = "";
+    if (executionPanel) executionPanel.hidden = true;
     return;
   }
   const meta = PRACTICE_META[activePracticeChallenge.drillType];
-  if (label) label.textContent = `${meta.title} · 情境決策`;
-  if (question) question.textContent = activePracticeChallenge.question;
-  choices.innerHTML = activePracticeChallenge.options.map((option, index) => `<button type="button" data-practice-choice="${index}">${option.label}</button>`).join("");
+  const execution = activePracticeChallenge.execution;
+  const isExecution = activePracticeChallenge.stage === "execution" && execution;
+  if (label) label.textContent = `${meta.title} · ${isExecution ? "操作挑戰" : "情境判斷"}`;
+  if (question) question.textContent = isExecution
+    ? ({ hitting: "看準移動指針進入甜蜜區，按下揮棒。", pitching: "讓指針進入控球區後放球。", defense: "依打球方向按下正確的第一步。", speed: "紅燈時等待，綠燈亮起立刻起跑。" }[execution.kind])
+    : activePracticeChallenge.question;
+  choices.hidden = Boolean(isExecution);
+  choices.classList.toggle("is-locked", Boolean(isExecution));
+  choices.innerHTML = isExecution ? "" : activePracticeChallenge.options.map((option, index) => `<button type="button" data-practice-choice="${index}">${option.label}</button>`).join("");
+  if (!executionPanel) return;
+  executionPanel.hidden = !isExecution;
+  if (!isExecution) return;
+  const usesTiming = execution.kind === "hitting" || execution.kind === "pitching";
+  if (timingTrack) timingTrack.hidden = !usesTiming;
+  if (directionPad) directionPad.hidden = execution.kind !== "defense";
+  if (executeButton) executeButton.hidden = execution.kind === "defense";
+  if (targetZone && usesTiming) {
+    targetZone.style.left = `${execution.targetCenter - execution.targetWidth / 2}%`;
+    targetZone.style.width = `${execution.targetWidth}%`;
+  }
+  if (executionHint) executionHint.textContent = {
+    hitting: "越靠近綠色區中央，擊球評分越高。",
+    pitching: "模板的控球能力會讓目標區稍微變寬。",
+    defense: "方向與反應時間都會影響評分。",
+    speed: "提前按會形成 false start；綠燈後越快越好。",
+  }[execution.kind];
 }
 
 function renderCareerMode() {
@@ -2028,6 +2379,68 @@ function renderCareerMode() {
   }
 }
 
+function renderPostseason(teamId, nextGame = null) {
+  const stateLabel = $("postseason-state");
+  const bracket = $("postseason-bracket");
+  const scheduleList = $("postseason-schedule-list");
+  const status = $("postseason-status");
+  if (!bracket || !scheduleList || !status) return;
+  const regularPlayed = playedSeasonGameCount(teamId);
+  const postseason = regularPlayed >= 120 ? ensurePostseason(teamId) : null;
+  const seedTeamIds = postseason?.seedTeamIds || standingsSnapshot().slice(0, 3).map((entry) => entry.teamId);
+  const seedNumber = (candidateId) => Math.max(1, seedTeamIds.indexOf(candidateId) + 1);
+  const seriesCard = (series, fallbackTeamIds, title, bestOf) => {
+    const teamIds = series?.teamIds || fallbackTeamIds;
+    const wins = series ? postseasonSeriesRecord(series) : {};
+    const winnerTeamId = series ? postseasonSeriesWinner(series) : "";
+    return `<article class="postseason-series-card ${!winnerTeamId && postseason ? "is-active" : ""}">
+      <span>${escapeHtml(title)} · ${bestOf} 戰 ${Math.floor(bestOf / 2) + 1} 勝 · ${winnerTeamId ? "系列賽結束" : postseason ? "進行中" : "預估"}</span>
+      ${teamIds.map((candidateId) => candidateId
+        ? `<div class="postseason-team-line"><b>#${seedNumber(candidateId)} ${escapeHtml(teamFor(candidateId).shortName)}${winnerTeamId === candidateId ? " · 晉級" : ""}</b><strong>${series ? Number(wins[candidateId] || 0) : "—"}</strong></div>`
+        : `<div class="postseason-team-line"><b>挑戰賽勝隊</b><strong>—</strong></div>`).join("")}
+    </article>`;
+  };
+  const challengeFallback = [seedTeamIds[1], seedTeamIds[2]];
+  const challengeWinner = postseasonSeriesWinner(postseason?.challenge);
+  const taiwanFallback = [seedTeamIds[0], challengeWinner || ""];
+  bracket.innerHTML = `${seriesCard(postseason?.challenge, challengeFallback, "季後挑戰賽", 5)}<div class="postseason-advance" aria-hidden="true">→</div>${seriesCard(postseason?.taiwan, taiwanFallback, "台灣大賽", 7)}`;
+
+  if (!postseason) {
+    if (stateLabel) stateLabel.textContent = "預估席次";
+    scheduleList.innerHTML = '<p class="season-schedule-empty">完成 120 場例行賽後，正式鎖定季後賽球隊與日期。</p>';
+    const rank = seedTeamIds.indexOf(teamId) + 1;
+    status.textContent = rank > 0 ? `${teamFor(teamId).shortName} 目前預估第 ${rank} 名；例行賽進度 ${regularPlayed} / 120。` : `${teamFor(teamId).shortName} 目前在季後賽席次之外；例行賽進度 ${regularPlayed} / 120。`;
+    return;
+  }
+
+  const championTeamId = postseason.championTeamId || postseasonSeriesWinner(postseason.taiwan);
+  if (stateLabel) stateLabel.textContent = championTeamId ? `冠軍 · ${teamFor(championTeamId).shortName}` : "季後賽進行中";
+  const playerPostseasonGames = [postseason.challenge, postseason.taiwan]
+    .filter((series) => series?.teamIds.includes(teamId))
+    .flatMap((series) => series.games || []);
+  scheduleList.innerHTML = playerPostseasonGames.length
+    ? playerPostseasonGames.map((game) => {
+      const completed = scheduleStore.completed[game.id];
+      const isNext = game.id === nextGame?.id;
+      const score = completed ? `${completed.awayScore}：${completed.homeScore}` : "—";
+      return `<div class="postseason-game-row ${isNext ? "is-next" : ""} ${completed ? "is-completed" : ""}"><span>G${game.gameNo}</span><span><b>${game.title}</b><small>${game.date.replaceAll("-", "/")} · ${escapeHtml(teamFor(game.awayTeamId).shortName)} @ ${escapeHtml(teamFor(game.homeTeamId).shortName)}</small></span><strong>${completed ? score : isNext ? "下一戰" : "視需要"}</strong></div>`;
+    }).join("")
+    : '<p class="season-schedule-empty">本隊未取得季後賽席次；仍可查看上方系列賽戰況。</p>';
+
+  const qualified = seedTeamIds.includes(teamId);
+  const challengeLoser = postseasonSeriesWinner(postseason.challenge) && postseason.challenge.teamIds.includes(teamId) && postseasonSeriesWinner(postseason.challenge) !== teamId;
+  const finalLoser = championTeamId && postseason.taiwan?.teamIds.includes(teamId) && championTeamId !== teamId;
+  status.textContent = championTeamId === teamId
+    ? `恭喜 ${teamFor(teamId).name} 拿下 2026 台灣大賽冠軍！`
+    : challengeLoser || finalLoser
+      ? `${teamFor(teamId).name} 的季後賽旅程已結束。`
+      : !qualified
+        ? `${teamFor(teamId).name} 未進入前三名，2026 球季已結束。`
+        : nextGame?.isPostseason
+          ? `下一戰：${nextGame.title} G${nextGame.gameNo}，${teamFor(nextGame.awayTeamId).shortName} @ ${teamFor(nextGame.homeTeamId).shortName}。`
+          : "等待下一個系列賽對手確認。";
+}
+
 function renderSeasonSchedule() {
   const panel = $("season-schedule-panel");
   if (!panel) return;
@@ -2036,11 +2449,11 @@ function renderSeasonSchedule() {
   const team = teamFor(teamId);
   const teamGames = SEASON_SCHEDULE.filter((game) => game.homeTeamId === teamId || game.awayTeamId === teamId);
   const activeScheduledGame = state.matchMode === "season" && state.scheduleGameId && state.phase !== "gameover"
-    ? SEASON_SCHEDULE.find((game) => game.id === state.scheduleGameId) || null
+    ? scheduledGameById(state.scheduleGameId)
     : null;
   const next = activeScheduledGame || nextScheduledGame(teamId);
   const played = playedSeasonGameCount(teamId);
-  const completedTotal = Object.keys(scheduleStore.completed).length;
+  const completedTotal = SEASON_SCHEDULE.filter((game) => scheduleStore.completed[game.id]).length;
   const progress = $("schedule-progress");
   const nextLabel = $("schedule-next");
   const status = $("season-schedule-status");
@@ -2049,8 +2462,8 @@ function renderSeasonSchedule() {
   if (progress) progress.textContent = `${team.name} ${played} / 120 場 · 全聯盟 ${Math.min(CPBL_TOTAL_SEASON_GAMES, completedTotal)} / ${CPBL_TOTAL_SEASON_GAMES} 場`;
   if (nextLabel) {
     nextLabel.textContent = next
-      ? `${activeScheduledGame ? "目前多人賽程" : "下一場"}：${next.date.replaceAll("-", "/")} ${next.half} · ${teamFor(next.awayTeamId).shortName} @ ${teamFor(next.homeTeamId).shortName} · ${next.stadium}`
-      : `${team.name} 的 2026 賽季已完成。`;
+      ? `${activeScheduledGame ? "目前多人賽程" : "下一場"}：${next.date.replaceAll("-", "/")} ${next.isPostseason ? `${next.title} G${next.gameNo}` : next.half} · ${teamFor(next.awayTeamId).shortName} @ ${teamFor(next.homeTeamId).shortName} · ${next.stadium}`
+      : `${team.name} 的 2026 賽程已完成。`;
   }
   if (status) {
     status.textContent = activeScheduledGame
@@ -2062,16 +2475,19 @@ function renderSeasonSchedule() {
     const canRequest = network.role === "solo" || network.role === "host" || (network.role === "guest" && network.connected);
     button.disabled = !next || !canRequest || !(state.phase === "pre" || state.phase === "gameover");
     button.innerHTML = next
-      ? `${network.role === "guest" ? "請房主開始賽程" : "開始下一場賽季賽"} <span>↗</span>`
-      : "本隊賽季已完成";
+      ? `${network.role === "guest" ? "請房主開始賽程" : next.isPostseason ? `開始${next.title} G${next.gameNo}` : "開始下一場例行賽"} <span>↗</span>`
+      : "本隊賽程已完成";
   }
+  renderPostseason(teamId, next);
   if (!list) return;
   if (!teamGames.length) {
     list.innerHTML = `<p class="season-schedule-empty">尚未找到 ${escapeHtml(team.name)} 的賽程。</p>`;
     return;
   }
-  const nextIndex = Math.max(0, teamGames.findIndex((game) => game.id === next?.id));
-  const visibleGames = teamGames.slice(Math.max(0, nextIndex - 2), nextIndex + 8);
+  const nextRegularIndex = next && !next.isPostseason ? teamGames.findIndex((game) => game.id === next.id) : -1;
+  const visibleGames = nextRegularIndex >= 0
+    ? teamGames.slice(Math.max(0, nextRegularIndex - 2), nextRegularIndex + 8)
+    : teamGames.slice(-5);
   list.innerHTML = visibleGames.map((game) => {
     const completed = scheduleStore.completed[game.id];
     const isNext = game.id === next?.id;
@@ -2401,6 +2817,7 @@ function createState(teamId = selectedTeamId, opponentId = selectedOpponentId, m
     scheduleOfficialHomeTeamId: String(schedule.officialHomeTeamId || ""),
     scheduleOfficialAwayTeamId: String(schedule.officialAwayTeamId || ""),
     schedulePlayerIsAway: Boolean(schedule.playerIsAway),
+    scheduleStage: String(schedule.stage || "regular"),
     phase: "pre",
     inning: 1,
     half: "top",
@@ -3775,7 +4192,14 @@ function render() {
   const scheduleAwayTeam = state.matchMode === "season" && state.scheduleOfficialAwayTeamId ? teamFor(state.scheduleOfficialAwayTeamId) : awayTeam;
   const displayHomeScore = state.matchMode === "season" && state.schedulePlayerIsAway ? state.score.away : state.score.home;
   const displayAwayScore = state.matchMode === "season" && state.schedulePlayerIsAway ? state.score.home : state.score.away;
-  const modePrefix = state.matchMode === "practice" ? "單人練習 · " : state.matchMode === "season" ? `2026 賽季${state.scheduleGameNo ? `第 ${state.scheduleGameNo} 場` : ""} · ` : "";
+  const postseasonLabel = state.scheduleStage === "challenge" ? "季後挑戰賽" : state.scheduleStage === "taiwan" ? "台灣大賽" : "";
+  const modePrefix = state.matchMode === "practice"
+    ? "單人練習 · "
+    : state.matchMode === "season"
+      ? postseasonLabel
+        ? `${postseasonLabel}${state.scheduleGameNo ? ` G${state.scheduleGameNo}` : ""} · `
+        : `2026 例行賽${state.scheduleGameNo ? `第 ${state.scheduleGameNo} 場` : ""} · `
+      : "";
   const phaseText = { pre: `${modePrefix}賽前準備`, defense: `${modePrefix}${homeTeam.shortName}守備 · ${state.defenseOwner || "P"}`, cpu: `${modePrefix}NPC 客隊進攻`, home: `${modePrefix}輪到 ${batter.position}`, gameover: `${modePrefix}比賽結束` }[state.phase];
   $("game-title").textContent = `${scheduleHomeTeam.name} vs. ${scheduleAwayTeam.name}`;
   $("away-team-name").textContent = scheduleAwayTeam.name;
@@ -3823,7 +4247,7 @@ function render() {
   $("gameover-panel").hidden = state.phase !== "gameover";
   $("start-game").disabled = (network.role === "guest" && !network.connected) || !slotForPlayer(network.localPlayerId);
   $("gameover-title").textContent = state.result === "win" || state.result === "walkoff" ? "主場勝利！" : state.result === "tie" ? "延長賽後仍然平手" : "客隊帶走勝利";
-  const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "career" ? "關鍵賽事完成。" : state.matchMode === "season" ? `2026 賽季第 ${state.scheduleGameNo} 場完成。` : "最終比分：";
+  const resultCopy = state.matchMode === "practice" ? "練習賽完成。" : state.matchMode === "career" ? "關鍵賽事完成。" : state.matchMode === "season" ? `${postseasonLabel || "2026 例行賽"}${postseasonLabel ? ` G${state.scheduleGameNo}` : `第 ${state.scheduleGameNo} 場`}完成。` : "最終比分：";
   $("gameover-copy").textContent = `${resultCopy} ${scheduleHomeTeam.name} ${displayHomeScore}：${displayAwayScore} ${scheduleAwayTeam.name}。這場比賽留下 ${humanPlayerCount()} 名真人玩家與 NPC 隊友的共同紀錄。`;
   renderResultSummary();
   renderPlayerMatchResult();
@@ -4319,9 +4743,10 @@ function finishHomeHalf() {
   if (state.inning >= 9 && state.score.home > state.score.away) { endGame("win"); return; }
   if (state.inning >= 9 && state.score.home < state.score.away) { endGame("loss"); return; }
   if (state.inning >= 9 && state.score.home === state.score.away) {
-    if (state.inning >= 12) { endGame("tie"); return; }
+    const isPostseason = scheduledGameById(state.scheduleGameId)?.isPostseason;
+    if (state.inning >= 12 && !isPostseason) { endGame("tie"); return; }
     state.inning += 1;
-    addLog("九局打完仍是平手，進入延長賽。", "big");
+    addLog(isPostseason && state.inning > 12 ? "季後賽沒有和局，繼續延長直到分出勝負。" : "九局打完仍是平手，進入延長賽。", "big");
   } else state.inning += 1;
   beginDefenseHalf();
 }
@@ -4459,9 +4884,18 @@ function bindEvents() {
     runPracticeDrill(button.dataset.practice);
   });
   $("practice-challenge")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-practice-choice]");
-    if (!button) return;
-    resolvePracticeChallenge(Number(button.dataset.practiceChoice));
+    const choice = event.target.closest("[data-practice-choice]");
+    if (choice) {
+      beginPracticeExecution(Number(choice.dataset.practiceChoice));
+      return;
+    }
+    const direction = event.target.closest("[data-practice-direction]");
+    if (direction) {
+      handlePracticeExecution(direction.dataset.practiceDirection);
+      return;
+    }
+    const execute = event.target.closest("[data-practice-execute]");
+    if (execute && !execute.disabled) handlePracticeExecution();
   });
   $("career-mode-panel")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-career-tab]");
