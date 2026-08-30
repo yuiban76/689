@@ -58,12 +58,12 @@ const DEFAULT_TEAM_ID = "taipei";
 const DEFAULT_OPPONENT_ID = "kaohsiung";
 
 const TEAM_DEFS = [
-  { id: "taipei", name: "中信兄弟", city: "台中", shortName: "兄弟", stadium: "臺中洲際棒球場", style: "火力與串聯", color: "#f4c542", bonus: { contact: 5, power: 5, vision: 2, discipline: 2, armAccuracy: 1 }, leagueStats: { games: 31, wins: 16, losses: 15, ties: 0, battingAvg: .282, onBasePct: .334, sluggingPct: .374, era: 3.61 } },
-  { id: "kaohsiung", name: "統一7-ELEVEn獅", city: "台南", shortName: "統一獅", stadium: "臺南亞太國際棒球場", style: "控球與機動", color: "#f26b38", bonus: { contact: 3, vision: 3, discipline: 3, control: 3, break: 3, speed: 2 }, leagueStats: { games: 31, wins: 15, losses: 16, ties: 0, battingAvg: .271, onBasePct: .334, sluggingPct: .343, era: 2.87 } },
-  { id: "taichung", name: "樂天桃猿", city: "桃園", shortName: "桃猿", stadium: "樂天桃園棒球場", style: "投手壓制", color: "#e74675", bonus: { fielding: 2, reaction: 2, control: 4, break: 5, stamina: 2 }, leagueStats: { games: 27, wins: 15, losses: 12, ties: 0, battingAvg: .253, onBasePct: .308, sluggingPct: .334, era: 2.14 } },
-  { id: "hsinchu", name: "富邦悍將", city: "新北", shortName: "悍將", stadium: "新莊棒球場", style: "長打與強肩", color: "#5a8dee", bonus: { power: 2, armStrength: 2, velocity: -1, control: -2, fielding: -1 }, leagueStats: { games: 27, wins: 12, losses: 15, ties: 0, battingAvg: .248, onBasePct: .305, sluggingPct: .316, era: 4.26 } },
-  { id: "taoyuan", name: "味全龍", city: "台北", shortName: "味全", stadium: "天母棒球場", style: "守備與先發", color: "#cf3038", bonus: { fielding: 3, reaction: 3, control: 4, break: 3, stamina: 2, contact: -2 }, leagueStats: { games: 29, wins: 16, losses: 13, ties: 0, battingAvg: .232, onBasePct: .305, sluggingPct: .315, era: 2.87 } },
-  { id: "chiayi", name: "台鋼雄鷹", city: "高雄", shortName: "雄鷹", stadium: "澄清湖棒球場", style: "速度與選球", color: "#61b6c9", bonus: { contact: 3, discipline: 4, speed: 4, stealing: 3, power: 1, control: -1, velocity: -1 }, leagueStats: { games: 29, wins: 13, losses: 16, ties: 0, battingAvg: .271, onBasePct: .340, sluggingPct: .355, era: 3.95 } },
+  { id: "taipei", name: "中洲兄弟", city: "台中", shortName: "中洲", stadium: "臺中洲際棒球場", style: "火力與串聯", color: "#f4c542", bonus: { contact: 5, power: 5, vision: 2, discipline: 2, armAccuracy: 1 }, leagueStats: { games: 31, wins: 16, losses: 15, ties: 0, battingAvg: .282, onBasePct: .334, sluggingPct: .374, era: 3.61 } },
+  { id: "kaohsiung", name: "統合超商獅", city: "台南", shortName: "統合獅", stadium: "臺南亞太國際棒球場", style: "控球與機動", color: "#f26b38", bonus: { contact: 3, vision: 3, discipline: 3, control: 3, break: 3, speed: 2 }, leagueStats: { games: 31, wins: 15, losses: 16, ties: 0, battingAvg: .271, onBasePct: .334, sluggingPct: .343, era: 2.87 } },
+  { id: "taichung", name: "樂園桃猿", city: "桃園", shortName: "樂園猿", stadium: "桃園國際棒球場", style: "投手壓制", color: "#e74675", bonus: { fielding: 2, reaction: 2, control: 4, break: 5, stamina: 2 }, leagueStats: { games: 27, wins: 15, losses: 12, ties: 0, battingAvg: .253, onBasePct: .308, sluggingPct: .334, era: 2.14 } },
+  { id: "hsinchu", name: "富利悍將", city: "新北", shortName: "富利", stadium: "新莊棒球場", style: "長打與強肩", color: "#5a8dee", bonus: { power: 2, armStrength: 2, velocity: -1, control: -2, fielding: -1 }, leagueStats: { games: 27, wins: 12, losses: 15, ties: 0, battingAvg: .248, onBasePct: .305, sluggingPct: .316, era: 4.26 } },
+  { id: "taoyuan", name: "味冠龍", city: "台北", shortName: "味冠", stadium: "天母棒球場", style: "守備與先發", color: "#cf3038", bonus: { fielding: 3, reaction: 3, control: 4, break: 3, stamina: 2, contact: -2 }, leagueStats: { games: 29, wins: 16, losses: 13, ties: 0, battingAvg: .232, onBasePct: .305, sluggingPct: .315, era: 2.87 } },
+  { id: "chiayi", name: "南鋼雄鷹", city: "高雄", shortName: "南鋼", stadium: "澄清湖棒球場", style: "速度與選球", color: "#61b6c9", bonus: { contact: 3, discipline: 4, speed: 4, stealing: 3, power: 1, control: -1, velocity: -1 }, leagueStats: { games: 29, wins: 13, losses: 16, ties: 0, battingAvg: .271, onBasePct: .340, sluggingPct: .355, era: 3.95 } },
 ];
 
 const ROSTER_BLUEPRINTS = [
@@ -79,12 +79,12 @@ const ROSTER_BLUEPRINTS = [
 ];
 
 const TEAM_PLAYER_NAMES = {
-  taipei: ["岳政華", "詹子賢", "王威晨", "許基宏", "宋晟睿", "王政順", "江坤宇", "高宇杰", "鄭浩均"],
-  kaohsiung: ["陳傑憲", "林佳緯", "潘傑楷", "林子豪", "蘇智傑", "林靖凱", "陳聖平", "陳重羽", "布雷克"],
-  taichung: ["成晉", "林政華", "梁家榮", "廖健富", "陳晨威", "林立", "林承飛", "林泓育", "威能帝"],
-  hsinchu: ["林哲瑄", "申皓瑋", "李宗賢", "范國宸", "孔念恩", "王正棠", "王勝偉", "戴培峰", "鈴木駿輔"],
-  taoyuan: ["郭天信", "陳子豪", "劉基鴻", "朱育賢", "拿莫．伊漾", "李凱威", "張政禹", "吉力吉撈．鞏冠", "鋼龍"],
-  chiayi: ["藍寅倫", "王柏融", "郭阜林", "魔鷹", "陳文杰", "吳念庭", "曾子祐", "吳明鴻", "後勁"],
+  taipei: ["岳正華", "詹子玄", "王威宸", "許基鴻", "宋勝睿", "王正順", "江昆宇", "高育傑", "鄭皓均"],
+  kaohsiung: ["陳杰憲", "林嘉緯", "潘杰凱", "林梓豪", "蘇志傑", "林敬凱", "陳勝平", "陳仲羽", "布雷格"],
+  taichung: ["成進", "林正華", "梁嘉榮", "廖建福", "陳辰威", "林利", "林成飛", "林宏育", "威能迪"],
+  hsinchu: ["林哲玄", "申浩瑋", "李宗玄", "范國辰", "孔念安", "王政棠", "王盛偉", "戴沛峰", "鈴木俊輔"],
+  taoyuan: ["郭天鑫", "陳梓豪", "劉基宏", "朱育玄", "拿姆．伊漾", "李楷威", "張正禹", "吉力吉洛．鞏冠", "剛龍"],
+  chiayi: ["藍寅綸", "王柏榮", "郭富林", "摩鷹", "陳文傑", "吳念廷", "曾梓祐", "吳明宏", "厚勁"],
 };
 
 // 2026 CPBL 主力先發快照：以官方球員名單、團隊攻守數據與球員成績做遊戲化換算。
@@ -2653,15 +2653,15 @@ function renderDevelopment() {
 }
 
 const lineup = [
-  { position: "CF", number: "07", name: "岳政華", contact: 82, power: 67 },
-  { position: "RF", number: "23", name: "詹子賢", contact: 74, power: 86 },
-  { position: "3B", number: "31", name: "王威晨", contact: 79, power: 77 },
-  { position: "1B", number: "44", name: "許基宏", contact: 76, power: 92 },
-  { position: "LF", number: "12", name: "宋晟睿", contact: 76, power: 81 },
-  { position: "2B", number: "08", name: "王政順", contact: 70, power: 64 },
-  { position: "SS", number: "19", name: "江坤宇", contact: 70, power: 72 },
-  { position: "C", number: "02", name: "高宇杰", contact: 73, power: 58 },
-  { position: "P", number: "55", name: "鄭浩均", contact: 61, power: 56 },
+  { position: "CF", number: "07", name: "岳正華", contact: 82, power: 67 },
+  { position: "RF", number: "23", name: "詹子玄", contact: 74, power: 86 },
+  { position: "3B", number: "31", name: "王威宸", contact: 79, power: 77 },
+  { position: "1B", number: "44", name: "許基鴻", contact: 76, power: 92 },
+  { position: "LF", number: "12", name: "宋勝睿", contact: 76, power: 81 },
+  { position: "2B", number: "08", name: "王正順", contact: 70, power: 64 },
+  { position: "SS", number: "19", name: "江昆宇", contact: 70, power: 72 },
+  { position: "C", number: "02", name: "高育傑", contact: 73, power: 58 },
+  { position: "P", number: "55", name: "鄭皓均", contact: 61, power: 56 },
 ];
 
 const ACTION_META = {
