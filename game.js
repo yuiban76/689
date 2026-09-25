@@ -675,6 +675,8 @@ function createCareerProfile(player) {
     lastGrade: 0,
     legacyPoints: 0,
     focusMeter: 0,
+    preGamePlan: "",
+    preGamePlanDay: "",
     keyGameIndex: 0,
     keyGamesCompleted: 0,
     recentMatches: [],
@@ -700,6 +702,8 @@ function profileFor(playerId) {
   if (profile.practiceDay !== today) {
     profile.practiceDay = today;
     profile.practiceSessions = PRACTICE_SESSIONS_PER_DAY;
+    profile.preGamePlan = "";
+    profile.preGamePlanDay = "";
   }
   profile.practiceSessions = clamp(Number(profile.practiceSessions ?? PRACTICE_SESSIONS_PER_DAY), 0, PRACTICE_SESSIONS_PER_DAY);
   profile.practiceScore = Math.max(0, Number(profile.practiceScore || 0));
@@ -713,6 +717,8 @@ function profileFor(playerId) {
   profile.lastGrade = clamp(Number(profile.lastGrade || 0), 0, 99);
   profile.legacyPoints = Math.max(0, Number(profile.legacyPoints || 0));
   profile.focusMeter = clamp(Number(profile.focusMeter || 0), 0, 100);
+  profile.preGamePlan = GAME_PREP_PLANS[profile.preGamePlan] ? profile.preGamePlan : "";
+  profile.preGamePlanDay = String(profile.preGamePlanDay || "");
   profile.keyGameIndex = Math.max(0, Number(profile.keyGameIndex || 0));
   profile.keyGamesCompleted = Math.max(0, Number(profile.keyGamesCompleted || 0));
   profile.recentMatches = Array.isArray(profile.recentMatches) ? profile.recentMatches.slice(0, 5) : [];
@@ -884,17 +890,29 @@ const DEVELOPMENT_PATHS = {
 };
 
 const CAREER_GOALS = [
-  { label: "完成 3 次訓練", detail: "把今天的訓練次數用在成長上。", kind: "practice", target: 3 },
-  { label: "完成 1 場比賽", detail: "把訓練成果帶進真正的比賽。", kind: "match", target: 1 },
-  { label: "訓練拿到 85 分", detail: "專注完成一次高品質訓練。", kind: "score", target: 1 },
-  { label: "累積 120 XP", detail: "持續投入，解鎖下一個等級。", kind: "xp", target: 120 },
+  { label: "完成 2 次球場訓練", detail: "先建立穩定的每日準備節奏。", kind: "practice", target: 2, reward: 35 },
+  { label: "完成 1 場關鍵賽事", detail: "把訓練成果帶進正式比賽。", kind: "match", target: 1, reward: 45 },
+  { label: "訓練拿到 80 分", detail: "完成一次高品質的實戰操作。", kind: "score", target: 1, reward: 40 },
+  { label: "累積 150 XP", detail: "持續比賽與訓練，建立自己的球風。", kind: "xp", target: 150, reward: 55 },
+  { label: "連續完成 3 次準備", detail: "讓教練看見你的職業態度。", kind: "practice", target: 3, reward: 50 },
+  { label: "再完成 2 場比賽", detail: "用穩定出賽爭取固定先發。", kind: "match", target: 2, reward: 70 },
+  { label: "訓練拿到 90 分", detail: "把一項技術練到能在壓力下執行。", kind: "score", target: 1, reward: 65 },
+  { label: "累積 300 XP", detail: "完成本階段專精，邁向球隊核心。", kind: "xp", target: 300, reward: 100 },
 ];
 
 const KEY_GAME_DEFS = [
-  { label: "證明自己", detail: "拿下本場勝利", xp: 90, coins: 100, legacy: 25, reward: "90 XP · 100 生涯幣 · 25 聲望", test: ({ result }) => result === "win" || result === "walkoff" },
-  { label: "教練的考驗", detail: "單場評分達到 78", xp: 80, coins: 85, legacy: 22, reward: "80 XP · 85 生涯幣 · 22 聲望", test: ({ grade }) => grade >= 78 },
-  { label: "站穩先發", detail: "完成 2 次有效決策", xp: 75, coins: 75, legacy: 20, reward: "75 XP · 75 生涯幣 · 20 聲望", test: ({ match }) => Number(match.decisions || 0) >= 2 },
-  { label: "攻守建功", detail: "敲出安打或完成守備機會", xp: 85, coins: 90, legacy: 24, reward: "85 XP · 90 生涯幣 · 24 聲望", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 1 },
+  { chapter: "菜鳥登場", label: "第一次一軍機會", story: "教練只承諾你一次證明自己的機會。", detail: "完成比賽且評分達到 65", xp: 70, coins: 75, legacy: 18, reward: "70 XP · 75 生涯幣 · 18 信任", test: ({ grade }) => grade >= 65 },
+  { chapter: "菜鳥登場", label: "板凳席的目光", story: "隊友開始注意這名新人的比賽態度。", detail: "完成 2 次有效決策", xp: 75, coins: 80, legacy: 20, reward: "75 XP · 80 生涯幣 · 20 信任", test: ({ match }) => Number(match.decisions || 0) >= 2 },
+  { chapter: "菜鳥登場", label: "第一次系列戰", story: "面對同區對手，這是提高教練信任的捷徑。", detail: "幫助球隊拿下勝利", xp: 85, coins: 90, legacy: 24, reward: "85 XP · 90 生涯幣 · 24 信任", test: ({ result }) => result === "win" || result === "walkoff" },
+  { chapter: "爭取先發", label: "教練的考驗", story: "教練要求你把訓練品質帶進正式比賽。", detail: "單場評分達到 76", xp: 90, coins: 95, legacy: 26, reward: "90 XP · 95 生涯幣 · 26 信任", test: ({ grade }) => grade >= 76 },
+  { chapter: "爭取先發", label: "攻守建功", story: "一個能在攻守兩端幫助球隊的人才值得先發。", detail: "敲出安打或完成守備機會", xp: 95, coins: 100, legacy: 28, reward: "95 XP · 100 生涯幣 · 28 信任", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 1 },
+  { chapter: "爭取先發", label: "站穩打線", story: "媒體開始討論你是否該獲得固定先發。", detail: "完成 3 次決策且評分達到 75", xp: 100, coins: 110, legacy: 30, reward: "100 XP · 110 生涯幣 · 30 信任", test: ({ grade, match }) => grade >= 75 && Number(match.decisions || 0) >= 3 },
+  { chapter: "球隊核心", label: "終止連敗", story: "球隊陷入低潮，休息區需要有人挺身而出。", detail: "拿下勝利且評分達到 78", xp: 110, coins: 120, legacy: 34, reward: "110 XP · 120 生涯幣 · 34 信任", test: ({ result, grade }) => (result === "win" || result === "walkoff") && grade >= 78 },
+  { chapter: "球隊核心", label: "王牌對決", story: "對方派出最強投手，這是明星球員的舞台。", detail: "敲出安打或將評分提高到 82", xp: 115, coins: 125, legacy: 36, reward: "115 XP · 125 生涯幣 · 36 信任", test: ({ grade, match }) => grade >= 82 || Number(match.hits || 0) >= 1 },
+  { chapter: "球隊核心", label: "宿敵之夜", story: "滿場觀眾等待你在宿敵戰留下代表作。", detail: "完成 4 次有效決策", xp: 120, coins: 135, legacy: 38, reward: "120 XP · 135 生涯幣 · 38 信任", test: ({ match }) => Number(match.decisions || 0) >= 4 },
+  { chapter: "冠軍追逐", label: "季後賽卡位", story: "每一場都牽動排名，球隊把勝負交到你手上。", detail: "幫助球隊贏球且評分達到 80", xp: 130, coins: 145, legacy: 42, reward: "130 XP · 145 生涯幣 · 42 信任", test: ({ result, grade }) => (result === "win" || result === "walkoff") && grade >= 80 },
+  { chapter: "冠軍追逐", label: "背水一戰", story: "輸球就可能告別球季，休息區只相信最穩定的人。", detail: "攻守合計完成 2 次貢獻", xp: 140, coins: 155, legacy: 46, reward: "140 XP · 155 生涯幣 · 46 信任", test: ({ match }) => Number(match.hits || 0) + Number(match.putouts || 0) + Number(match.assists || 0) >= 2 },
+  { chapter: "冠軍追逐", label: "傳奇之夜", story: "所有累積都在這一晚接受檢驗。", detail: "拿下勝利並取得 88 分評價", xp: 170, coins: 190, legacy: 55, reward: "170 XP · 190 生涯幣 · 55 信任", test: ({ result, grade }) => (result === "win" || result === "walkoff") && grade >= 88 },
 ];
 
 const CAREER_RANKS = [
@@ -904,6 +922,19 @@ const CAREER_RANKS = [
   { label: "球隊核心", min: 300, next: 520 },
   { label: "聯盟明星", min: 520, next: 800 },
   { label: "傳奇門檻", min: 800, next: 1100 },
+];
+
+const GAME_PREP_PLANS = {
+  hitting: { label: "打擊會議", detail: "已完成對手投手報告；本日打擊判斷獲得小幅加成。", focus: 12, xp: 8, fatigue: 2, morale: 1 },
+  defense: { label: "守備佈陣", detail: "已完成落點與跑者傾向會議；本日守備成功率獲得小幅加成。", focus: 10, xp: 10, fatigue: 2, morale: 1 },
+  recovery: { label: "恢復日", detail: "完成伸展、冰敷與睡眠管理，降低疲勞並提升士氣。", focus: 3, xp: 4, fatigue: -15, morale: 4 },
+};
+
+const CAREER_CHAPTERS = [
+  { label: "菜鳥登場", target: "完成 3 場關鍵賽事", games: 0, legacy: 0, story: "教練團觀察期", copy: "把握有限上場機會，讓每一次打席與守備都留下印象。", quote: "先證明你能幫助球隊贏球。" },
+  { label: "爭取先發", target: "教練信任達到 45", games: 3, legacy: 55, story: "先發競爭開始", copy: "你已進入輪值競爭，穩定決策比偶爾的亮眼數據更重要。", quote: "我要看的不是一場爆發，是你每天都準備好了。" },
+  { label: "球隊核心", target: "完成 9 場關鍵賽事", games: 6, legacy: 170, story: "休息區需要你的聲音", copy: "球隊開始依賴你的表現，宿敵戰與低潮期都會把壓力交給你。", quote: "現在，隊友會看你怎麼回應逆境。" },
+  { label: "冠軍追逐", target: "贏下傳奇之夜", games: 10, legacy: 360, story: "把名字留在旗幟上", copy: "例行賽只是起點，接下來每次上場都可能決定球季。", quote: "明星贏數據，核心替球隊贏下十月。" },
 ];
 
 const CAREER_BADGES = [
@@ -922,6 +953,29 @@ function activeCareerGoal(profile) {
   return CAREER_GOALS[index] || CAREER_GOALS[0];
 }
 
+function careerCoachTrust(profile) {
+  if (!profile) return 0;
+  return clamp(Math.round(18
+    + Number(profile.legacyPoints || 0) * .13
+    + Number(profile.keyGamesCompleted || 0) * 3
+    + Math.max(0, Number(profile.lastGrade || 0) - 60) * .12), 0, 99);
+}
+
+function careerChapterIndexFor(profile) {
+  if (!profile) return 0;
+  const games = Number(profile.record?.games || 0);
+  const legacy = Number(profile.legacyPoints || 0);
+  let index = 0;
+  CAREER_CHAPTERS.forEach((chapter, chapterIndex) => {
+    if (games >= chapter.games && legacy >= chapter.legacy) index = chapterIndex;
+  });
+  return index;
+}
+
+function careerChapterFor(profile) {
+  return CAREER_CHAPTERS[careerChapterIndexFor(profile)] || CAREER_CHAPTERS[0];
+}
+
 function advanceCareerGoal(profile, kind, value = 1) {
   if (!profile) return "";
   const goal = activeCareerGoal(profile);
@@ -935,8 +989,9 @@ function advanceCareerGoal(profile, kind, value = 1) {
   const completed = goal.label;
   profile.goalIndex = (Number(profile.goalIndex || 0) + 1) % CAREER_GOALS.length;
   profile.goalProgress = 0;
-  profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + 25);
-  return `完成目標「${completed}」，獲得 25 生涯幣`;
+  const reward = Math.max(25, Number(goal.reward || 25));
+  profile.careerCoins = Math.max(0, Number(profile.careerCoins || 0) + reward);
+  return `完成目標「${completed}」，獲得 ${reward} 生涯幣`;
 }
 
 function xpToNextLevel(level) {
@@ -971,6 +1026,8 @@ function serializeCareerProfile(profile) {
     lastGrade: clamp(Number(profile?.lastGrade || 0), 0, 99),
     legacyPoints: Math.max(0, Number(profile?.legacyPoints || 0)),
     focusMeter: clamp(Number(profile?.focusMeter || 0), 0, 100),
+    preGamePlan: GAME_PREP_PLANS[profile?.preGamePlan] ? profile.preGamePlan : "",
+    preGamePlanDay: String(profile?.preGamePlanDay || ""),
     keyGameIndex: Math.max(0, Number(profile?.keyGameIndex || 0)),
     keyGamesCompleted: Math.max(0, Number(profile?.keyGamesCompleted || 0)),
     recentMatches: Array.isArray(profile?.recentMatches) ? profile.recentMatches.slice(0, 5) : [],
@@ -1017,6 +1074,8 @@ function normalizeNetworkPlayerSnapshot(raw, teamId = state?.teamId || selectedT
     lastGrade: clamp(Number(incomingProfile.lastGrade || 0), 0, 99),
     legacyPoints: Math.max(0, Number(incomingProfile.legacyPoints || 0)),
     focusMeter: clamp(Number(incomingProfile.focusMeter || 0), 0, 100),
+    preGamePlan: GAME_PREP_PLANS[incomingProfile.preGamePlan] ? incomingProfile.preGamePlan : "",
+    preGamePlanDay: String(incomingProfile.preGamePlanDay || ""),
     keyGameIndex: Math.max(0, Number(incomingProfile.keyGameIndex || 0)),
     keyGamesCompleted: Math.max(0, Number(incomingProfile.keyGamesCompleted || 0)),
     recentMatches: Array.isArray(incomingProfile.recentMatches) ? incomingProfile.recentMatches.slice(0, 5) : [],
@@ -1323,6 +1382,55 @@ function selectDevelopmentPath(pathId) {
   profile.developmentPath = DEVELOPMENT_PATHS[pathId] ? pathId : "balanced";
   persistCustomPlayers();
   setCareerStatus(`${player.name} 已改走「${path.label}」；符合路線的訓練會額外獲得 XP。`);
+  render();
+}
+
+function chooseGamePrep(planId) {
+  const player = selectedCareerPlayer();
+  const plan = GAME_PREP_PLANS[planId];
+  if (!player || !plan) {
+    setCareerStatus("先建立一名自創球員，才能安排比賽日計畫。", "is-error");
+    render();
+    return;
+  }
+  if (network.role !== "solo") {
+    setCareerStatus("賽前計畫屬於單人生涯；離開多人房間後即可安排。", "is-error");
+    render();
+    return;
+  }
+  if (!(state.phase === "pre" || state.phase === "gameover")) {
+    setCareerStatus("比賽進行中不能更改準備計畫。", "is-error");
+    render();
+    return;
+  }
+  const profile = profileFor(player.id);
+  const today = careerDayKey();
+  if (profile.preGamePlanDay === today) {
+    const selectedPlan = GAME_PREP_PLANS[profile.preGamePlan];
+    setCareerStatus(`今天已完成「${selectedPlan?.label || "賽前準備"}」，明天才能重新選擇。`, "is-error");
+    render();
+    return;
+  }
+  if (profile.practiceSessions <= 0) {
+    setCareerStatus("今天的訓練額度已用完；明天會自動恢復。", "is-error");
+    render();
+    return;
+  }
+  profile.practiceSessions -= 1;
+  profile.preGamePlan = planId;
+  profile.preGamePlanDay = today;
+  profile.focusMeter = clamp(Number(profile.focusMeter || 0) + plan.focus, 0, 100);
+  profile.fatigue = clamp(Number(profile.fatigue || 0) + plan.fatigue, 0, 100);
+  profile.morale = clamp(Number(profile.morale || 72) + plan.morale, 20, 99);
+  const previousLevel = profile.level;
+  awardCareerXp(profile, plan.xp);
+  const currentGoal = activeCareerGoal(profile);
+  const goalMessage = advanceCareerGoal(profile, currentGoal.kind === "xp" ? "xp" : "practice", currentGoal.kind === "xp" ? plan.xp : 1);
+  profile.lastPractice = `${plan.label} · 比賽日準備`;
+  persistCustomPlayers();
+  const levelText = previousLevel !== profile.level ? `，升到 Lv.${profile.level}` : "";
+  const goalText = goalMessage ? `；${goalMessage}` : "";
+  setCareerStatus(`${plan.label}完成：${plan.detail} 獲得 ${plan.xp} XP${levelText}${goalText}。`);
   render();
 }
 
@@ -2225,8 +2333,8 @@ function renderCareerSpotlight(player, profile) {
   const focusCopy = $("career-focus-meter-copy");
   const focusBar = $("career-focus-bar");
   if (!player || !profile) {
-    if (rankLabel) rankLabel.textContent = "新人報到";
-    if (rankCopy) rankCopy.textContent = "建立球員後開始累積生涯聲望。";
+    if (rankLabel) rankLabel.textContent = "等待評估";
+    if (rankCopy) rankCopy.textContent = "建立球員後開始累積教練信任。";
     if (rankBar) rankBar.style.width = "0%";
     if (focusState) focusState.textContent = "累積中";
     if (focusCopy) focusCopy.textContent = "訓練與比賽好表現會填滿專注條。";
@@ -2234,10 +2342,11 @@ function renderCareerSpotlight(player, profile) {
     return;
   }
   const rank = careerRankFor(profile.legacyPoints);
-  const rankProgress = rank.next > rank.min ? ((profile.legacyPoints - rank.min) / (rank.next - rank.min)) * 100 : 100;
-  if (rankLabel) rankLabel.textContent = rank.label;
-  if (rankCopy) rankCopy.textContent = `${profile.legacyPoints} 聲望 · 下一階段 ${rank.next}`;
-  if (rankBar) rankBar.style.width = `${clamp(Math.round(rankProgress), 0, 100)}%`;
+  const trust = careerCoachTrust(profile);
+  const trustStatus = trust >= 85 ? "不可取代" : trust >= 65 ? "球隊核心" : trust >= 45 ? "固定先發" : trust >= 28 ? "輪值競爭" : "觀察名單";
+  if (rankLabel) rankLabel.textContent = `${trust}% · ${trustStatus}`;
+  if (rankCopy) rankCopy.textContent = `${rank.label} · ${profile.legacyPoints} 生涯聲望`;
+  if (rankBar) rankBar.style.width = `${trust}%`;
   const ready = Number(profile.focusMeter || 0) >= 100;
   if (focusState) focusState.textContent = ready ? "火熱啟動" : `${Math.round(profile.focusMeter || 0)} / 100`;
   if (focusCopy) focusCopy.textContent = ready ? "下一場關鍵賽事獲得擊球與 XP 加成。" : "答對訓練情境與比賽好表現會累積專注。";
@@ -2337,6 +2446,66 @@ function renderPracticeChallenge() {
   }[execution.kind];
 }
 
+function renderCareerClubhouse(player, profile, connectedToRoom) {
+  const journey = $("career-journey");
+  const chapterLabel = $("career-chapter-label");
+  const storyTitle = $("career-story-title");
+  const storyCopy = $("career-story-copy");
+  const storyQuote = $("career-story-quote");
+  const prepStatus = $("career-prep-status");
+  const heroOverall = $("career-hero-ovr");
+  const coins = $("career-mode-coins");
+  const trust = $("career-mode-trust");
+  const condition = $("career-mode-condition");
+  const next = $("career-clubhouse-next");
+  const nextNote = $("career-clubhouse-note");
+  const avatar = document.querySelector(".career-player-identity .career-avatar-mark");
+  if (!player || !profile) {
+    if (journey) journey.innerHTML = CAREER_CHAPTERS.map((chapter, index) => `<article class="career-journey-step ${index === 0 ? "is-current" : "is-locked"}"><b>${String(index + 1).padStart(2, "0")}</b><span>${chapter.label}</span><small>${chapter.target}</small></article>`).join("");
+    if (chapterLabel) chapterLabel.textContent = "第 1 章";
+    if (storyTitle) storyTitle.textContent = CAREER_CHAPTERS[0].story;
+    if (storyCopy) storyCopy.textContent = "建立球員後，教練團會開始評估你的比賽表現。";
+    if (storyQuote) storyQuote.textContent = "「名單上還有一個位置，先讓我們看看你是誰。」— 首席教練";
+    if (prepStatus) prepStatus.textContent = "建立球員後即可安排每天的比賽日計畫。";
+    if (heroOverall) heroOverall.textContent = "—";
+    if (coins) coins.textContent = "—";
+    if (trust) trust.textContent = "—";
+    if (condition) condition.textContent = "—";
+    if (next) next.textContent = "等待球團安排";
+    if (nextNote) nextNote.textContent = "建立球員後，教練會交付第一場任務。";
+    if (avatar) avatar.textContent = "MP";
+  } else {
+    const chapterIndex = careerChapterIndexFor(profile);
+    const chapter = careerChapterFor(profile);
+    const trustValue = careerCoachTrust(profile);
+    const keyGame = KEY_GAME_DEFS[Number(profile.keyGameIndex || 0) % KEY_GAME_DEFS.length];
+    const opponentId = chooseOpponentFor(player.teamId, selectedOpponentId);
+    if (journey) journey.innerHTML = CAREER_CHAPTERS.map((candidate, index) => `<article class="career-journey-step ${index < chapterIndex ? "is-complete" : index === chapterIndex ? "is-current" : "is-locked"}"><b>${index < chapterIndex ? "✓" : String(index + 1).padStart(2, "0")}</b><span>${candidate.label}</span><small>${candidate.target}</small></article>`).join("");
+    if (chapterLabel) chapterLabel.textContent = `第 ${chapterIndex + 1} 章 · ${chapter.label}`;
+    if (storyTitle) storyTitle.textContent = chapter.story;
+    if (storyCopy) storyCopy.textContent = chapter.copy;
+    if (storyQuote) storyQuote.textContent = `「${chapter.quote}」— 首席教練`;
+    if (heroOverall) heroOverall.textContent = player.overall;
+    if (coins) coins.textContent = `${profile.careerCoins}`;
+    if (trust) trust.textContent = `${trustValue}%`;
+    if (condition) condition.textContent = `疲勞 ${profile.fatigue} · 士氣 ${profile.morale}`;
+    if (next) next.textContent = `${keyGame.chapter} · ${keyGame.label}`;
+    if (nextNote) nextNote.textContent = `${teamFor(player.teamId).shortName} vs ${teamFor(opponentId).shortName} · ${keyGame.detail}`;
+    if (avatar) avatar.textContent = player.position;
+    const selectedPrep = profile.preGamePlanDay === careerDayKey() ? GAME_PREP_PLANS[profile.preGamePlan] : null;
+    if (prepStatus) prepStatus.textContent = selectedPrep
+      ? `今日已完成「${selectedPrep.label}」：${selectedPrep.detail}`
+      : connectedToRoom
+        ? "目前在多人房間；離開後可安排單人生涯的比賽日計畫。"
+        : "每天可選一次賽前計畫，會使用 1 次訓練額度。";
+  }
+  document.querySelectorAll("[data-game-prep]").forEach((button) => {
+    const selected = Boolean(profile && profile.preGamePlanDay === careerDayKey() && profile.preGamePlan === button.dataset.gamePrep);
+    button.classList.toggle("is-selected", selected);
+    button.disabled = !player || !profile || profile.practiceSessions <= 0 || Boolean(profile.preGamePlanDay === careerDayKey()) || connectedToRoom || !(state.phase === "pre" || state.phase === "gameover");
+  });
+}
+
 function renderCareerMode() {
   const panel = $("career-mode-panel");
   if (!panel) return;
@@ -2355,16 +2524,17 @@ function renderCareerMode() {
     if (modeMeta) modeMeta.textContent = "先到上方工坊建立你的 My Player";
     if (modeProgress) modeProgress.textContent = "Lv.— · XP— · OVR—";
     if (modeCopy) modeCopy.textContent = "建立角色後，關鍵賽事、情境訓練與能力徽章會在這裡展開。";
-    if (energy) energy.textContent = "今日訓練 0 / 3";
-    if (score) score.textContent = "累積評分 —";
+    if (energy) energy.textContent = "0 / 3";
+    if (score) score.textContent = "—";
   } else {
     if (modeName) modeName.textContent = player.name;
     if (modeMeta) modeMeta.textContent = `${player.position} · ${positionName(player.position)} · ${player.archetype}`;
-    if (modeProgress) modeProgress.textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)} · OVR ${player.overall}`;
+    if (modeProgress) modeProgress.textContent = `Lv.${profile.level} · XP ${profile.xp}/${xpToNextLevel(profile.level)}`;
     if (modeCopy) modeCopy.textContent = connectedToRoom ? "目前在多人房間；角色仍會保存，離開後可繼續單人生涯。" : "完成關鍵賽事、訓練判斷與徽章里程碑，再帶著角色加入九人房間。";
-    if (energy) energy.textContent = `今日訓練 ${profile.practiceSessions} / ${PRACTICE_SESSIONS_PER_DAY}`;
-    if (score) score.textContent = `累積評分 ${profile.practiceScore || 0} · 最近 ${profile.lastGrade || "—"}`;
+    if (energy) energy.textContent = `${profile.practiceSessions} / ${PRACTICE_SESSIONS_PER_DAY}`;
+    if (score) score.textContent = `${profile.lastGrade || "—"}`;
   }
+  renderCareerClubhouse(player, profile, connectedToRoom);
   renderCareerDevelopment(player, profile);
   renderCareerFeedback(player, profile);
   renderCareerSpotlight(player, profile);
@@ -2951,7 +3121,9 @@ function setActiveView(viewId = "match", { targetId = "", scroll = true } = {}) 
     else link.removeAttribute("aria-current");
   });
   const visibleDetails = activeView === "career"
-    ? ["player-builder-feature", "career-feature"]
+    ? [targetId && ["player-builder-feature", "career-feature"].includes(targetId)
+      ? targetId
+      : selectedCareerPlayer() ? "career-feature" : "player-builder-feature"]
     : activeView === "season"
       ? ["season-feature"]
       : activeView === "roster"
@@ -3157,6 +3329,9 @@ function renderPlayerHub() {
   const nextTitle = $("hub-next-title");
   const nextCopy = $("hub-next-copy");
   const nextAction = $("hub-next-action");
+  const coins = $("hub-coins");
+  const trust = $("hub-trust");
+  const morale = $("hub-morale");
   if (!player || !profile) {
     if (avatar) avatar.textContent = "MP";
     if (name) name.textContent = "建立你的 My Player";
@@ -3165,6 +3340,9 @@ function renderPlayerHub() {
     if (level) level.textContent = "Lv.—";
     if (xp) xp.textContent = "XP —";
     if (progressBar) progressBar.style.width = "0%";
+    if (coins) coins.textContent = "—";
+    if (trust) trust.textContent = "—";
+    if (morale) morale.textContent = "—";
     if (nextTitle) nextTitle.textContent = "先建立你的球員";
     if (nextCopy) nextCopy.textContent = "選一個模板，再把建造點放到你真正想玩的能力。";
     if (nextAction) {
@@ -3187,6 +3365,9 @@ function renderPlayerHub() {
   if (level) level.textContent = `Lv.${profile.level}`;
   if (xp) xp.textContent = `XP ${profile.xp}/${nextXp}`;
   if (progressBar) progressBar.style.width = `${Math.min(100, Math.round((profile.xp / nextXp) * 100))}%`;
+  if (coins) coins.textContent = profile.careerCoins;
+  if (trust) trust.textContent = `${careerCoachTrust(profile)}%`;
+  if (morale) morale.textContent = profile.morale;
   if (nextTitle) nextTitle.textContent = goal.label;
   if (nextCopy) nextCopy.textContent = `${goal.detail} ${goalProgress}/${goal.target}；${path.label}訓練可獲得額外 XP。`;
   if (nextAction) {
@@ -4508,7 +4689,9 @@ function simulateAwayHalf(defenseAction = "defense-control", timingScore = 65) {
   const opponentStats = teamFor(state.opponentId).leagueStats || {};
   const offensiveStrength = clamp(1 + (Number(opponentStats.sluggingPct || 0.33) - 0.33) * 2 + (Number(opponentStats.onBasePct || 0.32) - 0.32) * 1.2, 0.9, 1.13);
   const [baseThreeRun, baseTwoRun, baseOneRun] = profiles[defenseAction] || profiles["defense-control"];
-  const planFactor = teamPlanMultiplier(defenseAction);
+  const careerPlayer = selectedCareerPlayer();
+  const careerDefenseFactor = careerPlayer && ["P", "C"].includes(careerPlayer.position) ? careerPrepMultiplier(careerPlayer, "defense") : 1;
+  const planFactor = teamPlanMultiplier(defenseAction) * careerDefenseFactor;
   const timingRisk = clamp(1.25 - Number(timingScore || 65) / 230, .82, 1.15);
   const threeRun = clamp(baseThreeRun * offensiveStrength * timingRisk / planFactor, 0.03, 0.24);
   const twoRun = clamp(baseTwoRun * offensiveStrength * timingRisk / planFactor, threeRun + 0.04, 0.54);
@@ -4551,7 +4734,7 @@ function resolveFieldingAction(action) {
   const fielding = Number(defenderRatings.fielding || definition.fielding) / 100;
   const arm = Number(defenderRatings.armStrength || definition.arm) / 100;
   const reaction = Number(defenderRatings.reaction || definition.fielding) / 100;
-  const planFactor = teamPlanMultiplier(action);
+  const planFactor = teamPlanMultiplier(action) * careerPrepMultiplier(defender, "defense");
   const roll = nextRandom();
   let finalRuns = baseRuns;
   if (action === "fielding-catch") {
@@ -4697,7 +4880,14 @@ function opponentPitchingFactor() {
 
 function careerFocusMultiplier(player) {
   if (state.matchMode !== "career" || !player?.id || !customPlayerIndex[player.id]) return 1;
-  return Number(profileFor(player.id)?.focusMeter || 0) >= 100 ? 1.1 : 1;
+  const focusFactor = Number(profileFor(player.id)?.focusMeter || 0) >= 100 ? 1.1 : 1;
+  return focusFactor * careerPrepMultiplier(player, "hitting");
+}
+
+function careerPrepMultiplier(player, planId) {
+  if (state.matchMode !== "career" || !player?.id || !customPlayerIndex[player.id]) return 1;
+  const profile = profileFor(player.id);
+  return profile?.preGamePlanDay === careerDayKey() && profile?.preGamePlan === planId ? 1.06 : 1;
 }
 
 function resolveSwing(action, timingScore = 65) {
@@ -5080,9 +5270,14 @@ function bindEvents() {
     if (execute && !execute.disabled) handlePracticeExecution();
   });
   $("career-mode-panel")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-career-tab]");
-    if (!button) return;
-    setCareerTab(button.dataset.careerTab);
+    const prepButton = event.target.closest("[data-game-prep]");
+    if (prepButton) {
+      if (!prepButton.disabled) chooseGamePrep(prepButton.dataset.gamePrep);
+      return;
+    }
+    const tabButton = event.target.closest("[data-career-tab]");
+    if (!tabButton) return;
+    setCareerTab(tabButton.dataset.careerTab);
   });
   $("development-paths")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-development-path]");

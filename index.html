@@ -7,55 +7,57 @@
       name="description"
       content="九局下半：一款用每個決策改寫比分的棒球文字遊戲。"
     />
-    <meta name="theme-color" content="#0c1210" />
+    <meta name="theme-color" content="#07111d" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=fictional-roster-2026a" />
+    <link rel="stylesheet" href="./styles.css?v=clubhouse-redesign-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=fictional-roster-2026a" defer></script>
+    <script src="./game.js?v=clubhouse-redesign-2026a" defer></script>
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-lockup">
-          <div class="brand-ball" aria-hidden="true">⚾</div>
+          <div class="brand-ball" aria-hidden="true"><i></i><i></i></div>
           <div>
-            <p class="eyebrow">BASEBALL TEXT GAME</p>
-            <h1>九局下半</h1>
+            <p class="eyebrow">PLAYER-LOCK BASEBALL</p>
+            <h1>九局下半 <small>26</small></h1>
           </div>
         </div>
         <div class="topbar-actions">
-          <span class="live-indicator"><span></span> LIVE FROM TAOYUAN</span>
+          <div class="topbar-season"><span>2026 CAREER</span><b>球員生涯進行中</b></div>
+          <span class="live-indicator"><span></span> LIVE BALLPARK</span>
           <button class="ghost-button" id="new-game" type="button">回到賽前</button>
         </div>
       </header>
 
       <nav class="section-nav" aria-label="遊戲主選單">
         <a class="section-nav-link is-active" data-view="match" href="#game-card">
-          <span class="section-nav-index">01</span>
-          <span><b>比賽</b><small>即時決策</small></span>
+          <span class="section-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3.8 10.4 12 21l8.2-10.6L12 3Z"/><path d="M7.7 8.1h8.6M7.2 15.1h9.6"/></svg></span>
+          <span><b>比賽日</b><small>進入球場</small></span>
         </a>
         <a class="section-nav-link" data-view="multiplayer" href="#network-card">
-          <span class="section-nav-index">02</span>
-          <span><b>多人</b><small>九人協作</small></span>
+          <span class="section-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20v-2.2c0-3 2.4-5.3 5.5-5.3s5.5 2.3 5.5 5.3V20M14 14c3.6 0 6 1.8 6 4.5V20"/></svg></span>
+          <span><b>球隊大廳</b><small>1–9 人協作</small></span>
         </a>
         <a class="section-nav-link" data-view="career" href="#career-feature">
-          <span class="section-nav-index">03</span>
-          <span><b>My Player</b><small>自主發展</small></span>
+          <span class="section-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 21v-3.5a6 6 0 0 1 12 0V21M8 12.8l-3-2.4M16 12.8l3-2.4"/></svg></span>
+          <span><b>球員生涯</b><small>My Player</small></span>
         </a>
         <a class="section-nav-link" data-view="season" href="#season-feature">
-          <span class="section-nav-index">04</span>
-          <span><b>賽季</b><small>逐場推進</small></span>
+          <span class="section-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3"/></svg></span>
+          <span><b>賽季中心</b><small>賽程與排名</small></span>
         </a>
         <a class="section-nav-link" data-view="roster" href="#roster-feature">
-          <span class="section-nav-index">05</span>
-          <span><b>名單</b><small>球隊成員</small></span>
+          <span class="section-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></span>
+          <span><b>球團名單</b><small>六隊球員</small></span>
         </a>
-        <span class="section-nav-note">免費 NPC · 最多 9 人</span>
+        <span class="section-nav-note">FREE TO PLAY · 1–9 PLAYERS</span>
       </nav>
 
       <section class="player-hub" id="player-hub" aria-labelledby="player-hub-title">
+        <div class="hub-stadium-ribbon"><span>CLUBHOUSE ACCESS</span><b>主場休息區</b></div>
         <div class="hub-player-block">
-          <div class="hub-kicker"><span class="hub-live-dot"></span> PLAYER HUB</div>
+          <div class="hub-kicker"><span class="hub-live-dot"></span> ACTIVE MY PLAYER</div>
           <div class="hub-player-row">
             <div class="hub-avatar" id="hub-avatar">MP</div>
             <div class="hub-player-copy">
@@ -68,6 +70,11 @@
             <span id="hub-level">Lv.—</span>
             <span class="hub-progress-track"><i id="hub-progress-bar"></i></span>
             <span id="hub-xp">XP —</span>
+          </div>
+          <div class="hub-resource-row" aria-label="球員生涯資源">
+            <span><small>生涯幣</small><strong id="hub-coins">—</strong></span>
+            <span><small>教練信任</small><strong id="hub-trust">—</strong></span>
+            <span><small>士氣</small><strong id="hub-morale">—</strong></span>
           </div>
         </div>
         <div class="hub-next-card">
@@ -232,35 +239,68 @@
             <span class="feature-disclosure-state">展開</span>
           </summary>
         <section class="career-mode-panel" id="career-mode-panel" aria-labelledby="career-mode-title">
-          <div class="career-mode-heading">
-            <div>
-              <p class="eyebrow">MY PLAYER · SOLO CAREER</p>
-              <h3 id="career-mode-title">我的球員生涯</h3>
-              <p id="career-mode-copy">從關鍵賽事、實戰訓練到能力徽章，每一次選擇都推進你的棒球生涯。</p>
+          <div class="career-clubhouse-hero">
+            <div class="career-clubhouse-copy">
+              <p class="eyebrow">MY PLAYER · CLUBHOUSE</p>
+              <h3 id="career-mode-title">你的棒球生涯，由每一次上場決定</h3>
+              <p id="career-mode-copy">在休息區安排訓練與比賽計畫，完成球團任務，再用關鍵賽事贏得先發與聲望。</p>
+              <div class="career-player-identity">
+                <span class="career-avatar-mark">MP</span>
+                <div><strong id="career-mode-name">尚未建立自創球員</strong><small id="career-mode-meta">先到球員工坊建立你的 My Player</small></div>
+                <span class="career-player-ovr"><small>OVR</small><b id="career-hero-ovr">—</b></span>
+              </div>
             </div>
-            <button class="career-match-button" id="start-career-match" type="button">開始關鍵賽事 <span>↗</span></button>
+            <aside class="career-next-appearance" aria-label="下一場關鍵賽事">
+              <span>NEXT APPEARANCE</span>
+              <strong id="career-clubhouse-next">等待球團安排</strong>
+              <small id="career-clubhouse-note">建立球員後，教練會交付第一場任務。</small>
+              <button class="career-match-button" id="start-career-match" type="button">進入關鍵賽事 <span aria-hidden="true">→</span></button>
+            </aside>
           </div>
-          <div class="career-mode-summary">
-            <div class="career-player-identity"><span class="career-avatar-mark">MP</span><div><strong id="career-mode-name">尚未建立自創球員</strong><small id="career-mode-meta">先到上方工坊建立你的 My Player</small></div></div>
-            <span id="career-mode-progress">Lv.— · XP— · OVR—</span>
-            <span id="career-mode-energy">今日訓練 0 / 3</span>
-            <span id="career-mode-score">累積評分 —</span>
+          <div class="career-resource-bar" aria-label="生涯狀態">
+            <span><small>球員進度</small><b id="career-mode-progress">Lv.— · XP—</b></span>
+            <span><small>生涯幣</small><b id="career-mode-coins">—</b></span>
+            <span><small>教練信任</small><b id="career-mode-trust">—</b></span>
+            <span><small>訓練額度</small><b id="career-mode-energy">0 / 3</b></span>
+            <span><small>最近評分</small><b id="career-mode-score">—</b></span>
+            <span><small>體能／士氣</small><b id="career-mode-condition">—</b></span>
           </div>
           <div class="career-tabs" role="tablist" aria-label="球員生涯功能">
-            <button class="career-tab is-active" data-career-tab="overview" type="button" role="tab" aria-selected="true">生涯總覽</button>
-            <button class="career-tab" data-career-tab="keygame" type="button" role="tab" aria-selected="false">關鍵賽事</button>
-            <button class="career-tab" data-career-tab="training" type="button" role="tab" aria-selected="false">實戰訓練</button>
-            <button class="career-tab" data-career-tab="badges" type="button" role="tab" aria-selected="false">能力徽章</button>
+            <button class="career-tab is-active" data-career-tab="overview" type="button" role="tab" aria-selected="true"><span>CLUBHOUSE</span>會所首頁</button>
+            <button class="career-tab" data-career-tab="keygame" type="button" role="tab" aria-selected="false"><span>KEY GAMES</span>關鍵賽事</button>
+            <button class="career-tab" data-career-tab="training" type="button" role="tab" aria-selected="false"><span>TRAINING</span>球場訓練</button>
+            <button class="career-tab" data-career-tab="badges" type="button" role="tab" aria-selected="false"><span>BADGES</span>能力徽章</button>
           </div>
 
           <div class="career-tab-panel is-active" data-career-panel="overview" role="tabpanel">
+            <section class="career-journey-panel" aria-labelledby="career-journey-title">
+              <div class="career-section-heading"><div><span>CAREER JOURNEY</span><h4 id="career-journey-title">從一軍新人走向球隊核心</h4></div><b id="career-chapter-label">第 1 章</b></div>
+              <div class="career-journey" id="career-journey" aria-label="生涯章節進度"></div>
+            </section>
+            <div class="career-overview-grid">
+              <article class="career-story-card">
+                <span>球團訊息</span>
+                <strong id="career-story-title">教練團觀察期</strong>
+                <p id="career-story-copy">把握有限上場機會，讓每一次打席與守備都留下印象。</p>
+                <small id="career-story-quote">「先證明你能幫助球隊贏球。」— 首席教練</small>
+              </article>
+              <section class="career-prep-card" aria-labelledby="career-prep-title">
+                <div><span>GAME DAY PLAN</span><h4 id="career-prep-title">今天怎麼準備？</h4></div>
+                <div class="career-prep-actions" id="career-prep-actions">
+                  <button type="button" data-game-prep="hitting"><b>打擊會議</b><small>研究投手 · 專注 +12</small></button>
+                  <button type="button" data-game-prep="defense"><b>守備佈陣</b><small>預判落點 · 專注 +10</small></button>
+                  <button type="button" data-game-prep="recovery"><b>恢復日</b><small>疲勞 −15 · 士氣 +4</small></button>
+                </div>
+                <p id="career-prep-status">每天可選一次賽前計畫，會使用 1 次訓練額度。</p>
+              </section>
+            </div>
             <div class="career-spotlight-grid">
               <article class="career-spotlight-card career-legacy-card">
-                <span>生涯地位</span><strong id="career-legacy-rank">新人報到</strong><small id="career-legacy-copy">完成關鍵賽事，建立你的聯盟地位。</small>
+                <span>教練信任</span><strong id="career-legacy-rank">等待評估</strong><small id="career-legacy-copy">完成球團任務，爭取更穩定的上場機會。</small>
                 <div class="career-meter"><i id="career-legacy-bar"></i></div>
               </article>
               <article class="career-spotlight-card career-focus-card">
-                <span>專注狀態</span><strong id="career-focus-state">累積中</strong><small id="career-focus-meter-copy">好表現會填滿專注條，下一場獲得加成。</small>
+                <span>臨場爆發</span><strong id="career-focus-state">累積中</strong><small id="career-focus-meter-copy">訓練與好表現會填滿能量，下一場獲得加成。</small>
                 <div class="career-meter"><i id="career-focus-bar"></i></div>
               </article>
             </div>
