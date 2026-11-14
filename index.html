@@ -7,13 +7,16 @@
       name="description"
       content="九局下半：一款用每個決策改寫比分的棒球文字遊戲。"
     />
-    <meta name="theme-color" content="#07111d" />
+    <meta name="theme-color" content="#f2f5f7" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./styles.css?v=clubhouse-redesign-2026a" />
+    <link rel="stylesheet" href="./light.css?v=clear-layout-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./game.js?v=clubhouse-redesign-2026a" defer></script>
+    <script src="./match-engine.js?v=clear-layout-2026a" defer></script>
+    <script src="./career-content.js?v=clear-layout-2026a" defer></script>
+    <script src="./game.js?v=clear-layout-2026a" defer></script>
+    <script src="./ui-shell.js?v=clear-layout-2026a" defer></script>
   </head>
-  <body>
+  <body data-screen="home">
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-lockup">
@@ -321,6 +324,10 @@
               <div class="career-key-game-copy"><p class="eyebrow">NEXT KEY GAME</p><h4 id="career-key-game-title">建立球員後解鎖</h4><p id="career-key-game-opponent">關鍵賽事會依你的球隊與生涯階段安排。</p></div>
               <div class="career-key-game-objective"><span>本場挑戰</span><strong id="career-key-game-goal">—</strong><small id="career-key-game-reward">獎勵：—</small></div>
             </article>
+            <article class="career-key-game career-position-challenge">
+              <div class="career-key-game-copy"><p class="eyebrow">POSITION CHALLENGE</p><h4 id="career-position-challenge-title">建立球員後解鎖</h4><p id="career-position-challenge-copy">九個守備位置各有一項專屬挑戰。</p></div>
+              <div class="career-key-game-objective"><span>位置專屬目標</span><strong>本場完成</strong><small id="career-position-challenge-reward">獎勵：—</small></div>
+            </article>
             <div class="career-history" id="career-history" aria-label="最近生涯賽事"></div>
           </div>
 
@@ -490,7 +497,34 @@
             <div class="line-score" id="line-score" aria-label="逐局比分"></div>
           </div>
 
-          <div class="game-content-grid field-only-grid">
+          <div class="game-content-grid">
+            <section class="match-event-panel" id="match-event-panel" aria-labelledby="match-event-title" hidden>
+              <div class="match-event-heading">
+                <div>
+                  <p class="eyebrow" id="match-event-kicker">FIELD DECISION</p>
+                  <h3 id="match-event-title">等待比賽事件</h3>
+                </div>
+                <span class="match-event-live"><i aria-hidden="true"></i> LIVE PLAY</span>
+              </div>
+              <p class="match-event-copy" id="match-event-copy">比賽開始後，這裡會顯示目前回合、可採取的行動和隊友分工。</p>
+              <p class="match-event-owner" id="match-event-owner" role="status" aria-live="polite">本球責任：等待比賽開始</p>
+              <div class="match-event-map-heading">
+                <span>守備站位</span>
+                <small>九個位置 · 球場燈下</small>
+              </div>
+              <div class="field-position-map" id="field-position-map" role="img" aria-label="守備位置圖：投手、捕手、一壘手、二壘手、三壘手、游擊手、左外野手、中外野手、右外野手">
+                <span class="field-position-marker" data-field-position="P" aria-hidden="true">P</span>
+                <span class="field-position-marker" data-field-position="C" aria-hidden="true">C</span>
+                <span class="field-position-marker" data-field-position="1B" aria-hidden="true">1B</span>
+                <span class="field-position-marker" data-field-position="2B" aria-hidden="true">2B</span>
+                <span class="field-position-marker" data-field-position="3B" aria-hidden="true">3B</span>
+                <span class="field-position-marker" data-field-position="SS" aria-hidden="true">SS</span>
+                <span class="field-position-marker" data-field-position="LF" aria-hidden="true">LF</span>
+                <span class="field-position-marker" data-field-position="CF" aria-hidden="true">CF</span>
+                <span class="field-position-marker" data-field-position="RF" aria-hidden="true">RF</span>
+              </div>
+              <div class="match-event-flow" id="match-event-flow" role="group" aria-label="隊友本球分工"></div>
+            </section>
             <aside class="field-panel" aria-label="球場狀況">
               <div class="section-heading compact-heading">
                 <div>
