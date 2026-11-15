@@ -25,15 +25,29 @@ const errors = [];
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.stack || error.message));
-    await page.goto(process.argv[2] || "http://127.0.0.1:8877/", { waitUntil: "networkidle" });
+    await page.goto(process.argv[2] && process.argv[2] !== "--calibrate" ? process.argv[2] : "http://127.0.0.1:8877/", { waitUntil: "networkidle" });
     console.log("loaded", await page.locator("body").getAttribute("data-screen"), errors);
     assert.deepEqual(errors, []);
     assert.equal(await page.locator(".mode-card").count(), 3);
+    if (process.argv[2] === "--calibrate") {
+      const rows=await page.evaluate(require("./career-calibration.cjs"));
+      fs.writeFileSync(path.join(artifactDir,"career-calibration.json"),JSON.stringify(rows,null,2));
+      console.log(rows);
+      return;
+    }
     if (process.argv[2]) {
-      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=clear-layout-2026a");
+      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=career-season-2026a");
+      assert.equal(await page.evaluate(()=>Boolean(window.CareerMode&&window.CareerEngine&&PLAYER_SAVE_VERSION===2)),true);
       await page.getByRole("button", { name: "進入單人", exact: true }).click();
       assert.equal(await page.locator("body").getAttribute("data-screen"), "solo");
-      console.log("PASS: published homepage, light stylesheet and mode navigation", process.argv[2]);
+      await page.getByRole("button", {name:"‹ 模式選單",exact:true}).click();
+      await page.getByRole("button", {name:"進入生涯",exact:true}).click();
+      await page.locator("#custom-player-name").fill("公開版驗證");
+      await page.locator("#custom-player-submit").click();
+      assert.ok((await page.locator("#career-home-content").textContent()).includes("公開版驗證"));
+      assert.equal(await page.locator(".career-rating strong").textContent(),"60");
+      assert.equal(await page.getByRole("button",{name:"專精與徽章",exact:true}).count(),1);
+      console.log("PASS: published homepage, new career assets, 60 OVR creation and navigation", process.argv[2]);
       return;
     }
     await page.screenshot({ path: path.join(artifactDir, "home-desktop.png"), fullPage: true });
@@ -43,22 +57,20 @@ const errors = [];
     await page.locator("#custom-player-team").selectOption("taichung");
     await page.locator("#custom-player-submit").click();
     assert.equal(await page.locator("body").getAttribute("data-screen"), "career");
-    assert.equal(await page.locator("#career-mode-name").textContent(), "晴天球員");
+    assert.equal(await page.locator("#career-home-content h2").textContent(), "晴天球員");
     await page.getByRole("button", { name: "能力升級", exact: true }).click();
     assert.equal(await page.locator("#player-detail-name").textContent(), "晴天球員");
     const upgrade = page.locator("[data-attribute-upgrade]:enabled").first();
     const beforeCoins = await page.locator("#player-coin-badge").textContent();
     await upgrade.click();
     assert.notEqual(await page.locator("#player-coin-badge").textContent(), beforeCoins);
-    await page.getByRole("button", { name: "訓練", exact: true }).click();
-    await page.locator('[data-practice="hitting"]').click();
-    await page.locator("[data-practice-choice]").first().click();
-    await page.locator("#practice-execute-button").click();
+    await page.getByRole("button", { name: "專精與徽章", exact: true }).click();
+    assert.equal(await page.locator(".career-badge").count(), 6);
     await page.getByRole("button", { name: "生涯首頁", exact: true }).click();
     await page.screenshot({ path: path.join(artifactDir, "career-desktop.png"), fullPage: true });
-    await page.getByRole("button", { name: "查看賽程", exact: true }).click();
-    assert.ok((await page.locator("#season-context").textContent()).includes("樂園桃猿"));
-    assert.ok((await page.locator("#schedule-progress").textContent()).includes("樂園桃猿"));
+    await page.getByRole("button", { name: "賽季與成績", exact: true }).click();
+    assert.ok((await page.locator("#career-season-view").textContent()).includes("晴天球員"));
+    assert.equal(await page.locator("#career-season-view .standing-row").count(), 6);
     await page.getByRole("button", { name: "查看球團名單", exact: true }).click();
     assert.equal(await page.locator("#roster-list button").count(), 9);
     await page.reload({ waitUntil: "networkidle" });
@@ -81,7 +93,7 @@ const errors = [];
     const measurements = [];
     for (const width of [375, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const view of ["home", "solo", "multiplayer", "career", "training", "tasks", "upgrades", "builder", "saves", "season", "roster"]) {
+      for (const view of ["home", "solo", "multiplayer", "career", "badges", "upgrades", "builder", "saves", "season", "roster"]) {
         await page.evaluate((value) => window.GameUI.navigate(value, { explicit: true }), view);
         const sizes = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
         measurements.push({ view, ...sizes });
@@ -121,7 +133,7 @@ const errors = [];
     console.log("match result", await page.evaluate(() => ({ phase: state.phase, inning: state.inning })));
     assert.equal(await page.evaluate(() => state.phase), "gameover");
     await page.evaluate(() => window.GameUI.navigate("career"));
-    await page.locator("#start-career-match").click();
+    await page.locator('[data-career-command="start"]').first().click();
     assert.equal(await page.locator("body").getAttribute("data-screen"), "match");
     for (let step = 0; step < 40; step++) {
       if (await page.evaluate(() => localControlsActiveEvent())) break;
@@ -161,6 +173,7 @@ const errors = [];
     await page.setViewportSize({ width: 375, height: 812 });
     await page.evaluate(() => { document.body.classList.add("large-text"); GameUI.navigate("upgrades"); });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "large text stays within mobile width");
+    await require("./career-browser-checks.cjs")(page, artifactDir);
     const hostContext = await browser.newContext({ viewport: { width: 1024, height: 900 } });
     const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const host = await hostContext.newPage();
@@ -168,6 +181,16 @@ const errors = [];
     host.on("pageerror", (error) => errors.push(error.stack || error.message));
     guest.on("pageerror", (error) => errors.push(error.stack || error.message));
     await Promise.all([host.goto("http://127.0.0.1:8877/"), guest.goto("http://127.0.0.1:8877/")]);
+    const multiplayerPlayers = await Promise.all([host,guest].map((client,index)=>client.evaluate((index)=>{
+      const position=index?"C":"P";
+      const player=buildCustomPlayer({name:index?"客隊自創":"房主自創",number:"88",teamId:state.teamId,position,bats:"右",throws:"右",archetype:templatesForPosition(position)[0].id});
+      customPlayers.push(player); refreshCustomPlayerIndex();
+      const p=profileFor(player.id); p.level=16; p.specialist={pitching:150,catcher:70};
+      for(const key of Object.keys(player.ratings))if(key!=="popTime")p.boosts[key]=Math.max(0,attributeCapForPlayer(player,key)-player.ratings[key]);
+      useCustomPlayer(player.id); CareerMode.worldFor(player.id); persistCustomPlayers();
+      GameUI.navigate("home");
+      return {id:player.id,ratings:developedPlayer(player.id).ratings,world:JSON.stringify(CareerMode.worldFor(player.id)),coins:p.careerCoins};
+    },index)));
     await host.getByRole("button", { name: "進入多人", exact: true }).click();
     await host.locator("#create-room").click();
     await host.waitForFunction(() => network.role === "host" && network.connected, { timeout: 20000 });
@@ -177,6 +200,9 @@ const errors = [];
     await guest.locator("#join-room").click();
     await guest.waitForFunction(() => network.role === "guest" && network.connected, { timeout: 20000 });
     await host.waitForFunction(() => humanPlayerCount() === 2, { timeout: 10000 });
+    await guest.waitForFunction((id)=>humanPlayerCount()===2&&state.slots.P.playerSnapshot?.player.id===id,multiplayerPlayers[0].id,{timeout:10000});
+    assert.deepEqual(await host.evaluate(()=>matchPlayerForPosition("C",state.teamId).ratings),multiplayerPlayers[1].ratings,"guest upgrades survive network serialization");
+    assert.deepEqual(await guest.evaluate(()=>matchPlayerForPosition("P",state.teamId).ratings),multiplayerPlayers[0].ratings,"host upgrades survive network serialization");
     await host.locator("#lobby-start").click();
     await guest.waitForFunction(() => document.body.dataset.screen === "match", { timeout: 10000 });
     assert.equal(await host.locator("body").getAttribute("data-screen"), "match");
@@ -191,11 +217,25 @@ const errors = [];
     await host.evaluate(() => commitState());
     await guest.waitForFunction((revision) => state.revision > revision, awayRevision, { timeout: 10000 });
     assert.equal(await guest.locator("body").getAttribute("data-screen"), "home", "sync preserves the chosen page");
+    await host.evaluate(()=>{
+      for(let step=0;state.phase!=="gameover"&&step<2000;step++){
+        clearActionDeadline(); window.clearTimeout(network.npcTimer);network.npcTimer=null;
+        const slot=activeEventSlot(),manual=slot.controller==="human";
+        const action=state.phase==="defense"?chooseNpcDefenseAction():state.homeMode==="runner"?"runner-hold":"contact";
+        if(!performActionForPlayer(manual?slot.playerId:null,action,!manual,"",manual&&actionUsesMatchTiming(action)?matchTimingConfig(action).targetCenter:null))throw Error("multiplayer action rejected");
+      }
+    });
+    await guest.waitForFunction(()=>state.phase==="gameover",{timeout:15000});
+    for(let i=0;i<2;i++){
+      const client=[host,guest][i],saved=multiplayerPlayers[i];
+      assert.equal(await client.evaluate(id=>JSON.stringify(CareerMode.worldFor(id)),saved.id),saved.world,"multiplayer cannot change independent career");
+      assert.ok(await client.evaluate(id=>profileFor(id).careerCoins,saved.id)>saved.coins,"ordinary match rewards retained");
+    }
     console.log("PASS: two real browser clients join, enter the shared match, and synchronize a guest action");
     await Promise.all([host.evaluate(() => disconnectNetwork()), guest.evaluate(() => disconnectNetwork())]);
     await hostContext.close(); await guestContext.close();
     console.log("responsive layouts checked", measurements.length);
     assert.deepEqual(errors, []);
-    console.log("PASS: mode entry, creation, upgrade, training, schedule, roster, persistence and responsive navigation");
+    console.log("PASS: mode entry, creation, upgrade, badges, independent schedule, roster, persistence and responsive navigation");
   } finally { await browser.close(); server.close(); }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

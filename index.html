@@ -9,12 +9,14 @@
     />
     <meta name="theme-color" content="#f2f5f7" />
     <title>九局下半｜棒球文字遊戲</title>
-    <link rel="stylesheet" href="./light.css?v=clear-layout-2026a" />
+    <link rel="stylesheet" href="./light.css?v=career-season-2026a" />
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="./match-engine.js?v=clear-layout-2026a" defer></script>
-    <script src="./career-content.js?v=clear-layout-2026a" defer></script>
-    <script src="./game.js?v=clear-layout-2026a" defer></script>
-    <script src="./ui-shell.js?v=clear-layout-2026a" defer></script>
+    <script src="./match-engine.js?v=career-season-2026a" defer></script>
+    <script src="./career-content.js?v=career-season-2026a" defer></script>
+    <script src="./career-engine.js?v=career-season-2026a" defer></script>
+    <script src="./game.js?v=career-season-2026a" defer></script>
+    <script src="./ui-shell.js?v=career-season-2026a" defer></script>
+    <script src="./career-mode.js?v=career-season-2026a" defer></script>
   </head>
   <body data-screen="home">
     <div class="app-shell">
@@ -171,7 +173,7 @@
           <div>
             <p class="eyebrow">ROAD TO THE NINE</p>
             <h2 id="development-title">球員中心 · 六隊聯盟</h2>
-            <p>2026 中華職棒六隊、主力先發快照與遊戲化能力值；查看 54 名球員，透過訓練讓你的球員持續成長。</p>
+            <p>2026 中華職棒六隊、主力先發快照與遊戲化能力值；查看 54 名球員，透過正式比賽讓你的球員持續成長。</p>
           </div>
           <div class="match-team-controls">
             <label>主隊<select id="team-select" aria-label="選擇主隊"></select></label>
@@ -192,7 +194,7 @@
             </div>
             <span class="mini-label" id="custom-player-count">0 / 18 名自創球員</span>
           </div>
-          <p class="custom-player-copy">建立屬於你的球員，選擇位置與成長方向；建立後會加入所選球隊，並可在球員中心訓練。</p>
+          <p class="custom-player-copy">建立屬於你的球員，選擇位置與成長方向；建立後會加入所選球隊，用實戰生涯幣升級能力。</p>
           <form class="custom-player-form" id="custom-player-form">
             <label class="custom-field custom-field-wide">球員姓名<input id="custom-player-name" maxlength="14" placeholder="例如：林大河" required /></label>
             <label class="custom-field">背號<input id="custom-player-number" inputmode="numeric" maxlength="2" value="99" required /></label>

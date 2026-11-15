@@ -3,10 +3,11 @@
   "use strict";
   const byId = (id) => document.getElementById(id);
   const shell = document.querySelector(".app-shell");
-  const pageNames = { home: "選擇模式", solo: "單人比賽", multiplayer: "多人大廳", career: "生涯首頁", training: "球場訓練", tasks: "生涯任務", upgrades: "能力升級", builder: "建立球員", saves: "角色與存檔", season: "賽程與排名", roster: "球團名單", match: "比賽現場" };
+  const pageNames = { home: "選擇模式", solo: "單人比賽", multiplayer: "多人大廳", career: "生涯首頁", badges: "專精與徽章", training: "已移除訓練", tasks: "實戰目標", upgrades: "能力升級", builder: "建立球員", saves: "角色與存檔", season: "賽季與成績", roster: "球團名單", match: "比賽現場" };
   const pages = {};
   let screen = "home";
-  let origin = "solo";
+  let origin = readStorage("jiuju-mode-context-v1", "solo");
+  if (!["solo", "career", "multiplayer"].includes(origin)) origin = "solo";
   let previousPhase = state.phase;
   let previousMyTurn = false;
   let mounted = false;
@@ -53,7 +54,7 @@
   nav.after(subnav);
 
   const home = page("home");
-  home.innerHTML = `<div class="home-heading"><div class="baseball-label">2026 球季</div><h2>今天，想怎麼上場？</h2><p>選一個模式，開始你的棒球時刻。</p></div><div class="resume-strip" id="resume-strip" hidden><div><span>你的球員</span><strong id="resume-name"></strong></div>${routeButton("career", "繼續生涯", "primary-button")}</div><div class="mode-grid"><article class="mode-card mode-solo"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>1</b></div><h3>單人</h3><p>選擇球隊與位置，快速開賽或挑戰完整賽季。</p>${routeButton("solo", "進入單人", "primary-button")}</article><article class="mode-card mode-multi"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>9</b></div><h3>多人</h3><p>和朋友各守一個位置，空缺由 NPC 補位。</p>${routeButton("multiplayer", "進入多人", "primary-button")}</article><article class="mode-card mode-career"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>MP</b></div><h3>生涯</h3><p>打造自己的球員，訓練、升級並贏得上場機會。</p>${routeButton("career", "進入生涯", "primary-button")}</article></div><div class="home-footnote"><span>最多九人同隊</span><span>免費本地 NPC</span><span>角色自動保存</span></div>`;
+  home.innerHTML = `<div class="home-heading"><div class="baseball-label">2026 球季</div><h2>今天，想怎麼上場？</h2><p>選一個模式，開始你的棒球時刻。</p></div><div class="resume-strip" id="resume-strip" hidden><div><span>你的球員</span><strong id="resume-name"></strong></div>${routeButton("career", "繼續生涯", "primary-button")}</div><div class="mode-grid"><article class="mode-card mode-solo"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>1</b></div><h3>單人</h3><p>選擇球隊與位置，快速開賽或挑戰完整賽季。</p>${routeButton("solo", "進入單人", "primary-button")}</article><article class="mode-card mode-multi"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>9</b></div><h3>多人</h3><p>和朋友各守一個位置，空缺由 NPC 補位。</p>${routeButton("multiplayer", "進入多人", "primary-button")}</article><article class="mode-card mode-career"><div class="mode-art" aria-hidden="true"><span class="mode-diamond"></span><b>MP</b></div><h3>生涯</h3><p>從 60 OVR 一軍先發起步，完整實戰打造明星。</p>${routeButton("career", "進入生涯", "primary-button")}</article></div><div class="home-footnote"><span>最多九人同隊</span><span>免費本地 NPC</span><span>角色自動保存</span></div>`;
 
   const solo = page("solo");
   solo.innerHTML = `<div class="page-heading"><h2>單人比賽</h2><p>選好球隊與位置，就能上場。</p></div><div class="solo-options"><div class="panel"><h3>快速比賽</h3><div id="solo-team-controls"></div><p>你控制一個位置，其餘球員由 NPC 補位。</p>${routeButton("multiplayer", "選擇我的位置", "secondary-button")}<button class="primary-button" type="button" id="solo-start">開始快速比賽</button><p class="inline-status" id="solo-room-note" role="status"></p></div><div class="panel"><h3>球隊賽季</h3><p>逐場推進例行賽與季後賽，查看聯盟排名和球團成員。</p>${routeButton("season", "查看賽程", "secondary-button")}</div></div>`;
@@ -62,6 +63,7 @@
   const lobbyStart = create("div", "lobby-start", `${routeButton("match", "返回比賽現場", "secondary-button")}<button type="button" class="primary-button" id="lobby-start">準備好了，開始比賽</button>`);
   byId("network-card").append(lobbyStart);
   const career = page("career");
+  page("badges");
   career.append(byId("career-mode-panel"));
   document.querySelector(".career-tabs").hidden = true;
   const quickLinks = create("div", "career-quick-links", `${routeButton("upgrades", "能力升級", "primary-button")}${routeButton("training", "球場訓練", "secondary-button")}${routeButton("tasks", "生涯任務", "secondary-button")}${routeButton("season", "查看賽程", "secondary-button")}`);
@@ -138,10 +140,10 @@
   const titleAnchors = { "game-card": "match", "network-card": "multiplayer", "career-feature": "career", "development-panel": "career", "player-builder-feature": "builder", "season-feature": "season", "roster-feature": "roster", "player-attributes": "upgrades" };
 
   function tabs() {
-    const careerPages = ["career", "upgrades", "training", "tasks", "builder", "saves"];
+    const careerPages = ["career", "upgrades", "badges", "training", "tasks", "builder", "saves"];
     let items = [];
     if (careerPages.includes(screen) || ["season", "roster"].includes(screen) && origin === "career") {
-      items = [["career", "生涯首頁"], ["upgrades", "能力"], ["training", "訓練"], ["tasks", "任務"], ["season", "賽程"], ["saves", "角色與存檔"]];
+      items = [["career", "生涯首頁"], ["upgrades", "能力升級"], ["badges", "專精與徽章"], ["season", "賽季與成績"], ["saves", "角色與存檔"]];
     } else if (["solo", "season", "roster"].includes(screen)) {
       items = [["solo", "快速比賽"], ["season", "球隊賽季"]];
     } else if (screen === "multiplayer") {
@@ -153,15 +155,21 @@
 
   function navigate(view, options = {}) {
     let next = titleAnchors[options.targetId] || view;
+    if (window.CareerMode && ["training", "tasks"].includes(next)) {
+      if (next === "training") window.CareerMode.retiredTraining();
+      next = "career";
+    }
     if (next === "multiplayer" && !["pre", "gameover"].includes(state.phase) && view === "multiplayer" && !options.explicit) next = "match";
     if (!pageNames[next]) next = "home";
     if (next === "career" && !selectedCareerPlayer()) next = "builder";
     if (next === "solo") origin = "solo";
     if (next === "multiplayer" && !(origin === "solo" && options.positionOnly)) origin = "multiplayer";
-    if (["career", "upgrades", "training", "tasks", "builder", "saves"].includes(next)) origin = "career";
+    if (["career", "upgrades", "badges", "training", "tasks", "builder", "saves"].includes(next)) origin = "career";
     screen = next;
     activeView = ["match", "multiplayer", "season", "roster"].includes(next) ? next : "career";
     document.body.dataset.screen = screen;
+    document.body.dataset.origin = origin;
+    writeStorage("jiuju-mode-context-v1", origin);
     document.body.dataset.activeView = activeView;
     document.body.dataset.careerPage = next;
     for (const [id, node] of Object.entries(pages)) node.hidden = id !== next && !(id === "career" && ["training", "tasks"].includes(next));
@@ -188,6 +196,7 @@
     tabs();
     renderDevelopment();
     refresh();
+    window.CareerMode?.render();
     if (options.scroll !== false) window.scrollTo({ top: 0, behavior: "instant" });
     if (options.history !== false) historyReplace(next);
   }
@@ -231,7 +240,7 @@
     byId("solo-start").disabled = connectedRoom || active || !slotForPlayer(network.localPlayerId);
     byId("solo-room-note").textContent = connectedRoom ? "目前在多人房間，請從多人大廳開始比賽。" : active ? "有一場比賽進行中，可從上方返回現場。" : "";
     byId("lobby-start").disabled = byId("start-game").disabled || active;
-    byId("season-context").textContent = `目前球隊：${teamFor(seasonTeamId()).name}。單人與生涯沿用這份賽季進度。`;
+    byId("season-context").textContent = `目前球隊：${teamFor(seasonTeamId()).name}。此為球隊賽季；各角色生涯賽季獨立保存。`;
     const summary = document.querySelector(".lineup-drawer");
     summary.hidden = state.phase !== "pre";
     byId("home-team-name").style.borderColor = teamFor(state.teamId).color;
@@ -249,7 +258,7 @@
   }
   new ResizeObserver(measureDock).observe(document.querySelector(".action-zone"));
 
-  window.GameUI = { navigate, refresh, seasonTeamId };
+  window.GameUI = { navigate, refresh, seasonTeamId, isCareerContext: () => origin === "career", currentScreen: () => screen };
   document.addEventListener("click", (event) => {
     const settingsControl = event.target.closest("[data-open-settings]");
     if (settingsControl) { settings.showModal(); return; }

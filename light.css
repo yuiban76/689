@@ -2647,3 +2647,38 @@ kbd {
     scroll-behavior:auto!important
   }
 }
+
+/* Independent career pages share the existing bright design tokens. */
+#career-season-view { display:none; }
+body[data-origin=career] #screen-season > :not(#career-season-view):not([data-ui-view=roster]) { display:none; }
+body[data-origin=career] #career-season-view { display:block; }
+.career-new-hero,.career-season-columns { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.career-new-hero .panel,.career-season-columns .panel,.career-stat-panel,#career-season-view > .panel { padding:24px; margin-bottom:20px; min-width:0; }
+.career-identity { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
+.career-identity h2 { margin:0 0 8px; font-size:28px; }
+.career-identity p { margin:0 0 8px; }
+.career-rating { display:grid; text-align:center; flex-shrink:0; }
+.career-rating strong { font-size:44px; color:var(--accent); }
+.career-number-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:14px; }
+.career-number { display:grid; gap:6px; padding:12px 0; border-top:1px solid var(--border); }
+.career-number span,.career-rating span { font-size:14px; color:var(--muted); }
+.career-number strong { font-size:22px; overflow-wrap:anywhere; }
+.career-objective { display:grid; gap:8px; background:#f3f6f8; padding:16px; border-radius:8px; margin:18px 0; }
+.career-objective small,.career-badge small,.career-identity small { font-size:14px; line-height:1.6; }
+.career-badge-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.career-badge { padding:22px; border:1px solid var(--border); border-radius:12px; background:white; min-width:0; }
+.career-badge > small { display:block; margin:10px 0; }
+.career-meter { height:8px; background:#e5eaf0; border-radius:8px; overflow:hidden; }
+.career-meter i { display:block; height:100%; background:var(--accent); }
+.career-postseason { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.season-schedule-row { display:grid; grid-template-columns:48px minmax(0,1fr) 68px; gap:10px; padding:14px 0; border-top:1px solid var(--border); font-size:14px; }
+#career-home-content .career-mode-status { margin:8px 0 20px; }
+@media(max-width:760px) {
+  .career-new-hero,.career-season-columns,.career-postseason,.career-badge-grid { grid-template-columns:1fr; }
+  .career-new-hero,.career-season-columns { gap:0; }
+  .career-new-hero .panel,.career-season-columns .panel,.career-stat-panel,#career-season-view > .panel { padding:18px; }
+  .career-identity h2 { font-size:24px; }
+  .career-number-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .career-number strong { font-size:20px; }
+  .season-schedule-row { gap:6px; }
+}
