@@ -36,7 +36,7 @@ const errors = [];
       return;
     }
     if (process.argv[2]) {
-      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=career-season-2026c");
+      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=career-season-2026d");
       assert.equal(await page.evaluate(()=>Boolean(window.CareerMode&&window.CareerEngine&&PLAYER_SAVE_VERSION===2)),true);
       await page.getByRole("button", { name: "進入單人", exact: true }).click();
       assert.equal(await page.locator("body").getAttribute("data-screen"), "solo");
@@ -60,9 +60,11 @@ const errors = [];
       await page.getByRole("button", {name:"‹ 模式選單",exact:true}).click();
       assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 80");
       assert.equal(await page.locator("#resume-level").textContent(),"等級 Lv.1");
-      await page.evaluate(()=>{const p=profileFor(selectedCustomPlayerId);p.careerCoins=1234;p.level=5;persistCustomPlayers();GameUI.refresh();});
+      await page.evaluate(()=>{const p=profileFor(selectedCustomPlayerId);p.careerCoins=1234;p.level=5;p.xp=140;persistCustomPlayers();GameUI.refresh();});
       assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 1,234");
       assert.equal(await page.locator("#resume-level").textContent(),"等級 Lv.5");
+      assert.equal(await page.locator("#resume-xp").textContent(),"140 / 280 XP");
+      assert.equal(await page.locator("#resume-xp-bar").evaluate(node=>node.position),.5);
       await page.reload();
       assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 1,234");
       for(const width of [375,390,768,1024,1440]){
