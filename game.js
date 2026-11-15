@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 const actionButtons = [...document.querySelectorAll("[data-action]")];
-const PROTOCOL_VERSION = 5;
+const PROTOCOL_VERSION = 6;
 const MAX_PLAYERS = 9;
 const MAX_LOG = 14;
 const MATCH_EVENT_TIMEOUTS = window.MatchEngine?.EVENT_TIMEOUT_MS || { pitch: 15000, catcherCall: 12000, fielding: 8000, batting: 15000, runner: 9000 };
@@ -2662,9 +2662,11 @@ const ACTION_META = {
 };
 
 const DEFENSE_ACTION_META = {
-  "defense-fast": { icon: "⚡", title: "強攻配球", detail: "壓低球數，三振與長打風險都提高", key: "1" },
-  "defense-break": { icon: "⌁", title: "變化球引誘", detail: "製造滾地球，失投時可能被打穿", key: "2" },
+  "defense-fast": { icon: "⚡", title: "四縫線速球", detail: "壓低球數，三振與長打風險都提高", key: "1" },
+  "defense-break": { icon: "⌁", title: "滑球", detail: "橫向變化，偏出好球帶會增加保送風險", key: "2" },
   "defense-control": { icon: "●", title: "穩定控球", detail: "降低大局風險，但可能讓打者上壘", key: "3" },
+  "defense-change": { icon: "⌁", title: "變速球", detail: "改變節奏，誘使打者提前出棒", key: "4" },
+  "defense-curve": { icon: "⌁", title: "曲球", detail: "較大變化，需要控制落點", key: "5" },
   "defense-pickoff": { icon: "↩", title: "牽制跑者", detail: "打亂對手節奏，成功可直接抓出局", key: "4" },
   "defense-intentional": { icon: "◌", title: "敬遠中心打者", detail: "避開長打，代價是增加壘上壓力", key: "5" },
 };
@@ -2694,6 +2696,7 @@ const CATCHER_ACTION_META = {
 };
 
 const RUNNER_ACTION_META = {
+  "runner-extra": { icon: "↗", title: "趁傳球多進一壘", detail: "速度對抗對手臂力與準確度，失敗會被觸殺", key: "1" },
   steal: { icon: "»", title: "搶下一個壘包", detail: "判斷投手動作後起跑", key: "1" },
   "runner-hold": { icon: "●", title: "留在壘包", detail: "不冒險，等待打者推進", key: "2" },
 };
@@ -3097,6 +3100,7 @@ function clearActionDeadline() {
   network.actionTimer = null;
   state.actionDeadline = 0;
   state.activeEvent = null;
+  window.PitchMode?.ensureOffense();
   state.eventToken = (state.eventToken || 0) + 1;
 }
 
@@ -3155,7 +3159,7 @@ function armActionDeadline() {
       ? state.currentAwayPlay?.situation || `${positionName(owner)}處理${state.currentAwayPlay?.kind === "groundball" ? "內野滾地球" : "外野飛球"}。`
       : state.defenseMode === "catcher"
         ? `${positionName(owner)}與投手配球；上一球策略：${DEFENSE_ACTION_META[state.awaySeries?.pitchAction]?.title || "穩定控球"}。`
-        : "投手先選擇策略，捕手下一步調整球種和落點。"
+        : "捕手提出建議，投手決定本球的球種、落點與力道。"
     : state.homeMode === "runner"
       ? `${positionName(owner)}是目前可推進的跑者；選擇起跑或留在壘包。`
       : `${positionName(owner)}打者處理目前球數與投球。`;
@@ -3666,7 +3670,7 @@ function hostHandleAction(record, message) {
     return;
   }
   const settledEventId = state.lastSettledEventId;
-  const accepted = performActionForPlayer(record.playerId, message.action, false, "", message.timingPosition);
+  const accepted = performActionForPlayer(record.playerId, message.action, false, message.timingExpired ? "timing-timeout" : "", message.timingPosition, message.pitchOptions);
   if (!accepted) {
     if (state.lastSettledEventId === settledEventId) state.lastSettledEventId = "";
     sendSnapshotTo(record.connection);
@@ -4102,6 +4106,7 @@ function matchTimingEventKey() {
 
 function actionUsesMatchTiming(action) {
   if (state.phase === "home") return ["power", "contact", "bunt"].includes(action);
+  if (["defense-intentional","defense-pickoff"].includes(action)) return false;
   return state.phase === "defense" && state.defenseMode === "strategy" && Object.prototype.hasOwnProperty.call(DEFENSE_ACTION_META, action);
 }
 
@@ -4134,7 +4139,7 @@ function matchTimingConfig(action) {
     skill,
     targetWidth,
     targetCenter,
-    cycleMs: pitching ? 1550 : action === "power" ? 1400 : 1650,
+    cycleMs: pitching ? 1550 : 3600,
   };
 }
 
@@ -4191,10 +4196,11 @@ function beginMatchTiming(action) {
     const score = $("match-timing-score");
     if (marker) marker.style.left = `${challenge.markerPosition}%`;
     if (score) score.textContent = `${timingScoreFromConfig(challenge.config, challenge.markerPosition)} 分`;
+    window.PitchMode?.animate(challenge, timestamp);
     matchTimingAnimationFrame = window.requestAnimationFrame(animate);
   };
   matchTimingAnimationFrame = window.requestAnimationFrame(animate);
-  matchTimingTimer = window.setTimeout(() => finishMatchTiming(true), MATCH_TIMING_TIMEOUT_MS);
+  matchTimingTimer = window.setTimeout(() => finishMatchTiming(true), state.phase === "home" ? challenge.config.cycleMs / 2 : MATCH_TIMING_TIMEOUT_MS);
   return true;
 }
 
@@ -4212,7 +4218,7 @@ function finishMatchTiming(timedOut = false) {
   clearMatchTiming();
   if (network.role === "guest") {
     network.awaiting = true;
-    const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, eventId: state.activeEvent?.id || "", action, timingPosition });
+    const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, eventId: state.activeEvent?.id || "", action, timingPosition, timingExpired: timedOut, pitchOptions: window.PitchMode?.options() });
     if (!sent) {
       network.awaiting = false;
       network.status = "時機操作傳送失敗，請確認連線後再試。";
@@ -4234,12 +4240,12 @@ function localControlsActiveEvent() {
 }
 
 function activeActionMeta() {
-  if (state.phase !== "defense") return state.homeMode === "runner" ? RUNNER_ACTION_META : ACTION_META;
+  if (state.phase !== "defense") return state.homeMode === "runner" ? state.pitchGame?.advanceWindow ? { "runner-extra": RUNNER_ACTION_META["runner-extra"], "runner-hold": RUNNER_ACTION_META["runner-hold"] } : { steal: RUNNER_ACTION_META.steal, "runner-hold": RUNNER_ACTION_META["runner-hold"] } : ACTION_META;
   if (state.defenseMode === "catcher") return CATCHER_ACTION_META;
   if (state.defenseMode !== "fielding") return DEFENSE_ACTION_META;
   if (state.currentAwayPlay?.kind !== "groundball") return OUTFIELD_ACTION_META;
   const actions = { ...FIELDING_ACTION_META };
-  if (!(state.currentAwayPlay?.runnerCount > 0)) delete actions["fielding-double"];
+  if (!state.bases.first || state.outs >= 2) delete actions["fielding-double"];
   if (!state.currentAwayPlay?.leadRunnerOnThird) delete actions["fielding-home"];
   return actions;
 }
@@ -4247,13 +4253,14 @@ function activeActionMeta() {
 function canAction(action) {
   if (state.phase === "defense") {
     if (!Object.prototype.hasOwnProperty.call(activeActionMeta(), action)) return false;
-    if (action === "fielding-double" && !(state.currentAwayPlay?.runnerCount > 0)) return false;
+    if (action === "defense-pickoff" && !hasRunners()) return false;
+    if (action === "fielding-double" && (!state.bases.first || state.outs >= 2 || state.currentAwayPlay?.kind !== "groundball")) return false;
     if (action === "fielding-home" && !state.currentAwayPlay?.leadRunnerOnThird) return false;
     return true;
   }
-  if (state.homeMode === "runner") return action === "runner-hold" || (action === "steal" && canSteal());
+  if (state.homeMode === "runner") return action === "runner-hold" || (action === "runner-extra" && !!state.pitchGame?.advanceWindow) || (action === "steal" && canSteal() && !state.pitchGame?.advanceWindow);
   if (!["power", "contact", "patient", "bunt"].includes(action)) return false;
-  if (action === "bunt" && !hasRunners()) return false;
+
   return true;
 }
 
@@ -4330,7 +4337,7 @@ function renderMatchTiming() {
   if (marker) marker.style.left = `${challenge.markerPosition}%`;
   if (buttonLabel) buttonLabel.textContent = config.kind === "pitching" ? "放球" : config.action === "bunt" ? "觸擊" : "揮棒";
   if (hint) hint.textContent = config.kind === "pitching"
-    ? "放球越接近中央，這個半局的失分風險越低。"
+    ? "放球時機影響本球的實際落點；全力投球較耗體力。"
     : "時機會直接影響安打、長打、界外與揮空機率。";
   return true;
 }
@@ -4352,7 +4359,7 @@ function renderActions() {
   $("pitch-count-note").textContent = timingActive
     ? defense ? "完成放球時機" : "完成擊球時機"
     : network.awaiting ? "決策已送出，等待同步"
-      : defense ? state.defenseMode === "fielding" ? `客隊攻勢：${state.pendingAwayRuns} 分預估` : state.defenseMode === "catcher" ? "捕手接手配球，決定球種與落點" : "投手先設定球路策略"
+      : defense ? state.defenseMode === "fielding" ? `客隊攻勢：${state.pendingAwayRuns} 分預估` : state.defenseMode === "catcher" ? "捕手逐球建議，決定球種與落點" : "投手先設定球路策略"
         : state.phase === "home" && state.homeMode === "runner" ? "跑者起跑時機 · 可選擇盜壘或留壘"
           : state.phase === "home" ? `${state.balls} 壞球 · ${state.strikes} 好球` : "選擇一個策略";
   renderCountLights();
@@ -4428,9 +4435,9 @@ function renderMatchEvent() {
     batting: "打者攻勢決策",
   };
   const title = event.type === "pitch"
-    ? `${state.inning} 局${state.half === "top" ? "上" : "下"} · 投手開局配球`
+    ? `${state.inning} 局${state.half === "top" ? "上" : "下"} · 投手逐球投球`
     : event.type === "catcher-call"
-      ? `${state.inning} 局${state.half === "top" ? "上" : "下"} · 捕手接手配球`
+      ? `${state.inning} 局${state.half === "top" ? "上" : "下"} · 捕手逐球建議`
       : event.type === "fielding"
         ? `${state.inning} 局${state.half === "top" ? "上" : "下"} · 第 ${state.currentAwayPlay?.number || 1} 個守備球`
         : event.type === "runner"
@@ -4450,9 +4457,9 @@ function renderMatchEvent() {
   if (flow && state.phase === "defense" && state.awaySeries) {
     const series = state.awaySeries;
     const steps = [
-      { position: "P", name: "投手", done: Boolean(series.pitchAction), current: event.type === "pitch" },
-      { position: "C", name: "捕手", done: Boolean(series.catcherAction), current: event.type === "catcher-call" },
-      ...(series.plan?.plays || []).map((play, index) => ({
+      { position: "C", name: "捕手", done: state.defenseMode !== "catcher", current: event.type === "catcher-call" },
+      { position: "P", name: "投手", done: state.defenseMode === "fielding", current: event.type === "pitch" },
+      ...(state.currentAwayPlay ? [state.currentAwayPlay] : []).map((play, index) => ({
         position: play.position,
         name: `守備球 ${index + 1}`,
         done: index < Number(series.playIndex || 0),
@@ -4594,7 +4601,7 @@ function render() {
         ? `${state.inning} 局${state.half === "top" ? "上" : "下"}，球往${positionName(state.defenseOwner)}方向飛去；由責任區球員處理來球。`
         : state.defenseMode === "catcher"
           ? `${state.inning} 局${state.half === "top" ? "上" : "下"}，捕手接手投捕配合，決定球種與落點。`
-          : `${state.inning} 局${state.half === "top" ? "上" : "下"}，投手先決定球路策略；捕手接著調整配球。`
+          : `${state.inning} 局${state.half === "top" ? "上" : "下"}，捕手已提出建議，投手決定球種、落點與力道。`
       : state.phase === "cpu"
       ? `NPC ${awayTeam.name} 正在完成半局進攻，下一個半局由 ${homeTeam.name} 球員接手。`
       : state.phase === "gameover"
@@ -4642,6 +4649,7 @@ function render() {
   renderDevelopment();
   renderPlayerHub();
   window.GameUI?.refresh();
+  window.PitchMode?.render();
   scheduleNpcTurn();
 }
 
@@ -4705,75 +4713,12 @@ function beginDefenseHalf() {
   state.awaySeries = { pitchAction: "", pitchTimingScore: 65, pitchPlanFactor: 1, catcherAction: "", plan: null, playIndex: 0, runs: 0, outs: 0 };
   state.currentAwayPlay = null;
   state.defenseOwner = "P";
-  addLog(`${state.inning} 局${state.half === "top" ? "上" : "下"}，${teamFor(state.teamId).name} 投捕先溝通配球，再由守備陣容處理兩個關鍵球。`, "big");
-  armActionDeadline();
+  window.PitchMode.beginDefense();
 }
 
-function simulateAwayHalf(defenseAction = "defense-control", timingScore = 65) {
-  if (!state.awaySeries) state.awaySeries = { pitchAction: "", pitchTimingScore: 65, pitchPlanFactor: 1, catcherAction: "", plan: null, playIndex: 0, runs: 0, outs: 0 };
-  state.awaySeries.pitchAction = defenseAction;
-  state.awaySeries.pitchTimingScore = clamp(Number(timingScore || 65), 0, 100);
-  const pitcher = matchPlayerForPosition("P", state.teamId);
-  const quality = pitcher?.ratings || {};
-  state.awaySeries.pitchPlanFactor = teamPlanMultiplier(defenseAction) * clamp(.8 + (Number(quality.control || 60) + Number(quality.break || 60) + Number(quality.velocity || 60)) / 900, .9, 1.15) * (window.CareerMode?.modifier(pitcher, "pitching") || 1);
-  state.awaySeries.pitchManual = state.actionCredit?.manual === true;
-  state.defenseAction = defenseAction;
-  state.defenseMode = "catcher";
-  state.defenseOwner = "C";
-  state.currentAwayPlay = null;
-  addLog(`${positionName("P")} 完成${DEFENSE_ACTION_META[defenseAction]?.title || "投球策略"}；${positionName("C")} 接手配球，準備誘導客隊打者。`);
-}
+function simulateAwayHalf(action = "defense-control", timing = 65) { return window.PitchMode.pitch(action, timing); }
 
-function startAwayFieldingPlay(index = 0) {
-  const series = state.awaySeries;
-  const play = series?.plan?.plays?.[index];
-  if (!series || !play) return false;
-  series.playIndex = index;
-  state.currentAwayPlay = play;
-  state.defenseMode = "fielding";
-  state.defenseOwner = play.position;
-  state.pendingAwayRuns = Math.min(6, Number(series.runs || 0) + Number(play.potentialRuns || 0));
-  const bases = { first: null, second: null, third: null };
-  if (play.leadRunnerOnThird) bases.third = "AWY3";
-  if (play.runnerCount >= 2) bases.second = "AWY2";
-  else if (play.runnerCount === 1 && !play.leadRunnerOnThird) bases.first = "AWY1";
-  state.bases = bases;
-  state.outs = Math.min(2, Number(series.outs || 0));
-  addLog(`${state.inning} 局${state.half === "top" ? "上" : "下"}第 ${play.number} 個守備球：${positionName(play.position)}責任區，${play.situation}`, play.potentialRuns ? "danger" : "");
-  return true;
-}
-
-function resolveCatcherAction(action) {
-  const series = state.awaySeries;
-  if (!series) return;
-  series.catcherAction = action;
-  series.catcherManual = state.actionCredit?.manual === true;
-  const opponentStats = teamFor(state.opponentId).leagueStats || {};
-  const offensiveStrength = clamp(
-    1 + (Number(opponentStats.sluggingPct || 0.33) - 0.33) * 2 + (Number(opponentStats.onBasePct || 0.32) - 0.32) * 1.2,
-    0.9,
-    1.13,
-  );
-  const catcher = matchPlayerForPosition("C", state.teamId);
-  const catcherRatings = catcher?.ratings || {};
-  const catcherQuality = clamp(.8 + (Number(catcherRatings.blocking || 60) + Number(catcherRatings.fielding || 60) + Number(catcherRatings.armAccuracy || 60)) / 900, .9, 1.15);
-  const defensivePlan = Number(series.pitchPlanFactor || 1) * teamPlanMultiplier(action) * catcherQuality * (window.CareerMode?.modifier(catcher, "catcher") || 1);
-  series.plan = window.MatchEngine.createAwayHalfPlan({
-    inning: state.inning,
-    fieldingCursor: state.fieldingCursor,
-    pitchAction: series.pitchAction,
-    catcherAction: action,
-    timingScore: series.pitchTimingScore,
-    offensiveStrength: clamp(offensiveStrength / defensivePlan, 0.9, 1.13),
-    random: nextRandom,
-  });
-  series.playIndex = 0;
-  series.runs = 0;
-  series.outs = 0;
-  state.fieldingCursor = series.plan.nextFieldingCursor;
-  addLog(`${positionName("C")} 選擇${CATCHER_ACTION_META[action]?.title || "配球"}；投手與捕手完成交接，客隊擊出兩個守備事件。`, "big");
-  startAwayFieldingPlay(0);
-}
+function resolveCatcherAction(action) { return window.PitchMode.catcher(action); }
 
 function completeAwayHalf(runs, message, tone = "") {
   state.phase = "cpu";
@@ -4783,8 +4728,8 @@ function completeAwayHalf(runs, message, tone = "") {
   state.balls = 0;
   state.strikes = 0;
   const halfRuns = Math.max(0, Math.floor(Number(runs) || 0));
-  window.CareerMode?.creditPitchingHalf(halfRuns);
-  state.score.away += halfRuns;
+  // Pitching outs, strikeouts and runs are recorded by the actual pitch stream.
+  state.score.away += halfRuns - Number(window.PitchMode?.game().awayRunsPosted || 0);
   state.pendingAwayRuns = 0;
   state.awaySeries = null;
   state.currentAwayPlay = null;
@@ -4802,56 +4747,7 @@ function completeAwayHalf(runs, message, tone = "") {
   if (state.inning >= 9 && state.score.home > state.score.away) endGame("win");
 }
 
-function resolveFieldingAction(action) {
-  const play = state.currentAwayPlay;
-  const series = state.awaySeries;
-  if (!play || !series) return;
-  const definition = POSITION_BY_CODE[state.defenseOwner] || POSITION_BY_CODE.CF;
-  const defender = matchPlayerForPosition(state.defenseOwner, state.teamId) || definition;
-  const result = window.MatchEngine.resolveFieldingPlay({
-    play,
-    action,
-    ratings: defender.ratings || defender,
-    difficultyScale: DIFFICULTY_CONFIG.fieldingSuccessScale,
-    planFactor: teamPlanMultiplier(action) * (window.CareerMode?.modifier(defender, "defense") || 1),
-    random: nextRandom,
-  });
-  series.runs = Math.min(6, Number(series.runs || 0) + result.runs);
-  series.outs = Math.min(3, Number(series.outs || 0) + result.outs);
-  state.outs = Math.min(2, series.outs);
-  const fieldStats = state.playerStats[state.defenseOwner];
-  if (fieldStats) {
-    fieldStats.fieldingChances += 1;
-    fieldStats.defenseOpportunities += 1;
-    if (["fielding-catch", "fielding-dive", "fielding-first"].includes(action)) fieldStats.putouts += result.outs;
-    else if (result.outs > 0) fieldStats.assists += result.outs;
-    if (result.error) fieldStats.errors += 1;
-    window.CareerMode?.creditFielding(state.defenseOwner, result);
-    if (series.catcherManual && series.catcherAction === "catcher-pickoff" && play.runnerCount > 0 && result.savedRun && !series.runnerStopCredited) {
-      window.CareerMode?.credit("C", "runnerStops", 1, true);
-      series.runnerStopCredited = true;
-    }
-    if (result.outs === 0 && !result.error) state.playerStats.P.pitchingHits = Number(state.playerStats.P.pitchingHits || 0) + 1;
-  }
-  if (result.savedRun || result.outs > 0) setMomentum(4 + result.outs * 2);
-  else setMomentum(result.error ? -8 : -2);
-  const actionMeta = FIELDING_ACTION_META[action] || OUTFIELD_ACTION_META[action];
-  const outcome = result.error
-    ? `${positionName(state.defenseOwner)}${actionMeta?.title || "守備處理"}出現傳球或接球失誤，客隊多一次推進機會。`
-    : result.savedRun
-      ? `${positionName(state.defenseOwner)}${actionMeta?.title || "守備處理"}成功，這球阻止了失分。`
-      : `${positionName(state.defenseOwner)}${actionMeta?.title || "守備處理"}完成，守備仍在壓力中。`;
-  addLog(outcome, result.error ? "danger" : result.savedRun ? "big" : "");
-  if (series.playIndex + 1 < series.plan.plays.length) {
-    startAwayFieldingPlay(series.playIndex + 1);
-    return;
-  }
-  const finalRuns = Math.min(6, series.runs);
-  const halfSummary = finalRuns === 0
-    ? `${state.inning} 局${state.half === "top" ? "上" : "下"}守備成功封鎖客隊，沒有失分。`
-    : `${state.inning} 局${state.half === "top" ? "上" : "下"}客隊拿下 ${finalRuns} 分，主場守備完成半局。`;
-  completeAwayHalf(finalRuns, halfSummary, finalRuns > 0 ? "danger" : "big");
-}
+function resolveFieldingAction(action) { return window.PitchMode.field(action); }
 
 function beginHomeHalf() {
   state.phase = "home";
@@ -4968,82 +4864,11 @@ function careerFocusMultiplier() { return 1; }
 
 function careerPrepMultiplier() { return 1; }
 
-function resolveSwing(action, timingScore = 65) {
-  const batter = currentBatter();
-  const rawRoll = nextRandom();
-  const roll = clamp(rawRoll - (Number(timingScore || 65) - 65) / 420, 0, .999);
-  const ratings = batter.ratings || batter;
-  const countFactor = state.strikes === 2 ? 0.92 : state.balls >= 2 ? 1.04 : 1;
-  const swingWindow = DIFFICULTY_CONFIG.swingWindow * opponentPitchingFactor() * countFactor * teamPlanMultiplier(action) * careerFocusMultiplier(batter);
-  const contactBoost = (Number(ratings.contact || 60) * 0.72 + Number(ratings.vision || 60) * 0.28) / 1180 * swingWindow * (window.CareerMode?.modifier(batter, "contact") || 1);
-  const powerBoost = (Number(ratings.power || 60) * 0.84 + Number(ratings.clutch || 60) * 0.16) / 1450 * swingWindow * (window.CareerMode?.modifier(batter, "power") || 1);
-  let result = "out";
-  if (action === "power") {
-    if (roll < 0.01 + powerBoost * 0.65) result = "homer";
-    else if (roll < 0.06 + powerBoost * 0.62) result = "double";
-    else if (roll < 0.215 + contactBoost * 0.6) result = "single";
-    else if (roll < 0.49) result = "foul";
-    else if (roll < 0.74) result = "miss";
-  } else {
-    if (roll < 0.005 + powerBoost * 0.2) result = "homer";
-    else if (roll < 0.045 + powerBoost * 0.34) result = "double";
-    else if (roll < 0.215 + contactBoost * 0.6) result = "single";
-    else if (roll < 0.52 + contactBoost * 0.08) result = "foul";
-    else if (roll < 0.76 + contactBoost * 0.03) result = "miss";
-  }
-  if (["single", "double", "homer"].includes(result)) { applyHit(result); return; }
-  if (result === "foul") {
-    if (state.strikes < 2) state.strikes += 1;
-    addLog(`${batter.name} 把球打成界外，${state.balls} 壞球 ${state.strikes} 好球。`);
-    setMomentum(1);
-    return;
-  }
-  if (result === "miss") {
-    state.strikes += 1;
-    if (state.strikes >= 3) recordOut("揮棒落空，遭到三振");
-    else { addLog(`${batter.name} 揮棒落空，${state.strikes} 好球。`, "danger"); setMomentum(-2); }
-    return;
-  }
-  recordOut("擊出內野滾地球");
-}
+function resolveSwing(action, timingScore = 65) { return window.PitchMode.swing(action, timingScore); }
 
-function resolvePatient() {
-  const batter = currentBatter();
-  const patience = Number(batter.ratings?.discipline || 60) / 100;
-  const countBonus = state.balls >= 2 ? 0.07 : state.strikes === 2 ? -0.1 : 0;
-  const planBonus = (teamPlanMultiplier("patient") - 1) * 0.75;
-  if (nextRandom() < clamp(DIFFICULTY_CONFIG.patientBase + patience * 0.25 + countBonus + planBonus, 0.18, 0.74)) {
-    state.balls += 1;
-    if (state.balls >= 4) applyWalk();
-    else { addLog(`${batter.name} 放掉壞球，${state.balls} 壞球。`); setMomentum(2); }
-  } else {
-    state.strikes += 1;
-    if (state.strikes >= 3) recordOut("看著好球進壘，遭到三振");
-    else { addLog(`${batter.name} 沒有出棒，主審判好球。${state.strikes} 好球。`, "danger"); setMomentum(-1); }
-  }
-}
+function resolvePatient() { return window.PitchMode.swing("patient", 65); }
 
-function resolveBunt(timingScore = 65) {
-  const batter = currentBatter();
-  const roll = nextRandom();
-  const timingFactor = clamp(.55 + Number(timingScore || 65) / 120, .75, 1.35);
-  if (roll < DIFFICULTY_CONFIG.buntHitChance * teamPlanMultiplier("bunt") * timingFactor) { applyHit("single"); return; }
-  if (roll < clamp(.55 + Number(timingScore || 65) / 400, .6, .8)) {
-    const scored = state.bases.third ? 1 : 0;
-    if (state.bases.third) scoreRun(state.bases.third);
-    state.bases.third = state.bases.second;
-    state.bases.second = state.bases.first;
-    state.bases.first = null;
-    state.outs += 1;
-    addLog(`${batter.name} 執行犧牲短打，跑者推進${scored ? "並帶回 1 分" : ""}。`, scored ? "big" : "");
-    setMomentum(scored ? 7 : 3);
-    if (scored) flashCard("celebrate");
-    finishPlateAppearance({ atBat: true, rbi: scored });
-    checkWalkoff();
-    return;
-  }
-  recordOut("短打點到，投手輕鬆接殺");
-}
+function resolveBunt(timingScore = 65) { return window.PitchMode.swing("bunt", timingScore); }
 
 function canSteal() {
   return (state.bases.first && !state.bases.second) || (state.bases.second && !state.bases.third);
@@ -5056,6 +4881,13 @@ function runnerDecisionBase() {
 }
 
 function beginRunnerDecision() {
+  const w=state.pitchGame?.advanceWindow;
+  if(w && state.phase === "home") {
+    const from=state.bases.first===w.runner ? "first" : state.bases.second===w.runner ? "second" : null;
+    const to=from==="first"?"second":"third";
+    if(from && !state.bases[to]){state.homeMode="runner";state.runnerDecisionPosition=w.runner;return true;}
+    state.pitchGame.advanceWindow=null;
+  }
   if (state.phase !== "home" || state.homeMode !== "batter" || state.runnerDecisionUsed || state.outs >= 2) return false;
   const base = runnerDecisionBase();
   const position = base ? state.bases[base] : "";
@@ -5065,42 +4897,7 @@ function beginRunnerDecision() {
   return true;
 }
 
-function resolveSteal() {
-  let from = null;
-  let to = null;
-  if (state.homeMode === "runner" && state.runnerDecisionPosition) {
-    if (state.bases.first === state.runnerDecisionPosition && !state.bases.second) { from = "first"; to = "second"; }
-    else if (state.bases.second === state.runnerDecisionPosition && !state.bases.third) { from = "second"; to = "third"; }
-  } else if (state.bases.first && !state.bases.second) { from = "first"; to = "second"; }
-  else if (state.bases.second && !state.bases.third) { from = "second"; to = "third"; }
-  if (!from) return;
-  const labels = { first: "一壘", second: "二壘", third: "三壘" };
-  const runnerPosition = state.bases[from];
-  const runner = matchPlayerForPosition(runnerPosition, state.teamId) || {};
-  const runnerRatings = runner.ratings || runner;
-  const stealChance = (DIFFICULTY_CONFIG.stealBaseChance + Number(runnerRatings.stealing || 50) / 330 + Number(runnerRatings.speed || 50) / 720 + (teamPlanMultiplier("steal") - 1) * 0.35) * (window.CareerMode?.modifier(runner, "speed") || 1);
-  if (nextRandom() < stealChance) {
-    state.bases[from] = null;
-    state.bases[to] = runnerPosition;
-    state.steals += 1;
-    if (state.playerStats[runnerPosition]) {
-      state.playerStats[runnerPosition].steals += 1;
-      window.CareerMode?.credit(runnerPosition, "steals", 1);
-    }
-    setMomentum(8);
-    addLog(`盜壘成功！${positionShort(runnerPosition)}號跑者從${labels[from]}滑進${labels[to]}。`, "big");
-    flashCard("celebrate");
-  } else {
-    state.bases[from] = null;
-    state.outs += 1;
-    if (state.playerStats[runnerPosition]) state.playerStats[runnerPosition].caughtStealing += 1;
-    window.CareerMode?.credit(runnerPosition, "caughtStealing", 1);
-    setMomentum(-10);
-    addLog(`盜壘失敗，${positionShort(runnerPosition)}號跑者在${labels[to]}前被觸殺。`, "danger");
-    flashCard("danger");
-    if (state.outs >= 3) finishHomeHalf();
-  }
-}
+function resolveSteal() { return window.PitchMode.steal(); }
 
 function chooseNpcAction() {
   const batter = currentBatter();
@@ -5122,19 +4919,23 @@ function chooseNpcDefenseAction() {
     const defender = matchPlayerForPosition(state.defenseOwner, state.teamId) || definition;
     const defenderRatings = defender.ratings || defender;
     const roll = nextRandom();
-    if (Number(defenderRatings.fielding || definition.fielding) >= 84 && roll < 0.28) return "fielding-dive";
+    if (Number(defenderRatings.fielding || definition.fielding) >= 84 && state.currentAwayPlay?.quality > .65 && roll < .12) return "fielding-dive";
     if (state.currentAwayPlay?.kind === "groundball") {
-      if (state.currentAwayPlay.runnerCount > 0 && roll < 0.35) return "fielding-double";
+      if (state.bases.first && state.outs < 2 && roll < 0.35) return "fielding-double";
       if (state.currentAwayPlay.leadRunnerOnThird && roll < 0.58) return "fielding-home";
       return roll < 0.5 ? "fielding-first" : "fielding-force";
     }
-    if (Number(defenderRatings.armStrength || definition.arm) >= 82 && roll < 0.56) return "fielding-throw";
-    return roll < 0.42 ? "fielding-catch" : roll < 0.72 ? "fielding-relay" : "fielding-cutoff";
+    if (state.currentAwayPlay?.quality > .75 && hasRunners() && roll < .2) return Number(defenderRatings.armStrength || definition.arm) >= 82 ? "fielding-throw" : "fielding-cutoff";
+    return "fielding-catch";
   }
   const roll = nextRandom();
-  if (state.inning >= 9 && state.score.home < state.score.away) return roll < 0.42 ? "defense-fast" : "defense-break";
-  if (state.outs === 2) return roll < 0.55 ? "defense-break" : "defense-control";
-  return roll < 0.28 ? "defense-fast" : roll < 0.58 ? "defense-break" : "defense-control";
+  if (state.strikes === 2 && roll < .25) return "defense-break";
+  return roll < .25 ? "defense-fast" : roll < .5 ? "defense-break" : roll < .7 ? "defense-change" : roll < .85 ? "defense-curve" : "defense-control";
+}
+
+function chooseNpcRunnerAction() {
+  if(state.pitchGame?.advanceWindow)return nextRandom()<.2?"runner-extra":"runner-hold";
+  return nextRandom()<.08?"steal":"runner-hold";
 }
 
 function scheduleNpcTurn() {
@@ -5144,14 +4945,15 @@ function scheduleNpcTurn() {
   network.npcTimer = window.setTimeout(() => {
     network.npcTimer = null;
     if (state.phase === "defense" && activeEventSlot()?.controller === "npc") performActionForPlayer(null, chooseNpcDefenseAction(), true);
-    else if (state.phase === "home" && activeEventSlot()?.controller === "npc") performActionForPlayer(null, state.homeMode === "runner" ? (nextRandom() < 0.08 ? "steal" : "runner-hold") : chooseNpcAction(), true);
-  }, 520);
+    else if (state.phase === "home" && activeEventSlot()?.controller === "npc") performActionForPlayer(null, state.homeMode === "runner" ? chooseNpcRunnerAction() : chooseNpcAction(), true);
+  }, 60);
 }
 
-function performActionForPlayer(playerId, action, npc = false, reason = "", timingPosition = null) {
+function performActionForPlayer(playerId, action, npc = false, reason = "", timingPosition = null, pitchOptions = null) {
   if (!isAuthority() || (state.phase !== "home" && state.phase !== "defense") || state.actionLock || !canAction(action)) return false;
   const slot = activeEventSlot();
   if (!npc && (slot.controller !== "human" || slot.playerId !== playerId)) return false;
+  if (!npc && reason === "timing-timeout") return performActionForPlayer(null, chooseTimeoutAction(), true, "timeout");
   if (!npc && state.actionDeadline && Date.now() > state.actionDeadline) {
     const fallbackName = state.phase === "defense" ? state.defenseMode === "fielding" ? "守住落點" : "穩定控球" : "安全推打";
     addLog(`${positionName(slot.position)} 玩家逾時，NPC 接手採用${fallbackName}。`, "danger");
@@ -5162,6 +4964,11 @@ function performActionForPlayer(playerId, action, npc = false, reason = "", timi
   const timingScore = usesTiming
     ? npc ? npcMatchTimingScore(action) : matchTimingScoreFor(action, Number(timingPosition))
     : 65;
+  if (pitchOptions && state.phase === "defense" && state.defenseMode === "strategy") {
+    const g=window.PitchMode.game();
+    if(Number.isInteger(pitchOptions.zone)&&pitchOptions.zone>=0&&pitchOptions.zone<9)g.zone=pitchOptions.zone;
+    if(["save","normal","max"].includes(pitchOptions.effort))g.effort=pitchOptions.effort;
+  }
   const batterIndexBefore = state.batterIndex;
   const decisionPosition = slot.position;
   state.actionCredit = { position: decisionPosition, manual: !npc && slot.controller === "human", action, timingScore };
@@ -5188,8 +4995,10 @@ function performActionForPlayer(playerId, action, npc = false, reason = "", timi
     else simulateAwayHalf(action, timingScore);
     if (state.phase === "cpu") beginHomeHalf();
   } else if (runnerDecision) {
-    if (action === "steal") resolveSteal();
+    if (action === "runner-extra") window.PitchMode.extraBase();
+    else if (action === "steal") resolveSteal();
     else {
+      if(state.pitchGame)state.pitchGame.advanceWindow=null;
       const base = state.bases.first === decisionPosition ? "一壘" : "二壘";
       addLog(`${positionName(decisionPosition)}跑者選擇留在${base}，觀察下一球再推進。`);
     }
@@ -5204,7 +5013,7 @@ function performActionForPlayer(playerId, action, npc = false, reason = "", timi
   else if (action === "steal") resolveSteal();
   if (state.phase === "home" && state.homeMode === "batter") {
     if (state.batterIndex !== batterIndexBefore) state.runnerDecisionUsed = false;
-    if (!state.runnerDecisionUsed) beginRunnerDecision();
+    if (state.pitchGame?.advanceWindow || !state.runnerDecisionUsed) beginRunnerDecision();
   }
   consumeTeamPlan(action);
   state.actionLock = false;
@@ -5222,7 +5031,7 @@ function handleAction(action) {
   }
   if (network.role === "guest") {
     network.awaiting = true;
-    const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, eventId: state.activeEvent?.id || "", action });
+    const sent = sendToHost({ type: "action", protocol: PROTOCOL_VERSION, revision: state.revision, eventId: state.activeEvent?.id || "", action, pitchOptions: window.PitchMode?.options() });
     if (!sent) {
       network.awaiting = false;
       network.status = "決策傳送失敗，請確認連線後再試。";
@@ -5243,7 +5052,10 @@ function finishHomeHalf() {
   state.balls = 0;
   state.strikes = 0;
   addLog(`${state.inning} 局${state.half === "top" ? "上" : "下"}結束，${teamFor(state.teamId).shortName} 這半局拿下 ${state.currentHalfRuns} 分。`, state.currentHalfRuns > 0 ? "big" : "");
-  if (state.careerPlayerId && state.schedulePlayerIsAway) { beginDefenseHalf(); return; }
+  if (state.careerPlayerId && state.schedulePlayerIsAway) {
+    if (state.inning >= 9 && state.score.home < state.score.away) { endGame("loss"); return; }
+    beginDefenseHalf(); return;
+  }
   if (state.inning >= 9 && state.score.home > state.score.away) { endGame("win"); return; }
   if (state.inning >= 9 && state.score.home < state.score.away) { endGame("loss"); return; }
   if (state.inning >= 9 && state.score.home === state.score.away) {

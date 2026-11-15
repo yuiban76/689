@@ -62,6 +62,12 @@
     }
     const { player, world, schedule: games } = current;
     const pending = world.pending;
+    if (pending?.state && pending.state.pitchVersion !== 1) {
+      world.pending = null; persist();
+      notice = "比賽已升級為逐球制；舊版未完比賽不計勝負與獎勵，從同一場賽程重新開始。";
+      window.alert(notice);
+      return startNext();
+    }
     if (pending?.state && !world.settled[pending.gameId]) {
       clearMatchTiming(); clearActionDeadline(); window.clearTimeout(network.npcTimer); network.npcTimer = null;
       const snapshot = clone(pending.state);
@@ -172,30 +178,6 @@
     if (result.savedRun) credit(position, "savedRuns");
     if (result.error) { credit(position, "errors"); if (state.awaySeries) state.awaySeries.fieldErrors = Number(state.awaySeries.fieldErrors || 0) + 1; }
   }
-  function creditPitchingHalf(runs) {
-    const series = state.awaySeries;
-    const pitcher = state.playerStats.P;
-    if (!series || !pitcher) return;
-    const remainingOuts = Math.max(0, 3 - Number(series.outs || 0));
-    const ratings = matchPlayerForPosition("P", state.teamId)?.ratings || {};
-    let strikeouts = 0;
-    for (let n = 0; n < remainingOuts; n++) {
-      if (nextRandom() < clamp(.25 + (Number(ratings.velocity || 60) + Number(ratings.break || 60)) / 450 + Number(series.pitchTimingScore || 65) / 600, .3, .85)) strikeouts++;
-    }
-    pitcher.pitchingOuts = Number(pitcher.pitchingOuts || 0) + 3;
-    pitcher.pitchingStrikeouts = Number(pitcher.pitchingStrikeouts || 0) + strikeouts;
-    const errors = Number(series.fieldErrors || 0);
-    pitcher.pitchingER = Number(pitcher.pitchingER || 0) + Math.max(0, runs - errors);
-    if (series.pitchAction === "defense-intentional") pitcher.pitchingWalks = Number(pitcher.pitchingWalks || 0) + 1;
-    POSITION_DEFS.forEach(({ code }) => state.playerStats[code].teamDefenseOuts = Number(state.playerStats[code].teamDefenseOuts || 0) + 3);
-    if (strikeouts) addLog(`投手在本半局取得 ${strikeouts} 次三振，其餘出局由守備完成。`);
-    if (series.pitchManual) {
-      credit("P", "pitchingStrikeouts", strikeouts, true);
-      if (!runs) credit("P", "scorelessHalves", 1, true);
-    }
-    if (series.catcherManual && !runs) credit("C", "catcherSuccess", 1, true);
-
-  }
   function statsPanel(stats, position, label) {
     const b = stats.batting || {}, p = stats.pitching || {}, f = stats.fielding || {};
     const rates = calculateBattingLine(b), pitch = calculatePitchingLine(p);
@@ -279,7 +261,7 @@
     }));
     persist();
   }
-  window.CareerMode = { startNext, capture, recordMatch, render, persist, exportLeagues, validateImport, importLeagues, retiredTraining, guardRoom, modifier, credit, creditRun, creditBatting, creditFielding, creditPitchingHalf, worldFor, gameById };
+  window.CareerMode = { startNext, capture, recordMatch, render, persist, exportLeagues, validateImport, importLeagues, retiredTraining, guardRoom, modifier, credit, creditRun, creditBatting, creditFielding, worldFor, gameById };
   // Old controls are removed only after the base UI has finished attaching its listeners.
   $("career-mode-panel").innerHTML = '<div id="career-home-content"></div>';
   $("screen-badges").innerHTML = '<div id="career-badges-content"></div>';

@@ -16,7 +16,7 @@ module.exports = async function careerChecks(page, artifactDir) {
       if (!performActionForPlayer(manual ? network.localPlayerId : null, action, !manual, "", manual && actionUsesMatchTiming(action) ? matchTimingConfig(action).targetCenter : null)) throw Error("rejected " + action + " " + state.phase);
     }
     return {phase:state.phase,steps,position:customPlayerIndex[state.careerPlayerId]?.position,
-      stats:state.playerStats[customPlayerIndex[state.careerPlayerId]?.position],world:CareerMode.worldFor(state.careerPlayerId)};
+      stats:state.playerStats[customPlayerIndex[state.careerPlayerId]?.position],pitch:state.pitchGame,pitcherStats:state.playerStats.P,world:CareerMode.worldFor(state.careerPlayerId)};
   });
   let result = await finish();
   assert.equal(result.phase,"gameover"); assert.equal(result.world.played,1);
@@ -55,6 +55,8 @@ module.exports = async function careerChecks(page, artifactDir) {
     result=await finish();
     assert.equal(result.phase,"gameover",position);
     assert.equal(result.world.played,1,position);
+    assert.ok(result.pitch.pitches>40,"actual pitches resolve the defensive innings");
+    assert.equal(result.pitcherStats.pitchingStrikeouts||0,result.pitch.opponentStrikeouts||0,"pitcher Ks match actual opponent strikeouts");
     assert.ok(result.stats.decisions>0,position+" manual involvement");
     if(position==="P") {
       assert.ok(result.stats.pitchingOuts>=24);
@@ -66,6 +68,16 @@ module.exports = async function careerChecks(page, artifactDir) {
     console.log("PASS full career game",position,result.stats.decisions,"decisions",result.world.lastReport.grade,"grade");
   }
   // A scheduled away game must actually bat first and finish normally.
+  let migrationNotice="";
+  page.once("dialog",dialog=>{migrationNotice=dialog.message();dialog.accept();});
+  await page.evaluate(()=>{
+    const p=selectedCareerPlayer(),w=CareerMode.worldFor(p.id),next=CareerEngine.nextGame(w,CareerEngine.scheduleFor(w,SEASON_SCHEDULE));
+    const old=clone(state);delete old.pitchVersion;old.phase="home";old.scheduleGameId=next.id;
+    w.pending={gameId:next.id,state:old};CareerMode.persist();GameUI.navigate("career");CareerMode.startNext();
+  });
+  assert.ok(migrationNotice.includes("逐球制"));
+  assert.equal(await page.evaluate(()=>CareerMode.worldFor(selectedCustomPlayerId).played),1,"migration cannot award a result");
+  await finish();
   let checkedAway = false;
   for(let game=0;game<10&&!checkedAway;game++) {
     await page.evaluate(()=>{GameUI.navigate("career");CareerMode.startNext();});

@@ -36,11 +36,12 @@
   }
   function grade(position, m) {
     const e = m.earned || {};
-    let contribution = number(e.hits) * 9 + number(e.walks) * 6 + number(e.homeRuns) * 6 + number(e.runs) * 3;
+    let contribution = number(e.hits) * 9 + number(e.walks) * 6 + number(e.homeRuns) * 6 + number(e.runs) * 3 + number(e.advances) * 3;
     if (position === "P") contribution = number(e.scorelessHalves) * 2 + number(e.pitchingStrikeouts) * 2 - number(m.pitchingER) * 3;
     else if (position === "C") contribution += number(e.catcherSuccess) * 2 + number(e.runnerStops) * 3;
     else contribution += number(e.fieldSuccess) * 4 + number(e.savedRuns) * 4;
-    return clamp(Math.round(60 + contribution - number(m.strikeouts) * (position === "P" ? 0 : 2) - number(m.errors) * 5 - number(m.caughtStealing) * 3 - number(m.timeouts) * 6), 25, 99);
+    const timeoutPenalty = 20 * number(m.timeouts) / Math.max(1, number(m.decisions) + number(m.timeouts)) + number(m.baserunningOuts) * 3;
+    return clamp(Math.round(60 + contribution - number(m.strikeouts) * (position === "P" ? 0 : 2) - number(m.errors) * 5 - number(m.caughtStealing) * 3 - timeoutPenalty), 25, 99);
   }
   function objective(position, gameNo = 1) {
     if (position === "P") return { label: "投出 2 個無失分半局", key: "scorelessHalves", target: 2 };
@@ -69,7 +70,7 @@
     const performance = played ? career ? clamp(Math.round((score - 50) * 1.4), 0, 60) : Math.min(45, number(match.hits) * 10 + number(match.putouts) * 2) : 0;
     const role = career && played && completed ? 20 : 0;
     const keyBonus = career && keyComplete ? 30 : 0;
-    return { grade: score, base, performance, role, keyBonus, coins: base + performance + role + keyBonus, xp: played ? career ? 80 + Math.round(Math.max(0, score - 60) * .7) : 20 + number(match.decisions) * 4 : 0, objectiveCompleted: completed && played, keyCompleted: keyComplete };
+    return { grade: score, base, performance, role, keyBonus, coins: base + performance + role + keyBonus, xp: played ? career ? 80 + Math.round(Math.max(0, score - 60) * .7) : 20 + Math.min(20, number(match.hits)*4+number(match.putouts)*2+number(match.pitchingStrikeouts)) : 0, objectiveCompleted: completed && played, keyCompleted: keyComplete };
   }
   function emptyStats() {
     return { batting: { G: 0, PA: 0, AB: 0, R: 0, H: 0, doubles: 0, triples: 0, HR: 0, RBI: 0, BB: 0, SO: 0, SB: 0, CS: 0 }, pitching: { G: 0, GS: 0, W: 0, L: 0, outs: 0, IP: 0, H: 0, ER: 0, BB: 0, SO: 0, HR: 0 }, fielding: { G: 0, GS: 0, INN: 0, PO: 0, A: 0, E: 0 } };
