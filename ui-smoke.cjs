@@ -36,7 +36,7 @@ const errors = [];
       return;
     }
     if (process.argv[2]) {
-      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=career-season-2026b");
+      assert.equal(await page.locator('link[rel="stylesheet"]').getAttribute("href"), "./light.css?v=career-season-2026c");
       assert.equal(await page.evaluate(()=>Boolean(window.CareerMode&&window.CareerEngine&&PLAYER_SAVE_VERSION===2)),true);
       await page.getByRole("button", { name: "進入單人", exact: true }).click();
       assert.equal(await page.locator("body").getAttribute("data-screen"), "solo");
@@ -57,6 +57,18 @@ const errors = [];
       assert.ok((await page.locator("#career-home-content").textContent()).includes("公開版驗證"));
       assert.equal(await page.locator(".career-rating strong").textContent(),"60");
       assert.equal(await page.getByRole("button",{name:"專精與徽章",exact:true}).count(),1);
+      await page.getByRole("button", {name:"‹ 模式選單",exact:true}).click();
+      assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 80");
+      assert.equal(await page.locator("#resume-level").textContent(),"等級 Lv.1");
+      await page.evaluate(()=>{const p=profileFor(selectedCustomPlayerId);p.careerCoins=1234;p.level=5;persistCustomPlayers();GameUI.refresh();});
+      assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 1,234");
+      assert.equal(await page.locator("#resume-level").textContent(),"等級 Lv.5");
+      await page.reload();
+      assert.equal(await page.locator("#resume-coins").textContent(),"生涯幣 1,234");
+      for(const width of [375,390,768,1024,1440]){
+        await page.setViewportSize({width,height:900});
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      }
       console.log("PASS: published homepage, new career assets, 60 OVR creation and navigation", process.argv[2]);
       return;
     }

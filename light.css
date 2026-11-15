@@ -446,6 +446,17 @@ svg {
   color:var(--muted);
   font-size:14px
 }
+.resume-progress {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px 20px;
+  margin-top:6px
+}
+.resume-progress span {
+  font-size:16px;
+  font-weight:600;
+  color:var(--text)
+}
 .solo-options {
   display:grid;
   grid-template-columns:1.4fr 1fr;
