@@ -1315,7 +1315,7 @@ function chooseGamePrep() { window.CareerMode?.retiredTraining(); }
 function startPracticeGame() { window.CareerMode?.startNext(); }
 
 function startScheduledGame() {
-  if (window.GameUI?.isCareerContext() && window.CareerMode) return window.CareerMode.startNext();
+  if (network.role === "solo" && window.GameUI?.isCareerContext() && window.CareerMode) return window.CareerMode.startNext();
   if (network.role === "guest") {
     if (!network.connected) {
       scheduleStatus = "請先連上房間，才能請房主開始多人賽程。";

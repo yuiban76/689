@@ -302,6 +302,5 @@
   if (["training", "tasks", "practice-actions"].includes(oldHash)) { retiredTraining(); window.GameUI.navigate("career"); }
   customPlayers.forEach((p) => worldFor(p.id));
   writeStorage(CAREER_STORAGE_KEY, careerStore);
-  document.body.dataset.origin = window.GameUI.isCareerContext() ? "career" : "solo";
   render();
 })();

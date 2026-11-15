@@ -144,12 +144,14 @@
     let items = [];
     if (careerPages.includes(screen) || ["season", "roster"].includes(screen) && origin === "career") {
       items = [["career", "生涯首頁"], ["upgrades", "能力升級"], ["badges", "專精與徽章"], ["season", "賽季與成績"], ["saves", "角色與存檔"]];
+    } else if (screen === "multiplayer" && origin === "solo") {
+      items = [["solo", "快速比賽"], ["multiplayer", "選擇位置"], ["season", "球隊賽季"]];
+    } else if (screen === "multiplayer" || ["season", "roster"].includes(screen) && origin === "multiplayer") {
+      items = [["multiplayer", "房間與位置"], ["season", "賽季賽程"]];
     } else if (["solo", "season", "roster"].includes(screen)) {
       items = [["solo", "快速比賽"], ["season", "球隊賽季"]];
-    } else if (screen === "multiplayer") {
-      items = [["multiplayer", "房間與位置"], ["season", "賽季賽程"]];
     }
-    subnav.innerHTML = items.map(([id, name]) => `<button type="button" data-ui-view="${id}" ${id === screen ? 'aria-current="page" class="is-active"' : ""}>${name}</button>`).join("");
+    subnav.innerHTML = items.map(([id, name]) => `<button type="button" data-ui-view="${id}" ${id === "multiplayer" && origin === "solo" ? 'data-position-only="true"' : ""} ${id === screen ? 'aria-current="page" class="is-active"' : ""}>${name}</button>`).join("");
     subnav.hidden = !items.length;
   }
 
@@ -163,8 +165,9 @@
     if (!pageNames[next]) next = "home";
     if (next === "career" && !selectedCareerPlayer()) next = "builder";
     if (next === "solo") origin = "solo";
-    if (next === "multiplayer" && !(origin === "solo" && options.positionOnly)) origin = "multiplayer";
+    if (next === "multiplayer" && (network.role !== "solo" || !(origin === "solo" && options.positionOnly))) origin = "multiplayer";
     if (["career", "upgrades", "badges", "training", "tasks", "builder", "saves"].includes(next)) origin = "career";
+    if (["season", "roster", "match"].includes(next) && network.role !== "solo") origin = "multiplayer";
     screen = next;
     activeView = ["match", "multiplayer", "season", "roster"].includes(next) ? next : "career";
     document.body.dataset.screen = screen;
@@ -190,7 +193,7 @@
     if (["career", "tasks", "training"].includes(next)) setCareerTab(next === "tasks" ? "keygame" : next === "training" ? "training" : "overview");
     byId("ui-breadcrumb").textContent = `${origin === "career" ? "球員生涯" : origin === "multiplayer" ? "多人" : "單人"} / ${pageNames[next]}`;
     byId("ui-context-actions").innerHTML = next === "match"
-      ? `${routeButton("multiplayer", network.role === "solo" ? "位置" : `房間 ${network.roomCode || "連線中"}`, "quiet-button")}<button type="button" class="quiet-button" data-open-settings>說明</button>`
+      ? `${network.role === "solo" && state.careerPlayerId ? routeButton("career", "生涯首頁", "quiet-button") : `<button type="button" class="quiet-button" data-ui-view="multiplayer" data-position-only="${network.role === "solo"}">${network.role === "solo" ? "位置" : `房間 ${network.roomCode || "連線中"}`}</button>`}<button type="button" class="quiet-button" data-open-settings>說明</button>`
       : !["pre", "gameover"].includes(state.phase) ? routeButton("match", "返回比賽", "primary-button") : "";
     nav.hidden = next === "home";
     tabs();
@@ -268,9 +271,9 @@
     event.stopImmediatePropagation();
     const targetId = target.getAttribute("href")?.slice(1) || "";
     const view = target.dataset.uiView || target.dataset.view;
-    navigate(view, { targetId, explicit: true, positionOnly: screen === "solo" && view === "multiplayer" });
+    navigate(view, { targetId, explicit: true, positionOnly: screen === "solo" && view === "multiplayer" || target.dataset.positionOnly === "true" });
   }, true);
-  byId("solo-start").addEventListener("click", () => { if (!byId("solo-start").disabled) requestStart(); });
+  byId("solo-start").addEventListener("click", () => { if (!byId("solo-start").disabled) startGame("league"); });
   byId("lobby-start").addEventListener("click", () => { if (!byId("lobby-start").disabled) requestStart(); });
   byId("custom-player-form").addEventListener("submit", () => {
     if (selectedCareerPlayer()) navigate("career");
